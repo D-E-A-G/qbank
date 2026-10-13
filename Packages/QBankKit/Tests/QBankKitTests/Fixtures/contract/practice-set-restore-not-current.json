@@ -1,0 +1,18 @@
+{
+  "recordedFrom": "2b7a4291fc79877edeb8e4eb0e430209ef56fd8b",
+  "request": {
+    "method": "POST",
+    "path": "/api/practice-sets/9248f35f-6fc1-4c1a-9e25-c2eb924caaa9/restore",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 404,
+    "headers": {},
+    "body": {
+      "error": "request_refused",
+      "message": "That set is not the current version."
+    }
+  }
+}
