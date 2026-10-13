@@ -4,7 +4,7 @@ QBank is an NCLEX practice question bank: courses, weekly practice sets, a revie
 
 The app is a client of a private QBank server. The server, the web app, and their deployment live in a separate private repository; nothing here runs or configures them.
 
-**Status:** early. The app signs in with an existing QBank account, shows your courses with their weeks and sets, practices a set in all eight question formats with the rationale after each answer and the set result at the end, and Settings has your account, password, semesters and courses, and light or dark Look; Review, exams, and Terms come next. There is no TestFlight build yet.
+**Status:** early. The app signs in with an existing QBank account, shows your courses with their weeks and sets, practices a set in all eight question formats with the rationale after each answer and the set result at the end, keeps your courses on the phone so you can practice without signal and sends those answers when you are back online, and Settings has your account, password, semesters and courses, and light or dark Look; Review, exams, and Terms come next. There is no TestFlight build yet.
 
 ## Getting started
 

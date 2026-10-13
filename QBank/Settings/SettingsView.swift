@@ -7,15 +7,18 @@ enum SettingsRoute: Hashable {
     case changePassword
     case semester(String)
     case course(String)
+    case savedForOffline
 }
 
 /// The Settings tab, as the web's Settings for a student: her account, her semesters and
-/// courses, and Look. Export stays on the web.
+/// courses, and Look, then what is saved on this phone. Export stays on the web.
 struct SettingsView: View {
     let app: AppModel
     @State private var catalog: CatalogModel
     @State private var path = NavigationPath()
     @State private var isSigningOut = false
+    @State private var asksToSignOut = false
+    @State private var savedCourses: [SavedCourse]?
 
     init(app: AppModel) {
         self.app = app
@@ -31,6 +34,7 @@ struct SettingsView: View {
                         semesters
                     }
                     look
+                    onThisPhone
                     Text(Self.version)
                         .qbankFont(.footnote)
                         .foregroundStyle(.qbank(.text3))
@@ -52,12 +56,17 @@ struct SettingsView: View {
                     SemesterView(catalog: catalog, id: id)
                 case .course(let id):
                     CourseEditView(catalog: catalog, id: id)
+                case .savedForOffline:
+                    SavedForOfflineView(app: app)
                 }
             }
         }
         .task {
             guard catalog.isEditable else { return }
             await catalog.load()
+        }
+        .task(id: app.offline?.savedRevision) {
+            savedCourses = await app.offline?.savedCourses()
         }
     }
 
@@ -85,8 +94,11 @@ struct SettingsView: View {
                 .opacity(0.4)
                 .accessibilityIdentifier("settings.passkeys")
             Button {
-                isSigningOut = true
-                Task { await app.signOut() }
+                if app.offline?.waiting.isEmpty == false {
+                    asksToSignOut = true
+                } else {
+                    signOut()
+                }
             } label: {
                 QBankListRow("Sign out", isDestructive: true) {
                     if isSigningOut {
@@ -97,7 +109,23 @@ struct SettingsView: View {
             .buttonStyle(.qbankRow)
             .disabled(isSigningOut)
             .accessibilityIdentifier("settings.signOut")
+            .confirmationDialog(
+                "Sign out with answers still on this phone?",
+                isPresented: $asksToSignOut,
+                titleVisibility: .visible
+            ) {
+                Button("Sign out and delete", role: .destructive, action: signOut)
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                let waiting = app.offline?.waiting.count ?? 0
+                Text("\(Wording.count(waiting, "answer")) \(waiting == 1 ? "has" : "have") not reached QBank yet. Signing out deletes \(waiting == 1 ? "it" : "them") from this phone.")
+            }
         }
+    }
+
+    private func signOut() {
+        isSigningOut = true
+        Task { await app.signOut() }
     }
 
     private var semesters: some View {
@@ -155,6 +183,22 @@ struct SettingsView: View {
             QBankSegmentedControl("Look", selection: $store.look, options: Look.allCases.map { .init($0, $0.label) })
                 .padding(QBankSpacing.space3)
                 .accessibilityIdentifier("settings.look")
+        }
+    }
+
+    private var onThisPhone: some View {
+        let waiting = app.offline?.waiting.count ?? 0
+        return QBankListGroup(header: "On this phone") {
+            NavigationLink(value: SettingsRoute.savedForOffline) {
+                QBankListRow(
+                    "Saved for offline",
+                    detail: savedCourses.map { Wording.savedCourses($0) },
+                    value: waiting > 0 ? "\(waiting) waiting" : nil,
+                    showsChevron: true
+                )
+            }
+            .buttonStyle(.qbankRow)
+            .accessibilityIdentifier("settings.savedForOffline")
         }
     }
 

@@ -49,7 +49,7 @@ Your answers and progress are yours alone among students: other students cannot 
 
 ### 4. What stays on your iPhone
 
-- **Saved for offline.** So you can practice without a signal, the app keeps a copy of the courses, sets, and questions you have opened, and your recent progress, in its own storage on the phone. Answers you give without a connection are scored on the phone and wait there until they can be sent. The server ignores an answer it already has, so nothing is counted twice. Exams need a connection and are not kept for offline use.
+- **Saved for offline.** So you can practice without a signal, the app keeps a copy of the courses on your Home screen, with their sets and questions, and your recent progress, in its own storage on the phone. It saves them by itself while it is online. Answers you give without a connection are scored on the phone and wait there until they can be sent. The server ignores an answer it already has, so nothing is counted twice. Exams need a connection and are not kept for offline use.
 - **Settings on the phone.** Your light or dark look choice is stored on the phone.
 - **Signing out** removes the session token, the offline copy, and any answers still waiting to send. The app warns you before it removes answers that have not been sent.
 - Deleting the app removes everything it stored on that phone.

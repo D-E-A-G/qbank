@@ -3,6 +3,7 @@ import Observation
 import QBankKit
 
 /// One course: its score line, the Exam, Review and Terms tiles, and its weeks with their sets.
+/// Without a connection it shows the copy saved on the phone, with her waiting answers counted in.
 @Observable
 final class CourseModel {
     let id: String
@@ -10,6 +11,8 @@ final class CourseModel {
     private(set) var isLoading = false
     private(set) var problem: String?
     private(set) var isRestoring = false
+    /// When the course on screen was saved on the phone, or nil when it came from QBank just now.
+    private(set) var savedAt: Date?
 
     private let app: AppModel
 
@@ -28,16 +31,24 @@ final class CourseModel {
         isLoading = true
         defer { isLoading = false }
         do {
-            course = try await app.client.course(id: id)
+            let loaded = try await app.load(.course(id)) { () async throws(QBankError) in try await app.client.course(id: id) }
+            course = await counted(loaded.value)
+            savedAt = loaded.savedAt
             problem = nil
         } catch {
             report(error)
         }
     }
 
+    /// The course with the answers waiting on the phone counted in.
+    private func counted(_ course: CourseDetail) async -> CourseDetail {
+        guard let offline = app.offline, !offline.waiting.isEmpty else { return course }
+        return await offline.waitingProgress().counting(course)
+    }
+
     /// Remembers this course as the one she used last. Failing is harmless: the next open tries again.
     func rememberPlace() async {
-        guard remembersPlace else { return }
+        guard remembersPlace, app.connection.isOnline else { return }
         try? await app.client.setStudyPlace(courseID: id)
     }
 

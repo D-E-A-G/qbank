@@ -13,9 +13,11 @@ struct PracticeRoute: Identifiable, Hashable {
 
 /// The practice runner, shown full screen over the tabs: one question at a time, Check answer,
 /// the verdict with a reason on every choice, the rationale, then the set result. Swipe-down does
-/// not close it, so a stray thumb never loses a half-answered question; ✕ closes.
+/// not close it, so a stray thumb never loses a half-answered question; ✕ closes. Answers waiting
+/// on the phone to be sent show as a count at the top right, which opens Saved for offline.
 struct PracticeView: View {
     @State private var model: PracticeModel
+    @State private var showsWaiting = false
     @Environment(\.dismiss) private var dismiss
 
     init(app: AppModel, route: PracticeRoute) {
@@ -38,6 +40,17 @@ struct PracticeView: View {
         .animation(QBankMotion.reveal, value: model.phase)
         .qbankScreenBackground()
         .task { await model.load() }
+        .sheet(isPresented: $showsWaiting) {
+            NavigationStack {
+                SavedForOfflineView(app: model.app)
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") { showsWaiting = false }
+                                .accessibilityIdentifier("savedForOffline.done")
+                        }
+                    }
+            }
+        }
     }
 
     private var runner: some View {
@@ -45,7 +58,9 @@ struct PracticeView: View {
             count: model.phase == .answering ? model.countText : "",
             title: model.title,
             progress: model.progress,
-            close: { dismiss() }
+            waiting: model.waitingCount,
+            close: { dismiss() },
+            showWaiting: { showsWaiting = true }
         ) {
             content
         } footer: {
@@ -93,15 +108,21 @@ struct PracticeView: View {
     }
 }
 
-/// The runner's frame: ✕, the question count over the set title, the progress track, the
-/// scrolling question, and the pinned footer action. Content scrolls under both bars.
+/// The runner's frame: ✕, the question count over the set title, answers waiting to be sent, the
+/// progress track, the scrolling question, and the pinned footer action. Content scrolls under
+/// both bars.
 private struct RunnerShell<Content: View, Footer: View>: View {
     let count: String
     let title: String
     let progress: Double
+    let waiting: Int
     let close: () -> Void
+    let showWaiting: () -> Void
     @ViewBuilder let content: Content
     @ViewBuilder let footer: Footer
+
+    /// Both sides of the header are as wide, so the count stays centered.
+    private var sideWidth: CGFloat { waiting > 0 ? 96 : 44 }
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -144,6 +165,7 @@ private struct RunnerShell<Content: View, Footer: View>: View {
                 .foregroundStyle(.qbank(.text2))
                 .accessibilityLabel("Close")
                 .accessibilityIdentifier("practice.close")
+                .frame(width: sideWidth, alignment: .leading)
                 VStack(spacing: 0) {
                     Text(count)
                         .qbankFont(.headline)
@@ -158,7 +180,21 @@ private struct RunnerShell<Content: View, Footer: View>: View {
                 .accessibilityElement(children: .combine)
                 .accessibilityAddTraits(.isHeader)
                 .accessibilityIdentifier("practice.count")
-                Color.clear.frame(width: 44, height: 44)
+                Group {
+                    if waiting > 0 {
+                        Button(action: showWaiting) {
+                            QBankTintedLabel("\(waiting) waiting", systemImage: "arrow.up.circle", tone: .tint, size: .small)
+                                .frame(minHeight: 44)
+                                .contentShape(.rect)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(Wording.waitingToSend(waiting))
+                        .accessibilityIdentifier("practice.waiting")
+                    } else {
+                        Color.clear.frame(width: 44, height: 44)
+                    }
+                }
+                .frame(width: sideWidth, alignment: .trailing)
             }
             .padding(.horizontal, QBankSpacing.space3)
             .frame(minHeight: 48)
@@ -234,9 +270,6 @@ private struct QuestionPage: View {
             if let problem = model.problem {
                 ProblemText(text: problem)
             }
-            if model.isWaiting {
-                WaitingBanner()
-            }
             meta
             Text(question.stem)
                 .qbankFont(.reading)
@@ -250,8 +283,20 @@ private struct QuestionPage: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityAddTraits(.isHeader)
             if let score = attempt.score {
-                FeedbackBox(score: score, type: question.type, guessed: attempt.guessed)
-                    .id(RunnerScroll.feedback)
+                VStack(alignment: .leading, spacing: QBankSpacing.space4) {
+                    if model.isWaitingToSend {
+                        Group {
+                            if model.app.offline?.keepsAnswers == false {
+                                OfflineBanner.answerNotKept
+                            } else {
+                                OfflineBanner.answerSaved
+                            }
+                        }
+                        .accessibilityIdentifier("practice.savedOnPhone")
+                    }
+                    FeedbackBox(score: score, type: question.type, guessed: attempt.guessed)
+                }
+                .id(RunnerScroll.feedback)
             }
             AnswerArea(
                 question: question,
@@ -296,25 +341,6 @@ private struct QuestionPage: View {
         .qbankFont(.footnote, weight: .semibold)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("practice.meta")
-    }
-}
-
-/// "No connection. Your answer is saved as soon as you are back online."
-private struct WaitingBanner: View {
-    var body: some View {
-        Label {
-            Text("No connection. Your answer is saved as soon as you are back online.")
-                .foregroundStyle(.qbank(.text1))
-        } icon: {
-            Image(systemName: "clock")
-                .foregroundStyle(.qbank(.tint))
-        }
-        .qbankFont(.subheadline)
-        .padding(.vertical, QBankSpacing.space4)
-        .padding(.horizontal, 14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.qbank(.tintSoft), in: .rect(cornerRadius: QBankRadius.md, style: .continuous))
-        .accessibilityIdentifier("practice.waiting")
     }
 }
 

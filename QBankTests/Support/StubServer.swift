@@ -21,6 +21,7 @@ final class StubServer: HTTPTransport {
     }
 
     private let routes: Mutex<[String: Reply]>
+    private let scripts = Mutex<[String: [Reply]]>([:])
     private let log = Mutex<[URLRequest]>([])
 
     /// - Parameter routes: Replies keyed by "METHOD /path". A route not in the table answers 404.
@@ -33,8 +34,20 @@ final class StubServer: HTTPTransport {
         set { routes.withLock { $0[route] = newValue } }
     }
 
+    /// Answers the next requests to a route with these replies, in order, then with the table again.
+    func script(_ route: String, _ replies: [Reply]) {
+        scripts.withLock { $0[route, default: []].append(contentsOf: replies) }
+    }
+
     var requests: [URLRequest] {
         log.withLock { $0 }
+    }
+
+    /// The `clientAttemptId` of every answer sent, in order.
+    var sentAttemptIDs: [String] {
+        requests.filter { $0.url?.path() == "/api/attempts" }.compactMap { request in
+            (try? JSONSerialization.jsonObject(with: request.httpBody ?? Data()) as? [String: Any])?["clientAttemptId"] as? String
+        }
     }
 
     /// "METHOD /path" of every request, in order.
@@ -45,7 +58,13 @@ final class StubServer: HTTPTransport {
     func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
         log.withLock { $0.append(request) }
         let key = "\(request.httpMethod ?? "GET") \(request.url?.path() ?? "")"
-        let reply = routes.withLock { $0[key] } ?? .error(404, "request_refused", "Not stubbed: \(key)")
+        let scripted = scripts.withLock { scripts -> Reply? in
+            guard var replies = scripts[key], !replies.isEmpty else { return nil }
+            let reply = replies.removeFirst()
+            scripts[key] = replies
+            return reply
+        }
+        let reply = scripted ?? routes.withLock { $0[key] } ?? .error(404, "request_refused", "Not stubbed: \(key)")
         if reply.status < 0 { throw URLError(.notConnectedToInternet) }
         let response = HTTPURLResponse(url: request.url!, statusCode: reply.status, httpVersion: nil, headerFields: nil)!
         return (Data(reply.body.utf8), response)
@@ -57,14 +76,24 @@ final class StubServer: HTTPTransport {
 enum TestApp {
     static let token = "synthetic-test-token"
 
-    static func make(_ server: StubServer, account: Account? = nil) -> (AppModel, InMemorySessionStore) {
+    /// - Parameters:
+    ///   - storage: The phone's saved courses and unsent answers; another model made with the
+    ///     same storage finds what this one left, as a relaunch does.
+    ///   - connection: The phone's network path, online unless a test turns it off.
+    static func make(
+        _ server: StubServer,
+        account: Account? = nil,
+        storage: PhoneStorage = .memory(),
+        connection: Connection = Connection()
+    ) -> (AppModel, InMemorySessionStore) {
         let store = InMemorySessionStore(account.map { StoredSession(token: token, expiresAt: nil, account: $0) })
         let client = QBankClient(
             configuration: APIConfiguration(baseURL: URL(string: "https://stub.invalid")!),
             transport: server,
             sessionStore: store
         )
-        return (AppModel(client: client, look: LookStore(defaults: freshDefaults())), store)
+        let app = AppModel(client: client, look: LookStore(defaults: freshDefaults()), storage: storage, connection: connection)
+        return (app, store)
     }
 
     /// A defaults suite of its own, empty, so a test never reads or writes the host's settings.
@@ -109,12 +138,22 @@ enum Bodies {
         #"{"semesters":[{"id":"s1","number":1,"name":"Semester 1","startsOn":null,"endsOn":null,"courses":[\#(courses.joined(separator: ","))]}]}"#
     }
 
-    static func set(id: String, title: String = "Invented set", status: String = "imported", canRestore: Bool = false) -> String {
-        #"{"id":"\#(id)","title":"\#(title)","description":"","questionCount":2,"importedAt":"2026-10-01T00:00:00.000Z","activeSince":"2026-10-01T00:00:00.000Z","status":"\#(status)","canRestore":\#(canRestore),"answeredCount":0,"fullyRightCount":0,"lastAnsweredAt":null,"questionIds":["q1","q2"]}"#
+    static func set(
+        id: String, title: String = "Invented set", status: String = "imported", canRestore: Bool = false,
+        questionIDs: [String] = ["q1", "q2"]
+    ) -> String {
+        let ids = questionIDs.map { "\"\($0)\"" }.joined(separator: ",")
+        return #"{"id":"\#(id)","title":"\#(title)","description":"","questionCount":\#(questionIDs.count),"importedAt":"2026-10-01T00:00:00.000Z","activeSince":"2026-10-01T00:00:00.000Z","status":"\#(status)","canRestore":\#(canRestore),"answeredCount":0,"fullyRightCount":0,"lastAnsweredAt":null,"questionIds":[\#(ids)]}"#
     }
 
     static func courseDetail(id: String = "c1", sets: [String] = [set(id: "set1")]) -> String {
         #"{"id":"\#(id)","code":"NURS 101","title":"Invented Basics","archivedAt":null,"semester":{"id":"s1","number":1,"name":"Semester 1"},"questionCount":10,"examQuestionCount":12,"weekCount":1,"termCount":3,"reviewCount":2,"answeredCount":0,"fullyRightCount":0,"points":0,"maxPoints":0,"weeks":[{"label":"Week 1","sets":[\#(sets.joined(separator: ","))],"examBankCount":2}]}"#
+    }
+
+    /// The semesters of a `semesters` or `catalog` body.
+    static func decodeSemesters(_ body: String) throws -> [Semester] {
+        struct Response: Decodable { let semesters: [Semester] }
+        return try QBankJSON.decoder.decode(Response.self, from: Data(body.utf8)).semesters
     }
 
     static func place(_ courseID: String?) -> String {
@@ -128,4 +167,31 @@ extension Account {
     }
 
     static let admin = Account(id: "a2", email: "owner@example.com", name: "Owner", role: .admin, mustChangePassword: false)
+}
+
+/// Waits for something the app does in the background, such as sending answers when the
+/// connection returns.
+@MainActor
+func waitUntil(timeout: Duration = .seconds(5), _ condition: () -> Bool) async throws {
+    struct TimedOut: Error {}
+    let clock = ContinuousClock()
+    let deadline = clock.now + timeout
+    while !condition() {
+        guard clock.now < deadline else { throw TimedOut() }
+        try await Task.sleep(for: .milliseconds(10))
+    }
+}
+
+/// A value a test shares with closures the app may call from any thread, such as its clock.
+final class Locked<Value: Sendable>: Sendable {
+    private let mutex: Mutex<Value>
+
+    init(_ value: Value) {
+        mutex = Mutex(value)
+    }
+
+    var value: Value {
+        get { mutex.withLock { $0 } }
+        set { mutex.withLock { $0 = newValue } }
+    }
 }

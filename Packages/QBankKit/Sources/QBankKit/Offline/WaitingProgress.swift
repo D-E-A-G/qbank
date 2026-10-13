@@ -1,0 +1,119 @@
+import Foundation
+
+/// Answers waiting on the phone, counted into the progress the server last reported, so a set she
+/// practiced without signal shows her answers before they are sent.
+///
+/// The server counts each question once, by her latest answer to it. The phone does not know which
+/// questions she had answered before, so it never counts more questions answered than she has:
+/// - a set she had not answered counts every waiting question, and its fully right ones;
+/// - a set whose every question is waiting takes all its counts from the waiting answers, since
+///   each is her latest answer;
+/// - any other set counts at least its waiting questions and keeps the server's fully right count,
+///   which her waiting answers may change once they are sent.
+///
+/// Points stay as the server reported them.
+public struct WaitingProgress: Sendable, Equatable {
+    /// The latest waiting answer to one question.
+    public struct Answer: Sendable, Equatable {
+        /// How the phone scored it, or nil when its question is not saved on the phone.
+        public let status: ScoreStatus?
+        public let answeredAt: Date
+
+        public init(status: ScoreStatus?, answeredAt: Date) {
+            self.status = status
+            self.answeredAt = answeredAt
+        }
+    }
+
+    /// The latest waiting answer to each question, by question id.
+    public let answers: [String: Answer]
+
+    public init(answers: [String: Answer]) {
+        self.answers = answers
+    }
+
+    /// - Parameters:
+    ///   - pending: The waiting answers, oldest first, as `AttemptQueue.pending` lists them.
+    ///   - status: Scores one on the phone, or nil when its question is not saved.
+    public init(pending: [PendingAttempt], status: (PendingAttempt) -> ScoreStatus?) {
+        var answers: [String: Answer] = [:]
+        for attempt in pending {
+            answers[attempt.submission.questionID] = Answer(status: status(attempt), answeredAt: attempt.queuedAt)
+        }
+        self.init(answers: answers)
+    }
+
+    public var isEmpty: Bool { answers.isEmpty }
+
+    /// The set with its waiting answers counted in.
+    public func counting(_ set: PracticeSetSummary) -> PracticeSetSummary {
+        let waiting = Set(set.questionIDs).compactMap { answers[$0] }
+        guard !waiting.isEmpty else { return set }
+        let rightNow = waiting.count { $0.status == .correct }
+        let lastAnsweredAt = (waiting.map(\.answeredAt) + [set.lastAnsweredAt].compactMap { $0 }).max()
+        let answered: Int
+        let fullyRight: Int
+        if waiting.count >= set.questionCount {
+            answered = set.questionCount
+            fullyRight = rightNow
+        } else if set.answeredCount == 0 {
+            answered = waiting.count
+            fullyRight = rightNow
+        } else {
+            answered = min(set.questionCount, max(set.answeredCount, waiting.count))
+            fullyRight = set.fullyRightCount
+        }
+        return PracticeSetSummary(
+            id: set.id, title: set.title, description: set.description, questionCount: set.questionCount,
+            importedAt: set.importedAt, activeSince: set.activeSince, status: set.status, canRestore: set.canRestore,
+            answeredCount: answered, fullyRightCount: fullyRight, lastAnsweredAt: lastAnsweredAt,
+            questionIDs: set.questionIDs
+        )
+    }
+
+    /// The course with its waiting answers counted into every set and into the course's own counts.
+    public func counting(_ course: CourseDetail) -> CourseDetail {
+        guard !isEmpty else { return course }
+        let weeks = course.weeks.map { week in
+            Week(label: week.label, sets: week.sets.map(counting), examBankCount: week.examBankCount)
+        }
+        let (answered, fullyRight) = added(from: course.weeks, to: weeks)
+        return CourseDetail(
+            id: course.id, code: course.code, title: course.title, archivedAt: course.archivedAt, semester: course.semester,
+            questionCount: course.questionCount, examQuestionCount: course.examQuestionCount, weekCount: course.weekCount,
+            termCount: course.termCount, reviewCount: course.reviewCount,
+            answeredCount: Self.clamp(course.answeredCount + answered, to: course.questionCount),
+            fullyRightCount: Self.clamp(course.fullyRightCount + fullyRight, to: course.questionCount),
+            points: course.points, maxPoints: course.maxPoints, weeks: weeks
+        )
+    }
+
+    /// A Home course card with its waiting answers counted in, using the course's saved weeks and sets.
+    /// Unchanged without them.
+    public func counting(_ course: CourseSummary, saved detail: CourseDetail?) -> CourseSummary {
+        guard !isEmpty, let detail, detail.id == course.id else { return course }
+        let (answered, fullyRight) = added(from: detail.weeks, to: detail.weeks.map { week in
+            Week(label: week.label, sets: week.sets.map(counting), examBankCount: week.examBankCount)
+        })
+        return CourseSummary(
+            id: course.id, code: course.code, title: course.title, sortOrder: course.sortOrder, archivedAt: course.archivedAt,
+            questionCount: course.questionCount, weekCount: course.weekCount, reviewCount: course.reviewCount,
+            answeredCount: Self.clamp(course.answeredCount + answered, to: course.questionCount),
+            fullyRightCount: Self.clamp(course.fullyRightCount + fullyRight, to: course.questionCount),
+            points: course.points, maxPoints: course.maxPoints
+        )
+    }
+
+    /// How many answered and fully right questions counting the waiting answers adds across the sets.
+    private func added(from before: [Week], to after: [Week]) -> (answered: Int, fullyRight: Int) {
+        let pairs = zip(before.flatMap(\.sets), after.flatMap(\.sets))
+        return pairs.reduce(into: (0, 0)) { total, pair in
+            total.0 += pair.1.answeredCount - pair.0.answeredCount
+            total.1 += pair.1.fullyRightCount - pair.0.fullyRightCount
+        }
+    }
+
+    private static func clamp(_ value: Int, to limit: Int) -> Int {
+        min(max(0, value), max(0, limit))
+    }
+}
