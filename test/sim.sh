@@ -116,7 +116,7 @@ print("\t".join([runtime["identifier"], runtime["version"], chosen["identifier"]
 }
 
 udid=""
-# shellcheck disable=SC2329 # invoked by the EXIT trap
+# shellcheck disable=SC2317,SC2329 # invoked by the EXIT trap
 cleanup() {
   local status=$?
   if [ -n "$udid" ]; then
