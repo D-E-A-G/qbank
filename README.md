@@ -25,6 +25,7 @@ test/sim.sh -- xcodebuild test \
 - `QBank/` - the app
 - `QBankTests/` - unit tests (Swift Testing)
 - `QBankUITests/` - UI tests (XCTest)
+- `Packages/QBankDesign/` - the design system: colors, type, spacing and base SwiftUI components shared with the web app
 - `Packages/QBankKit/` - the API client, session store, and offline core, as a Swift package with no UI
 - `test/` - simulator wrapper, package tests, and repository checks
 - `docs/ci.md` - how CI runs
