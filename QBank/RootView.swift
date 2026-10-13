@@ -23,6 +23,7 @@ struct RootView: View {
         .animation(QBankMotion.reveal, value: model.route)
         .tint(QBankColor(.tint))
         .qbankPalette(.default)
+        .background(WindowLook(look: model.look.look))
         .task {
             // A session kept from an earlier launch: check the server still accepts it.
             await model.refreshSession()

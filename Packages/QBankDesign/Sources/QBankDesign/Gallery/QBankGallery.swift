@@ -2,7 +2,7 @@
 import SwiftUI
 
 /// Every component on one screen, laid out like the approved wireframes
-/// (Home, Course, the runner footer). Used by previews and rendered screenshots.
+/// (Home, Course, Settings, the runner footer). Used by previews and rendered screenshots.
 struct QBankGallery: View {
     var body: some View {
         VStack(alignment: .leading, spacing: QBankSpacing.gapSection) {
@@ -58,6 +58,15 @@ struct QBankGallery: View {
                 QBankListRow("Lithium toxicity cues", detail: "Week 3 · Select all") {
                     QBankStatusMark(.guessed, variant: .pill, size: .small)
                 }
+            }
+
+            QBankListGroup(header: "Look", footer: "Match device follows this device's light or dark setting.") {
+                QBankSegmentedControl("Look", selection: .constant("auto"), options: [
+                    .init("auto", "Match device"),
+                    .init("light", "Light"),
+                    .init("dark", "Dark"),
+                ])
+                .padding(QBankSpacing.space3)
             }
 
             VStack(alignment: .leading, spacing: QBankSpacing.gapStack) {

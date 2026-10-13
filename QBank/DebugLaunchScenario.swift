@@ -6,13 +6,18 @@ import QBankKit
 /// only into Debug builds; Release binaries contain none of it. Every scenario
 /// composes synthetic data and in-process fakes, never a real account or the
 /// production server: the app talks to `FakeQBankServer` and keeps its session
-/// in memory, so the Keychain is never touched.
+/// in memory, so the Keychain is never touched. Settings kept on the phone, such
+/// as Look, live in their own defaults suite, emptied at launch.
 ///
 /// Supported environment variables:
 /// - `QB_UITEST_SCENARIO`: the scenario to start in, one of `Scenario`'s raw
 ///   values. Absent means a normal launch.
+/// - `QB_UITEST_KEEP_PHONE_SETTINGS`: `1` keeps the suite from the previous
+///   launch, to check that a setting survives a relaunch.
 nonisolated enum DebugLaunchScenario {
     static let scenarioKey = "QB_UITEST_SCENARIO"
+    static let keepPhoneSettingsKey = "QB_UITEST_KEEP_PHONE_SETTINGS"
+    static let defaultsSuite = "com.dimitrygallego.qbank.uitest"
 
     enum Scenario: String, CaseIterable {
         /// No session on the phone: the sign-in screen. `FakeQBankServer.student`
@@ -52,23 +57,36 @@ nonisolated enum DebugLaunchScenario {
         } catch {
             fatalError(error.description)
         }
+        guard let scenario else { return nil }
+        let defaults = phoneSettings(keep: environment[keepPhoneSettingsKey] == "1")
         switch scenario {
-        case nil:
-            return nil
         case .signedOut:
-            return model(server: FakeQBankServer(signedIn: false), session: nil)
+            return model(server: FakeQBankServer(signedIn: false), session: nil, defaults: defaults)
         case .signedIn:
-            return model(server: FakeQBankServer(signedIn: true), session: FakeQBankServer.storedStudentSession())
+            return model(server: FakeQBankServer(signedIn: true), session: FakeQBankServer.storedStudentSession(), defaults: defaults)
         }
     }
 
+    /// The scenario's own defaults suite, so a test never sees the developer's settings or
+    /// another test's.
+    static func phoneSettings(keep: Bool) -> UserDefaults {
+        let defaults = UserDefaults(suiteName: defaultsSuite)!
+        if !keep {
+            defaults.removePersistentDomain(forName: defaultsSuite)
+        }
+        return defaults
+    }
+
     @MainActor
-    private static func model(server: FakeQBankServer, session: StoredSession?) -> AppModel {
-        AppModel(client: QBankClient(
-            configuration: APIConfiguration(baseURL: URL(string: "https://fake-qbank.invalid")!),
-            transport: server,
-            sessionStore: InMemorySessionStore(session)
-        ))
+    private static func model(server: FakeQBankServer, session: StoredSession?, defaults: UserDefaults) -> AppModel {
+        AppModel(
+            client: QBankClient(
+                configuration: APIConfiguration(baseURL: URL(string: "https://fake-qbank.invalid")!),
+                transport: server,
+                sessionStore: InMemorySessionStore(session)
+            ),
+            look: LookStore(defaults: defaults)
+        )
     }
 }
 #endif

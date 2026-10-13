@@ -21,9 +21,12 @@ final class AppModel {
     var hasLanded = false
 
     let client: QBankClient
+    /// Light or dark, chosen in Settings and kept on this phone.
+    let look: LookStore
 
-    init(client: QBankClient) {
+    init(client: QBankClient, look: LookStore = LookStore()) {
         self.client = client
+        self.look = look
         let stored = try? client.storedSession()
         route = stored?.account.map(Self.route(for:)) ?? .signedOut
     }

@@ -1,0 +1,64 @@
+{
+  "recordedFrom": "d2acf893713f4783d4f58d4d6ed6d91b303df26c",
+  "request": {
+    "method": "GET",
+    "path": "/api/semesters",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "semesters": [
+        {
+          "id": "5e000000-0000-4000-8000-000000000001",
+          "number": 1,
+          "name": "Fall 2026",
+          "startsOn": "2026-09-01",
+          "endsOn": null,
+          "courses": [
+            {
+              "id": "c0000000-0000-4000-8000-000000000102",
+              "code": "NURS 102",
+              "title": "Invented Second",
+              "sortOrder": 2,
+              "archivedAt": null,
+              "questionCount": 0,
+              "weekCount": 0,
+              "reviewCount": 0,
+              "answeredCount": 0,
+              "fullyRightCount": 0,
+              "points": 0,
+              "maxPoints": 0
+            }
+          ]
+        },
+        {
+          "id": "5e000000-0000-4000-8000-000000000002",
+          "number": 2,
+          "name": "Semester 2",
+          "startsOn": null,
+          "endsOn": null,
+          "courses": [
+            {
+              "id": "c0000000-0000-4000-8000-000000000101",
+              "code": "NURS 111",
+              "title": "Invented Basics II",
+              "sortOrder": 1,
+              "archivedAt": "2026-10-13T02:03:19.630Z",
+              "questionCount": 0,
+              "weekCount": 0,
+              "reviewCount": 0,
+              "answeredCount": 0,
+              "fullyRightCount": 0,
+              "points": 0,
+              "maxPoints": 0
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

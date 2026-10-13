@@ -51,6 +51,22 @@ struct ProblemText: View {
     }
 }
 
+/// A plain-words line that something was saved, read out by VoiceOver when it appears.
+struct SavedText: View {
+    let text: String
+
+    var body: some View {
+        Label(text, systemImage: "checkmark.circle")
+            .qbankFont(.subheadline, weight: .medium)
+            .foregroundStyle(.qbank(.correct))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("saved")
+            .onAppear {
+                AccessibilityNotification.Announcement(text).post()
+            }
+    }
+}
+
 /// A screen whose first load failed: what happened, and a way to try again.
 struct LoadFailed: View {
     let problem: String

@@ -5,9 +5,6 @@ import QBankKit
 /// After the owner resets her password, the server asks for a new one before anything else.
 @Observable
 final class ChoosePasswordModel {
-    /// The server's rule for a new password.
-    static let minimumLength = 8
-
     var temporaryPassword: String
     var newPassword = ""
     private(set) var isSaving = false
@@ -26,8 +23,8 @@ final class ChoosePasswordModel {
             problem = "Enter the temporary password and a new one."
             return
         }
-        guard newPassword.count >= Self.minimumLength else {
-            problem = "Choose a password of at least \(Self.minimumLength) characters."
+        if let rule = PasswordRules.problem(newPassword: newPassword) {
+            problem = rule
             return
         }
         isSaving = true

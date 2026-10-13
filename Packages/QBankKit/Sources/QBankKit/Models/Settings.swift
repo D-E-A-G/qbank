@@ -20,6 +20,42 @@ struct ChangePasswordRequest: Encodable {
     let newPassword: String
 }
 
+struct AddSemesterRequest: Encodable {
+    let number: Int
+}
+
+/// Sends every field: a nil date is sent as null, which clears it, where a missing one would keep it.
+struct UpdateSemesterRequest: Encodable {
+    let name: String
+    let startsOn: String?
+    let endsOn: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case name, startsOn, endsOn
+    }
+
+    func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(name, forKey: .name)
+        try container.encode(startsOn, forKey: .startsOn)
+        try container.encode(endsOn, forKey: .endsOn)
+    }
+}
+
+struct AddCourseRequest: Encodable {
+    let semesterId: String
+    let code: String
+    let title: String
+}
+
+/// Only the fields that are set are sent; the server keeps the rest.
+struct UpdateCourseRequest: Encodable {
+    let code: String?
+    let title: String?
+    let semesterId: String?
+    let archived: Bool?
+}
+
 struct StudyPlaceBody: Codable {
     let courseId: String?
 }
