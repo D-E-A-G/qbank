@@ -2,12 +2,12 @@ import Foundation
 import Observation
 import QBankKit
 
-/// One run through a practice set: the questions in order, her answer to each, and its score.
-/// Works like the web runner (`apps/web/src/practice/PracticeScreen.tsx`): every opening shuffles
-/// the choices, Check answer sends the answer and shows the server's score, and after the last
-/// question the set result. Without a connection the set comes from the phone, and Check answer
-/// keeps the answer on the phone to send later and shows the score the phone gives it, with the
-/// server's rules.
+/// One run through a practice set or the course's Review list: the questions in order, her answer
+/// to each, and its score. Works like the web runner (`apps/web/src/practice/PracticeScreen.tsx`):
+/// every opening shuffles the choices, Check answer sends the answer and shows the server's score,
+/// and after the last question the result. Without a connection a set comes from the phone, and
+/// Check answer keeps the answer on the phone to send later and shows the score the phone gives
+/// it, with the server's rules. The Review list is chosen by the server, so it needs a connection.
 @Observable
 final class PracticeModel {
     /// Her work on one question during this run.
@@ -32,9 +32,9 @@ final class PracticeModel {
         case finished
     }
 
-    let setID: String
+    let source: PracticeRoute.Source
     let courseID: String
-    /// The set's title from the Course screen, shown while it loads.
+    /// The set's title from the Course screen, or "Review", shown while it loads.
     let initialTitle: String
 
     private(set) var phase: Phase = .loading
@@ -57,7 +57,7 @@ final class PracticeModel {
 
     init(
         app: AppModel,
-        setID: String,
+        source: PracticeRoute.Source,
         courseID: String,
         title: String,
         now: @escaping () -> Date = { .now },
@@ -65,7 +65,7 @@ final class PracticeModel {
         newAttemptID: @escaping () -> String = { AttemptSubmission.newID() }
     ) {
         self.app = app
-        self.setID = setID
+        self.source = source
         self.courseID = courseID
         self.initialTitle = title
         self.now = now
@@ -74,6 +74,11 @@ final class PracticeModel {
     }
 
     var title: String { practiceSet?.title ?? initialTitle }
+
+    var isReview: Bool {
+        if case .review = source { return true }
+        return false
+    }
 
     var question: Question? {
         questions.indices.contains(index) ? questions[index] : nil
@@ -114,6 +119,7 @@ final class PracticeModel {
         guard phase == .finished, let startedAt else { return nil }
         return PracticeResult(
             title: title,
+            isReview: isReview,
             questions: questions,
             attempts: attempts,
             elapsed: (finishedAt ?? startedAt).timeIntervalSince(startedAt)
@@ -128,7 +134,12 @@ final class PracticeModel {
             return
         }
         do {
-            let loaded = try await app.load(.practiceSet(setID)) { () async throws(QBankError) in try await app.client.practiceSet(id: setID) }.value
+            let loaded = switch source {
+            case .set(let id):
+                try await app.load(.practiceSet(id)) { () async throws(QBankError) in try await app.client.practiceSet(id: id) }.value
+            case .review(let filter, let questionID):
+                try await app.client.reviewPractice(courseID: courseID, filter: filter, questionID: questionID)
+            }
             if loaded.kind == .exam {
                 phase = .failed("This set’s questions are asked only on exams.")
                 return
@@ -140,7 +151,7 @@ final class PracticeModel {
             begin(loaded)
         } catch {
             if app.handle(error) { return }
-            if case .transport = error {
+            if case .transport = error, !isReview {
                 phase = .failed("No connection, and this set is not saved on this phone yet. Open it once with a connection to practice it offline.")
             } else if let words = Wording.problem(error) {
                 phase = .failed(words)

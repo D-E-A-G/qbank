@@ -1,0 +1,18 @@
+{
+  "recordedFrom": "a1a22c1424b751417b30830ee4b96266f5519255",
+  "request": {
+    "method": "DELETE",
+    "path": "/api/course-exams/ce000000-0000-4000-8000-000000000002",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 404,
+    "headers": {},
+    "body": {
+      "error": "request_refused",
+      "message": "That exam is not in the app."
+    }
+  }
+}

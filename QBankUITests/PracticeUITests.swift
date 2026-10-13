@@ -179,6 +179,7 @@ final class PracticeUITests: XCTestCase {
     @MainActor
     private func openSet(_ app: XCUIApplication) {
         XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 10))
+        openFolder(app, week: "Weeks 1-3")
         let set = app.buttons["course.set.\(Self.set)"]
         XCTAssertTrue(set.waitForExistence(timeout: 5))
         tapVisible(set, in: app)

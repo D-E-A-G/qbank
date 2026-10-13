@@ -1,0 +1,85 @@
+{
+  "recordedFrom": "a1a22c1424b751417b30830ee4b96266f5519255",
+  "request": {
+    "method": "GET",
+    "path": "/api/courses/c0000000-0000-4000-8000-000000000101/exams",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "courseId": "c0000000-0000-4000-8000-000000000101",
+      "weeks": [
+        {
+          "label": "Week 1",
+          "questionCount": 3,
+          "wrongCount": 0,
+          "source": "practice"
+        },
+        {
+          "label": "Week 2",
+          "questionCount": 2,
+          "wrongCount": 0,
+          "source": "practice"
+        },
+        {
+          "label": "Week 3",
+          "questionCount": 2,
+          "wrongCount": 0,
+          "source": "practice"
+        }
+      ],
+      "inProgress": null,
+      "exams": [
+        {
+          "id": "e0000000-0000-4000-8000-000000000002",
+          "courseId": "c0000000-0000-4000-8000-000000000101",
+          "weeks": [
+            "Week 1",
+            "Week 2",
+            "Week 3"
+          ],
+          "courseExamId": null,
+          "pool": "all",
+          "practiceWeeks": null,
+          "questionCount": 7,
+          "timeLimitSeconds": 630,
+          "startedAt": "2026-10-13T03:38:35.054Z",
+          "endsAt": "2026-10-13T03:49:05.054Z",
+          "finishedAt": "2026-10-13T03:38:35.069Z",
+          "endReason": "finished",
+          "answeredCount": 1,
+          "fullyRight": 1,
+          "points": 1,
+          "maxPoints": 7,
+          "minutesUsed": 1
+        },
+        {
+          "id": "e0000000-0000-4000-8000-000000000001",
+          "courseId": "c0000000-0000-4000-8000-000000000101",
+          "weeks": [
+            "Week 1",
+            "Week 2"
+          ],
+          "courseExamId": "ce000000-0000-4000-8000-000000000001",
+          "pool": "all",
+          "practiceWeeks": null,
+          "questionCount": 5,
+          "timeLimitSeconds": 450,
+          "startedAt": "2026-10-13T03:38:34.984Z",
+          "endsAt": "2026-10-13T03:46:04.984Z",
+          "finishedAt": "2026-10-13T03:38:35.046Z",
+          "endReason": "finished",
+          "answeredCount": 1,
+          "fullyRight": 1,
+          "points": 1,
+          "maxPoints": 5,
+          "minutesUsed": 1
+        }
+      ]
+    }
+  }
+}

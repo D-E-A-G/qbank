@@ -105,4 +105,21 @@ struct AnswerDraftTests {
         let cloze = Cloze(text: "{0} {1}", blanks: [ClozeBlank(options: ["a", "b"], answer: 0), ClozeBlank(options: ["c", "d"], answer: 1)])
         #expect(Layout.cloze(blanks: [[1, 0], [0, 0]]).clozeOrders(cloze) == [[1, 0], [0, 1]])
     }
+
+    @Test func aSentAnswerReadsBackForItsFormatOnly() {
+        let options = [QuestionOption(text: "A", isCorrect: true), QuestionOption(text: "B", isCorrect: false)]
+        #expect(AnswerDraft(response: .single(choice: 1), body: .single(options: options)) == .single(1))
+        #expect(AnswerDraft(response: .sata(picks: [0, 1]), body: .sata(options: options)) == .sata([0, 1]))
+        #expect(AnswerDraft(response: .single(choice: 1), body: .sata(options: options)) == nil, "another format")
+        let items = [OrderItem(text: "1"), OrderItem(text: "2"), OrderItem(text: "3")]
+        #expect(AnswerDraft(response: .order(positions: [2, 0, 1]), body: .order(items: items)) == .order([2, 0, 1]))
+        #expect(AnswerDraft(response: .order(positions: [0, 0, 1]), body: .order(items: items)) == nil, "not every item once")
+        let pairs = [MatchPair(left: "L1", right: "R1"), MatchPair(left: "L2", right: "R2")]
+        #expect(AnswerDraft(response: .match(choices: ["R2", nil]), body: .match(pairs: pairs, extra: [])) == .match(["R2", nil]))
+        #expect(AnswerDraft(response: .match(choices: ["R2"]), body: .match(pairs: pairs, extra: [])) == nil)
+        let rows = [MatrixRow(text: "r", answer: "Yes")]
+        #expect(AnswerDraft(response: .matrix(choices: ["No"]), body: .matrix(columns: ["Yes", "No"], rows: rows)) == .matrix(["No"]))
+        let cloze = Cloze(text: "{0}", blanks: [ClozeBlank(options: ["a", "b"], answer: 0)])
+        #expect(AnswerDraft(response: .cloze(choices: [1]), body: .cloze(cloze)) == .cloze([1]))
+    }
 }

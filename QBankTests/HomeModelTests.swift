@@ -65,7 +65,7 @@ struct HomeModelTests {
         let connection = Connection()
         let (app, _) = TestApp.make(server, account: .student(), connection: connection)
         await CourseModel(app: app, id: "c1").load()
-        let practice = PracticeModel(app: app, setID: "set1", courseID: "c1", title: "Invented set")
+        let practice = PracticeModel(app: app, source: .set(id: "set1"), courseID: "c1", title: "Invented set")
         await practice.load()
         connection.update(isOnline: false)
         practice.update(.sata([0, 2]))

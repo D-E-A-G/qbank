@@ -7,7 +7,7 @@ import SwiftUI
 struct HomeView: View {
     let app: AppModel
     @State private var model: HomeModel
-    @State private var path = NavigationPath()
+    @State private var navigator = HomeNavigator()
 
     init(app: AppModel) {
         self.app = app
@@ -15,7 +15,7 @@ struct HomeView: View {
     }
 
     var body: some View {
-        NavigationStack(path: $path) {
+        NavigationStack(path: $navigator.path) {
             ScrollView {
                 content
                     .padding(.horizontal, QBankSpacing.gutterPhone)
@@ -58,18 +58,23 @@ struct HomeView: View {
             .navigationDestination(for: CourseRoute.self) { route in
                 CourseView(app: app, route: route)
             }
-            .navigationDestination(for: ComingSoonRoute.self) { route in
-                ComingSoonView(route: route, connection: app.connection)
+            .navigationDestination(for: StudyRoute.self) { route in
+                switch route {
+                case .review(let course): ReviewView(app: app, course: course)
+                case .terms(let course): TermsView(app: app, course: course)
+                case .exam(let setup): ExamSetupView(app: app, route: setup)
+                }
             }
             .navigationDestination(for: SavedForOfflineRoute.self) { _ in
                 SavedForOfflineView(app: app)
             }
         }
+        .environment(navigator)
         .task {
             await model.load()
             model.saveForOffline()
-            if let landing = await model.landingCourse(), path.isEmpty {
-                path.append(landing)
+            if let landing = await model.landingCourse(), navigator.path.isEmpty {
+                navigator.open(landing)
             }
         }
     }

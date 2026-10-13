@@ -36,6 +36,7 @@ final class OfflineUITests: XCTestCase {
         attach(app, "1e course, no connection")
 
         // A set never opened before opens from the phone and is answered there.
+        openFolder(app, week: "Week 3")
         let set = app.buttons["course.set.\(Self.set)"]
         tapVisible(set, in: app)
         XCTAssertTrue(app.buttons["practice.close"].waitForExistence(timeout: 5))
@@ -135,6 +136,7 @@ final class OfflineUITests: XCTestCase {
     func testAnOfflineAnswerSendsWhileTheRunnerIsOpen() throws {
         let app = launch("signed-in")
         XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 10))
+        openFolder(app, week: "Weeks 1-3")
         tapVisible(app.buttons["course.set.Mixed Clinical Judgment"], in: app)
         XCTAssertTrue(app.buttons["practice.close"].waitForExistence(timeout: 5))
         expectCount(app, "1 of 8")

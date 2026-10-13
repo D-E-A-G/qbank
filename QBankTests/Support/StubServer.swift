@@ -92,7 +92,14 @@ enum TestApp {
             transport: server,
             sessionStore: store
         )
-        let app = AppModel(client: client, look: LookStore(defaults: freshDefaults()), storage: storage, connection: connection)
+        let defaults = freshDefaults()
+        let app = AppModel(
+            client: client,
+            look: LookStore(defaults: defaults),
+            courseMemory: CourseMemory(defaults: defaults),
+            storage: storage,
+            connection: connection
+        )
         return (app, store)
     }
 

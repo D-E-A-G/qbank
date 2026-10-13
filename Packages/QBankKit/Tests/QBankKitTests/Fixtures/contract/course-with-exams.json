@@ -1,0 +1,125 @@
+{
+  "recordedFrom": "a1a22c1424b751417b30830ee4b96266f5519255",
+  "request": {
+    "method": "GET",
+    "path": "/api/courses/c0000000-0000-4000-8000-000000000101",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "id": "c0000000-0000-4000-8000-000000000101",
+      "code": "NURS 101",
+      "title": "Invented Nursing Basics",
+      "archivedAt": null,
+      "semester": {
+        "id": "42b5bb50-1cab-441d-9d0a-6179e443d3ae",
+        "number": 1,
+        "name": "Semester 1"
+      },
+      "questionCount": 7,
+      "examQuestionCount": 7,
+      "weekCount": 3,
+      "termCount": 0,
+      "reviewCount": 0,
+      "answeredCount": 2,
+      "fullyRightCount": 2,
+      "points": 2,
+      "maxPoints": 2,
+      "weeks": [
+        {
+          "label": "Week 1",
+          "sets": [
+            {
+              "id": "5e700000-0000-4000-8000-000000000001",
+              "title": "Week 1 - Set 1: Invented week 1",
+              "description": "Invented practice questions for week 1.",
+              "questionCount": 3,
+              "importedAt": "2026-10-13T03:38:34.905Z",
+              "activeSince": "2026-10-13T03:38:34.905Z",
+              "status": "imported",
+              "canRestore": false,
+              "answeredCount": 1,
+              "fullyRightCount": 1,
+              "lastAnsweredAt": "2026-10-13T03:38:35.035Z",
+              "questionIds": [
+                "9e000000-0000-4000-8000-000000020003",
+                "9e000000-0000-4000-8000-000000020001",
+                "9e000000-0000-4000-8000-000000020004"
+              ]
+            }
+          ],
+          "examBankCount": 0
+        },
+        {
+          "label": "Week 2",
+          "sets": [
+            {
+              "id": "5e700000-0000-4000-8000-000000000002",
+              "title": "Week 2 - Set 1: Invented week 2",
+              "description": "Invented practice questions for week 2.",
+              "questionCount": 2,
+              "importedAt": "2026-10-13T03:38:34.918Z",
+              "activeSince": "2026-10-13T03:38:34.918Z",
+              "status": "imported",
+              "canRestore": false,
+              "answeredCount": 0,
+              "fullyRightCount": 0,
+              "lastAnsweredAt": null,
+              "questionIds": [
+                "9e000000-0000-4000-8000-000000020002",
+                "9e000000-0000-4000-8000-000000020005"
+              ]
+            }
+          ],
+          "examBankCount": 0
+        },
+        {
+          "label": "Week 3",
+          "sets": [
+            {
+              "id": "5e700000-0000-4000-8000-000000000003",
+              "title": "Week 3 - Set 1: Invented week 3",
+              "description": "Invented practice questions for week 3.",
+              "questionCount": 2,
+              "importedAt": "2026-10-13T03:38:34.926Z",
+              "activeSince": "2026-10-13T03:38:34.926Z",
+              "status": "imported",
+              "canRestore": false,
+              "answeredCount": 1,
+              "fullyRightCount": 1,
+              "lastAnsweredAt": "2026-10-13T03:38:35.064Z",
+              "questionIds": [
+                "9e000000-0000-4000-8000-000000020000",
+                "9e000000-0000-4000-8000-000000020006"
+              ]
+            }
+          ],
+          "examBankCount": 0
+        }
+      ],
+      "exams": [
+        {
+          "id": "ce000000-0000-4000-8000-000000000001",
+          "name": "Midterm",
+          "sortOrder": 1,
+          "weekLabels": [
+            "Week 1",
+            "Week 2"
+          ]
+        },
+        {
+          "id": "ce000000-0000-4000-8000-000000000002",
+          "name": "Exam 2",
+          "sortOrder": 2,
+          "weekLabels": [
+            "Week 3"
+          ]
+        }
+      ]
+    }
+  }
+}

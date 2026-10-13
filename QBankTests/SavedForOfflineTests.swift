@@ -18,7 +18,7 @@ struct SavedForOfflineTests {
         home.saveForOffline()
         await app.offline?.finishSavingCourses()
 
-        let practice = PracticeModel(app: app, setID: "set1", courseID: "c1", title: "Rights, Law, and Ethics")
+        let practice = PracticeModel(app: app, source: .set(id: "set1"), courseID: "c1", title: "Rights, Law, and Ethics")
         await practice.load()
         connection.update(isOnline: false)
         practice.update(.sata([0]))

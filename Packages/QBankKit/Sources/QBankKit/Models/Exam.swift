@@ -55,6 +55,9 @@ public struct ExamSummary: Codable, Sendable, Equatable, Identifiable {
     public let id: String
     public let courseID: String
     public let weeks: [String]
+    /// The course exam (`CourseDetail.exams`) that holds every one of its weeks, so exams taken
+    /// before it was made belong to it too. Nil when no course exam does.
+    public let courseExamID: String?
     public let pool: ExamPool
     /// The weeks that had no exam bank, so the exam drew their practice questions.
     /// Nil when the course had no exam bank at all.
@@ -75,6 +78,7 @@ public struct ExamSummary: Codable, Sendable, Equatable, Identifiable {
         case id, weeks, pool, practiceWeeks, questionCount, timeLimitSeconds, startedAt, endsAt
         case finishedAt, endReason, answeredCount, fullyRight, points, maxPoints, minutesUsed
         case courseID = "courseId"
+        case courseExamID = "courseExamId"
     }
 }
 

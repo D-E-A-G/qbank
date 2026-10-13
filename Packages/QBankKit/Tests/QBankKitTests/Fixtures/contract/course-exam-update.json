@@ -1,0 +1,29 @@
+{
+  "recordedFrom": "a1a22c1424b751417b30830ee4b96266f5519255",
+  "request": {
+    "method": "PUT",
+    "path": "/api/course-exams/ce000000-0000-4000-8000-000000000001",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": {
+      "name": "Midterm",
+      "weekLabels": [
+        "Week 1",
+        "Week 2"
+      ]
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "id": "ce000000-0000-4000-8000-000000000001",
+      "name": "Midterm",
+      "sortOrder": 1,
+      "weekLabels": [
+        "Week 1",
+        "Week 2"
+      ]
+    }
+  }
+}

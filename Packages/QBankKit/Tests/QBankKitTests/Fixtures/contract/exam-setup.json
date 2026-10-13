@@ -1,8 +1,8 @@
 {
-  "recordedFrom": "2b7a4291fc79877edeb8e4eb0e430209ef56fd8b",
+  "recordedFrom": "a1a22c1424b751417b30830ee4b96266f5519255",
   "request": {
     "method": "GET",
-    "path": "/api/courses/6081c42b-988b-40d1-8068-273a13195673/exams",
+    "path": "/api/courses/2fc1aa3a-1d04-46d1-89ab-4077a36647f8/exams",
     "query": {},
     "authorization": "Bearer synthetic-session-token",
     "body": null
@@ -11,7 +11,7 @@
     "status": 200,
     "headers": {},
     "body": {
-      "courseId": "6081c42b-988b-40d1-8068-273a13195673",
+      "courseId": "2fc1aa3a-1d04-46d1-89ab-4077a36647f8",
       "weeks": [
         {
           "label": "Week 1",

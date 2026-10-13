@@ -1,0 +1,278 @@
+import Foundation
+import QBankKit
+import Testing
+@testable import QBank
+
+@MainActor
+struct ReviewModelTests {
+    private static let course = CourseRef(id: "c1", code: "NURS 101", title: "Invented Basics")
+
+    @Test func loadsTheWholeListAndFiltersOnThePhone() async throws {
+        let server = StubServer(["GET /api/courses/c1/review": .ok(StudyBodies.review())])
+        let (app, _) = TestApp.make(server, account: .student())
+        let model = ReviewModel(app: app, course: Self.course)
+        await model.load()
+        #expect(model.questions.map(\.questionID) == ["q1", "q2"])
+        #expect(model.selectedCount == 2)
+        #expect(model.allCount == 2)
+        #expect(model.clearTitle == "Clear all 2 questions from this course's Review list?")
+        #expect(server.requests.first?.url?.query() == nil, "the whole list")
+
+        model.choose(.missed)
+        #expect(model.questions.map(\.questionID) == ["q1"])
+        #expect(model.selectedCount == 1)
+        model.choose(.partial)
+        #expect(model.questions.map(\.questionID) == ["q2"])
+        model.choose(.guessed)
+        #expect(model.questions.map(\.questionID) == ["q1"], "a missed guess is a guess too")
+        #expect(server.requests.count == 1, "filters need no connection")
+    }
+
+    @Test func withoutAConnectionTheListSavedLastShows() async throws {
+        let server = StubServer(["GET /api/courses/c1/review": .ok(StudyBodies.review())])
+        let connection = Connection()
+        let (app, _) = TestApp.make(server, account: .student(), connection: connection)
+        await ReviewModel(app: app, course: Self.course).load()
+        connection.update(isOnline: false)
+        server["GET /api/courses/c1/review"] = .offline
+        let model = ReviewModel(app: app, course: Self.course)
+        await model.load()
+        #expect(model.questions.map(\.questionID) == ["q1", "q2"])
+        #expect(model.savedAt != nil)
+        #expect(model.problem == nil)
+    }
+
+    @Test func practiceGoesToTheFilteredListOrOneQuestion() async throws {
+        let server = StubServer(["GET /api/courses/c1/review": .ok(StudyBodies.review())])
+        let (app, _) = TestApp.make(server, account: .student())
+        let model = ReviewModel(app: app, course: Self.course)
+        await model.load()
+        model.choose(.partial)
+        #expect(model.practice() == PracticeRoute(source: .review(filter: .partial, questionID: nil), courseID: "c1", title: "Review"))
+        let one = try #require(model.questions.first)
+        #expect(model.practice(one).source == .review(filter: .partial, questionID: "q2"))
+    }
+
+    @Test func clearSendsHerConfirmationThenReloads() async throws {
+        let server = StubServer([
+            "GET /api/courses/c1/review": .ok(StudyBodies.review()),
+            "POST /api/courses/c1/review/clear": .ok(#"{"cleared":2}"#),
+        ])
+        let (app, _) = TestApp.make(server, account: .student())
+        let model = ReviewModel(app: app, course: Self.course)
+        await model.load()
+        server["GET /api/courses/c1/review"] = .ok(StudyBodies.review(counts: (0, 0, 0, 0), questions: []))
+        await model.clear()
+        #expect(server.calls == ["GET /api/courses/c1/review", "POST /api/courses/c1/review/clear", "GET /api/courses/c1/review"])
+        let body = try #require(server.requests[1].httpBody)
+        #expect(String(decoding: body, as: UTF8.self) == #"{"confirmed":true}"#)
+        #expect(model.questions.isEmpty)
+        #expect(model.allCount == 0)
+    }
+
+    @Test func aRefusalIsSaidInTheServersWords() async {
+        let server = StubServer(["GET /api/courses/c1/review": .error(404, "course_not_found", "That course is not in the app.")])
+        let (app, _) = TestApp.make(server, account: .student())
+        let model = ReviewModel(app: app, course: Self.course)
+        await model.load()
+        #expect(model.problem == "That course is not in the app.")
+    }
+
+    @Test func rowsAreMarkedAsTheWebMarksThem() throws {
+        let decode = { (json: String) in try QBankJSON.decoder.decode(ReviewQuestion.self, from: Data(json.utf8)) }
+        #expect(try decode(StudyBodies.reviewQuestion("a", status: "partial")).mark == (.partial, "Partly right"))
+        #expect(try decode(StudyBodies.reviewQuestion("a", status: "partial", guessed: true)).mark == (.partial, "Partly right, guessed"))
+        #expect(try decode(StudyBodies.reviewQuestion("a", status: "correct", guessed: true)).mark == (.guessed, "Guessed"))
+        #expect(try decode(StudyBodies.reviewQuestion("a", status: "incorrect")).mark == (.wrong, "Missed"))
+        #expect(try decode(StudyBodies.reviewQuestion("a", status: "incorrect", guessed: true)).mark == (.wrong, "Missed, guessed"))
+    }
+
+    @Test func theOwnerSeesTheListButCannotPracticeOrClear() {
+        let (app, _) = TestApp.make(StubServer(), account: .admin)
+        #expect(!ReviewModel(app: app, course: Self.course).isStudent)
+    }
+
+    @Test func reviewPracticeLoadsTheServersQuestions() async throws {
+        let server = StubServer(["GET /api/courses/c1/review/practice": .ok(PracticeModelTests.practiceSet(courseID: "c1").replacingOccurrences(of: #""title":"Invented set""#, with: #""title":"Review""#))])
+        let (app, _) = TestApp.make(server, account: .student())
+        let model = PracticeModel(app: app, source: .review(filter: .guessed, questionID: nil), courseID: "c1", title: "Review")
+        await model.load()
+        #expect(model.phase == .answering)
+        #expect(model.isReview)
+        #expect(model.title == "Review")
+        #expect(server.requests.first?.url?.query() == "filter=guessed")
+
+        let one = PracticeModel(app: app, source: .review(filter: .all, questionID: "q-single"), courseID: "c1", title: "Review")
+        await one.load()
+        #expect(server.requests.last?.url?.query() == "question=q-single")
+    }
+}
+
+@MainActor
+struct TermsModelTests {
+    @Test func searchMatchesTheTermOrItsMeaningInAnyCase() async throws {
+        let server = StubServer(["GET /api/courses/c1/terms": .ok(#"""
+        {"terms":[
+         {"key":"autonomy","term":"Autonomy","meaning":"The right to make informed choices.","weekLabel":"Week 1","setTitle":"Ethics"},
+         {"key":"rapport","term":"Rapport","meaning":"Trust between nurse and client.","weekLabel":"Week 2","setTitle":"Talking"},
+         {"key":"naive","term":"Naïve","meaning":"Not yet exposed.","weekLabel":"Week 2","setTitle":"Talking"}
+        ]}
+        """#)])
+        let (app, _) = TestApp.make(server, account: .student())
+        let model = TermsModel(app: app, course: CourseRef(id: "c1", code: "NURS 101", title: "Invented"))
+        await model.load()
+        #expect(model.shown.map(\.term) == ["Autonomy", "Rapport", "Naïve"])
+        model.query = "TRUST"
+        #expect(model.shown.map(\.term) == ["Rapport"])
+        model.query = "  choices  right "
+        #expect(model.shown.map(\.term) == ["Autonomy"], "every word has to match")
+        model.query = "naive"
+        #expect(model.shown.map(\.term) == ["Naïve"], "accents do not matter")
+        model.query = "zebra"
+        #expect(model.shown.isEmpty)
+    }
+}
+
+@MainActor
+struct ExamSetupModelTests {
+    private static let course = CourseRef(id: "c1", code: "NURS 101", title: "Invented Basics")
+
+    private func model(
+        _ server: StubServer, account: Account = .student(), route: ExamSetupRoute = ExamSetupRoute(course: course)
+    ) -> ExamSetupModel {
+        let (app, _) = TestApp.make(server, account: account)
+        return ExamSetupModel(app: app, route: route, now: { QBankJSON.parseDate("2026-10-12T00:05:00.000Z")! })
+    }
+
+    @Test func nothingIsTickedUntilSheTicks() async throws {
+        let server = StubServer(["GET /api/courses/c1/exams": .ok(StudyBodies.setup(weeks: StudyBodies.threeWeeks))])
+        let model = model(server)
+        await model.load()
+        #expect(model.picked.isEmpty)
+        #expect(model.summaryCount == nil)
+        #expect(model.summarySplit == "Tick at least one week.")
+        #expect(model.meta(model.weeks[0]) == "10 questions")
+        #expect(model.meta(model.weeks[2]) == "20 questions · exam bank")
+        #expect(model.footer == "Questions are drawn only from the weeks you tick, in proportion to each week’s size.")
+        #expect(model.preselectedLine == nil)
+    }
+
+    @Test func tickedWeeksMakeThePlanAndItsSummary() async throws {
+        let server = StubServer(["GET /api/courses/c1/exams": .ok(StudyBodies.setup(weeks: StudyBodies.threeWeeks))])
+        let model = model(server)
+        await model.load()
+        model.toggle(model.weeks[0])
+        model.toggle(model.weeks[2])
+        #expect(model.picked.map(\.label) == ["Week 1", "Week 3"])
+        #expect(model.drawn(model.weeks[0]) == 10)
+        #expect(model.drawn(model.weeks[1]) == nil)
+        #expect(model.summaryCount == "30 questions")
+        #expect(model.summaryTime == "in 45 minutes")
+        #expect(model.summarySplit == "10 from Week 1 · 20 from Week 3 · Fewer than 40, so it’s all of them at 1.5 minutes each.")
+        #expect(model.fallbackLine == "Week 1 has no exam bank yet, so it uses its practice questions.")
+        model.toggle(model.weeks[1])
+        #expect(model.summaryCount == "40 questions")
+        #expect(model.summarySplit == "10 from Week 1 · 10 from Week 2 · 20 from Week 3")
+        #expect(model.fallbackLine == "Weeks 1-2 have no exam bank yet, so they use their practice questions.")
+        model.toggle(model.weeks[1])
+        #expect(model.picked.count == 2, "a second tap unticks")
+    }
+
+    @Test func wrongQuestionsOnlyCountsHerWrongOnesAndLocksEmptyWeeks() async throws {
+        let server = StubServer(["GET /api/courses/c1/exams": .ok(StudyBodies.setup(weeks: StudyBodies.threeWeeks))])
+        let model = model(server)
+        await model.load()
+        model.toggle(model.weeks[2])
+        model.wrongOnly = true
+        #expect(model.meta(model.weeks[0]) == "2 wrong of 10")
+        #expect(model.meta(model.weeks[2]) == "0 wrong of 20 · exam bank")
+        #expect(!model.canTick(model.weeks[2]))
+        #expect(!model.isTicked(model.weeks[2]), "its tick waits for the switch to go off")
+        #expect(model.summarySplit == "Tick at least one week with wrong questions.")
+        #expect(model.footer == "Questions are drawn only from the wrong ones in the weeks you tick, in proportion to how many each week has.")
+        model.toggle(model.weeks[2])
+        #expect(model.picked.isEmpty, "a locked week cannot be ticked")
+        model.toggle(model.weeks[0])
+        model.toggle(model.weeks[1])
+        #expect(model.summaryCount == "5 questions")
+        #expect(model.summaryTime == "in 7.5 minutes")
+        model.wrongOnly = false
+        #expect(model.isTicked(model.weeks[2]), "back with the switch off")
+    }
+
+    @Test func noWrongQuestionsAnywhereSaysSo() async throws {
+        let server = StubServer(["GET /api/courses/c1/exams": .ok(StudyBodies.setup(weeks: [("Week 1", 4, 0, "practice")]))])
+        let model = model(server)
+        await model.load()
+        model.wrongOnly = true
+        #expect(model.summarySplit == "No wrong questions in this course right now.")
+        #expect(model.fallbackLine == nil)
+    }
+
+    @Test func anExamsStartButtonTicksItsWeeks() async throws {
+        let server = StubServer(["GET /api/courses/c1/exams": .ok(StudyBodies.setup(weeks: StudyBodies.threeWeeks))])
+        let model = model(server, route: ExamSetupRoute(course: Self.course, weeks: ["Week 1", "Week 2", "Week 9"], examName: "Exam 1"))
+        await model.load()
+        #expect(model.picked.map(\.label) == ["Week 1", "Week 2"], "a week the setup does not have is left out")
+        #expect(model.preselectedLine == "Exam 1 · Weeks 1-2, 9 ticked for you")
+        model.toggle(model.weeks[0])
+        await model.load()
+        #expect(model.picked.map(\.label) == ["Week 2"], "a reload keeps what she changed")
+    }
+
+    @Test func startSendsTheTickedWeeksAndThePool() async throws {
+        let server = StubServer([
+            "GET /api/courses/c1/exams": .ok(StudyBodies.setup(weeks: StudyBodies.threeWeeks)),
+            "POST /api/courses/c1/exams": StubServer.Reply(status: 201, body: StudyBodies.exam()),
+        ])
+        let model = model(server)
+        await model.load()
+        model.toggle(model.weeks[1])
+        model.toggle(model.weeks[0])
+        model.wrongOnly = true
+        let exam = await model.start()
+        #expect(exam?.id == "e1")
+        let body = try #require(server.requests.last?.httpBody)
+        #expect(String(decoding: body, as: UTF8.self) == #"{"pool":"wrong","weeks":["Week 1","Week 2"]}"#)
+    }
+
+    @Test func aRefusedStartIsSaidInTheServersWords() async throws {
+        let server = StubServer([
+            "GET /api/courses/c1/exams": .ok(StudyBodies.setup(weeks: StudyBodies.threeWeeks)),
+            "POST /api/courses/c1/exams": .error(400, "no_wrong_questions", "Week 1 has no wrong questions. Untick it, or turn off Wrong questions only."),
+        ])
+        let model = model(server)
+        await model.load()
+        model.toggle(model.weeks[0])
+        #expect(await model.start() == nil)
+        #expect(model.problem == "Week 1 has no wrong questions. Untick it, or turn off Wrong questions only.")
+        #expect(!model.isStarting)
+    }
+
+    @Test func theRunningExamAndPastOnesReadAsOnTheWeb() async throws {
+        let running = StudyBodies.summary("run", weeks: ["Week 1", "Week 2"], pool: "wrong", finished: false, answered: 3, questions: 11, endsAt: "2026-10-12T00:17:01.000Z")
+        let server = StubServer(["GET /api/courses/c1/exams": .ok(StudyBodies.setup(
+            weeks: StudyBodies.threeWeeks,
+            inProgress: running,
+            exams: [StudyBodies.summary("s1", weeks: ["Week 1"], pool: "wrong", reason: "timeout", questions: 22, right: 15)]
+        ))])
+        let model = model(server)
+        await model.load()
+        let exam = try #require(model.setup?.inProgress)
+        #expect(model.runningLine(exam) == "Weeks 1-2 · Wrong questions only · 3 of 11 answered · 13 min left")
+        let past = try #require(model.setup?.exams.first)
+        #expect(past.pastLine == "12 min · Wrong questions only · Time ran out")
+        #expect(past.scoreText == "15 of 22")
+        #expect(past.pastTitle.hasPrefix("Week 1 · "))
+    }
+
+    @Test func theOwnerCannotTickOrStart() async throws {
+        let server = StubServer(["GET /api/courses/c1/exams": .ok(StudyBodies.setup(weeks: StudyBodies.threeWeeks))])
+        let model = model(server, account: .admin)
+        await model.load()
+        model.toggle(model.weeks[0])
+        #expect(model.picked.isEmpty)
+        #expect(await model.start() == nil)
+        #expect(server.calls == ["GET /api/courses/c1/exams"])
+    }
+}
