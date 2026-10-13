@@ -57,8 +57,11 @@ struct Fixture: Decodable {
     }
 
     static func all() throws -> [Fixture] {
-        let urls = try #require(Bundle.module.urls(forResourcesWithExtension: "json", subdirectory: "Fixtures/contract"))
-        return try urls.map { try load($0.deletingPathExtension().lastPathComponent) }.sorted { $0.name < $1.name }
+        let directory = try #require(Bundle.module.url(forResource: "contract", withExtension: nil, subdirectory: "Fixtures"))
+        let names = try FileManager.default.contentsOfDirectory(atPath: directory.path)
+            .filter { $0.hasSuffix(".json") }
+            .map { String($0.dropLast(".json".count)) }
+        return try names.sorted().map(load)
     }
 
     /// The response body as bytes, as the server sent it.
