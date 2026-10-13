@@ -106,6 +106,13 @@ public struct QBankClient: Sendable {
         try await send(Request(.get, "/api/practice-sets/\(id)"))
     }
 
+    /// Brings back the previous version of a replaced set and returns the version that is current
+    /// now. Her answers to either version stay. Restoring again swaps back.
+    @discardableResult
+    public func restorePracticeSet(id: String) async throws(QBankError) -> PracticeSetSummary {
+        try await send(Request(.post, "/api/practice-sets/\(id)/restore"))
+    }
+
     // MARK: Answers
 
     /// Sends one answer. The server scores it and saves her progress. Sending the same

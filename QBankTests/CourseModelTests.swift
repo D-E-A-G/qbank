@@ -1,0 +1,72 @@
+import QBankKit
+import Testing
+@testable import QBank
+
+@MainActor
+struct CourseModelTests {
+    @Test func loadsTheCourse() async throws {
+        let server = StubServer(["GET /api/courses/c1": .ok(Bodies.courseDetail())])
+        let (app, _) = TestApp.make(server, account: .student())
+        let model = CourseModel(app: app, id: "c1")
+        await model.load()
+        let course = try #require(model.course)
+        #expect(course.code == "NURS 101")
+        #expect(course.weeks.first?.sets.map(\.id) == ["set1"])
+    }
+
+    @Test func missingCourseSaysTheServersWords() async {
+        let server = StubServer(["GET /api/courses/gone": .error(404, "request_refused", "That course is not in the app.")])
+        let (app, _) = TestApp.make(server, account: .student())
+        let model = CourseModel(app: app, id: "gone")
+        await model.load()
+        #expect(model.course == nil)
+        #expect(model.problem == "That course is not in the app.")
+    }
+
+    @Test func remembersTheCourseAsHerPlace() async throws {
+        let server = StubServer(["PUT /api/me/place": .ok(Bodies.place("c1"))])
+        let (app, _) = TestApp.make(server, account: .student())
+        await CourseModel(app: app, id: "c1").rememberPlace()
+        #expect(server.calls == ["PUT /api/me/place"])
+        let body = try #require(server.requests.first?.httpBody)
+        #expect(String(decoding: body, as: UTF8.self) == #"{"courseId":"c1"}"#)
+    }
+
+    @Test func adminLeavesNoPlace() async {
+        let server = StubServer()
+        let (app, _) = TestApp.make(server, account: .admin)
+        await CourseModel(app: app, id: "c1").rememberPlace()
+        #expect(server.requests.isEmpty)
+    }
+
+    @Test func restoreBringsBackThePreviousVersionAndReloads() async throws {
+        let replaced = Bodies.set(id: "v2", title: "Invented set", status: "replaced", canRestore: true)
+        let server = StubServer([
+            "GET /api/courses/c1": .ok(Bodies.courseDetail(sets: [replaced])),
+            "POST /api/practice-sets/v2/restore": .ok(Bodies.set(id: "v1", status: "restored", canRestore: true)),
+        ])
+        let (app, _) = TestApp.make(server, account: .student())
+        let model = CourseModel(app: app, id: "c1")
+        await model.load()
+        let replacedSet = try #require(model.course?.weeks.first?.sets.first)
+        server["GET /api/courses/c1"] = .ok(Bodies.courseDetail(sets: [Bodies.set(id: "v1", status: "restored", canRestore: true)]))
+        await model.restore(replacedSet)
+        #expect(model.isRestoring == false)
+        #expect(model.course?.weeks.first?.sets.first?.status == .restored)
+        #expect(server.calls == ["GET /api/courses/c1", "POST /api/practice-sets/v2/restore", "GET /api/courses/c1"])
+    }
+
+    @Test func refusedRestoreSaysWhyAndKeepsTheCourse() async throws {
+        let server = StubServer([
+            "GET /api/courses/c1": .ok(Bodies.courseDetail(sets: [Bodies.set(id: "v2", status: "replaced", canRestore: true)])),
+            "POST /api/practice-sets/v2/restore": .error(404, "request_refused", "That set is not the current version."),
+        ])
+        let (app, _) = TestApp.make(server, account: .student())
+        let model = CourseModel(app: app, id: "c1")
+        await model.load()
+        await model.restore(try #require(model.course?.weeks.first?.sets.first))
+        #expect(model.problem == "That set is not the current version.")
+        #expect(model.course != nil)
+        #expect(server.calls.count == 2)
+    }
+}

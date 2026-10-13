@@ -6,6 +6,11 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		130000000000000000000001 /* QBankKit in Frameworks */ = {isa = PBXBuildFile; productRef = 150000000000000000000001 /* QBankKit */; };
+		130000000000000000000002 /* QBankDesign in Frameworks */ = {isa = PBXBuildFile; productRef = 150000000000000000000002 /* QBankDesign */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		0F0000000000000000000002 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +57,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				130000000000000000000001 /* QBankKit in Frameworks */,
+				130000000000000000000002 /* QBankDesign in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,6 +119,8 @@
 			);
 			name = QBank;
 			packageProductDependencies = (
+				150000000000000000000001 /* QBankKit */,
+				150000000000000000000002 /* QBankDesign */,
 			);
 			productName = QBank;
 			productReference = 0C0000000000000000000001 /* QBank.app */;
@@ -195,6 +204,10 @@
 			);
 			mainGroup = 0A0000000000000000000002;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				140000000000000000000001 /* XCLocalSwiftPackageReference "Packages/QBankKit" */,
+				140000000000000000000002 /* XCLocalSwiftPackageReference "Packages/QBankDesign" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 0A0000000000000000000003 /* Products */;
 			projectDirPath = "";
@@ -496,6 +509,28 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		140000000000000000000001 /* XCLocalSwiftPackageReference "Packages/QBankKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/QBankKit;
+		};
+		140000000000000000000002 /* XCLocalSwiftPackageReference "Packages/QBankDesign" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/QBankDesign;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		150000000000000000000001 /* QBankKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = QBankKit;
+		};
+		150000000000000000000002 /* QBankDesign */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = QBankDesign;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 0A0000000000000000000001 /* Project object */;
 }

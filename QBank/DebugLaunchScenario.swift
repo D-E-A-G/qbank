@@ -1,10 +1,12 @@
 #if DEBUG
 import Foundation
+import QBankKit
 
 /// Launch-environment seam for UI tests and local simulator review. Compiled
 /// only into Debug builds; Release binaries contain none of it. Every scenario
 /// composes synthetic data and in-process fakes, never a real account or the
-/// production server.
+/// production server: the app talks to `FakeQBankServer` and keeps its session
+/// in memory, so the Keychain is never touched.
 ///
 /// Supported environment variables:
 /// - `QB_UITEST_SCENARIO`: the scenario to start in, one of `Scenario`'s raw
@@ -13,8 +15,12 @@ nonisolated enum DebugLaunchScenario {
     static let scenarioKey = "QB_UITEST_SCENARIO"
 
     enum Scenario: String, CaseIterable {
-        /// The first screen of a fresh install.
-        case welcome
+        /// No session on the phone: the sign-in screen. `FakeQBankServer.student`
+        /// signs in normally; `FakeQBankServer.resetStudent` must choose a new password.
+        case signedOut = "signed-out"
+        /// `FakeQBankServer.student` is signed in from an earlier launch and last
+        /// used the Mental Health course.
+        case signedIn = "signed-in"
     }
 
     struct UnknownScenario: Error, CustomStringConvertible {
@@ -49,9 +55,20 @@ nonisolated enum DebugLaunchScenario {
         switch scenario {
         case nil:
             return nil
-        case .welcome:
-            return AppModel(route: .welcome)
+        case .signedOut:
+            return model(server: FakeQBankServer(signedIn: false), session: nil)
+        case .signedIn:
+            return model(server: FakeQBankServer(signedIn: true), session: FakeQBankServer.storedStudentSession())
         }
+    }
+
+    @MainActor
+    private static func model(server: FakeQBankServer, session: StoredSession?) -> AppModel {
+        AppModel(client: QBankClient(
+            configuration: APIConfiguration(baseURL: URL(string: "https://fake-qbank.invalid")!),
+            transport: server,
+            sessionStore: InMemorySessionStore(session)
+        ))
     }
 }
 #endif

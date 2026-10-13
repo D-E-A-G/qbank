@@ -224,6 +224,34 @@ struct ContentContractTests {
         )))
     }
 
+    @Test func restoreBringsBackThePreviousVersion() async throws {
+        let fixture = try Fixture.load("practice-set-restore")
+        let transport = try FixtureTransport([fixture])
+        let (client, _) = TestClient.make(transport)
+        let replacedID = fixture.request.path.split(separator: "/").dropLast().last.map(String.init)!
+        let restored = try await client.restorePracticeSet(id: replacedID)
+        try expectRequest(transport.requests.first, matches: fixture)
+        #expect(restored.id != replacedID)
+        #expect(restored.status == .restored)
+        #expect(restored.canRestore)
+        #expect(restored.questionCount == 2)
+    }
+
+    @Test func restoringAnOldVersionIsRefused() async throws {
+        let fixture = try Fixture.load("practice-set-restore-not-current")
+        let transport = try FixtureTransport([fixture])
+        let (client, _) = TestClient.make(transport)
+        let id = fixture.request.path.split(separator: "/").dropLast().last.map(String.init)!
+        let error = await #expect(throws: QBankError.self) { try await client.restorePracticeSet(id: id) }
+        #expect(error?.serverCode == .requestRefused)
+        guard case .server(let server)? = error else {
+            Issue.record("Expected a server error")
+            return
+        }
+        #expect(server.status == 404)
+        #expect(server.message == "That set is not the current version.")
+    }
+
     @Test func practiceSetSurvivesTheCacheRoundTrip() throws {
         let set = try Fixture.load("practice-set").decodeBody(PracticeSet.self)
         let again = try QBankJSON.decoder.decode(PracticeSet.self, from: QBankJSON.encoder.encode(set))
