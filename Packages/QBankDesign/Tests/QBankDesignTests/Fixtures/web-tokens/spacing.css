@@ -1,0 +1,87 @@
+/* Spacing, radii, elevation, motion, layout. Points = CSS px = SwiftUI pt. */
+
+:root {
+  /* 4-pt spacing scale */
+  --space-0: 0px;
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 8px;
+  --space-4: 12px;
+  --space-5: 16px;
+  --space-6: 20px;
+  --space-7: 24px;
+  --space-8: 32px;
+  --space-9: 40px;
+  --space-10: 48px;
+  --space-11: 64px;
+
+  /* semantic spacing */
+  --gutter-phone: 16px;     /* screen side margin on iPhone */
+  --gutter-tablet: 24px;    /* content side margin on iPad/Mac */
+  --gap-stack: 12px;        /* between stacked cards/options */
+  --gap-section: 32px;      /* between sections */
+  --row-min: 44px;          /* minimum hit target (Apple HIG) */
+  --row-pad-y: 12px;
+  --row-pad-x: 16px;
+
+  /* radii — use with continuous corners in SwiftUI (.continuous) */
+  --radius-xs: 6px;    /* chips' inner, checkboxes */
+  --radius-sm: 10px;   /* buttons, inputs, answer options */
+  --radius-md: 14px;   /* cards, tiles, grouped lists */
+  --radius-lg: 20px;   /* sheets (top corners) */
+  --radius-pill: 999px;
+  --radius-icon: 22.37%; /* app icon squircle approximation */
+
+  /* borders */
+  --border-hairline: 0.5px;
+  --border-1: 1px;
+  --border-2: 1.5px;   /* selected / state options */
+
+  /* elevation — light mode only; dark relies on surface lightness */
+  --shadow-card: 0 0.5px 0 rgba(28, 27, 24, 0.04), 0 1px 2px rgba(28, 27, 24, 0.05);
+  --shadow-raised: 0 1px 2px rgba(28, 27, 24, 0.06), 0 4px 12px rgba(28, 27, 24, 0.06);
+  --shadow-sheet: 0 -1px 0 rgba(28, 27, 24, 0.04), 0 -8px 32px rgba(28, 27, 24, 0.12);
+  --shadow-popover: 0 2px 6px rgba(28, 27, 24, 0.08), 0 12px 32px rgba(28, 27, 24, 0.14);
+
+  /* motion — calm, no bounce */
+  --ease-standard: cubic-bezier(0.25, 0.1, 0.25, 1); /* @kind other */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1); /* @kind other */
+  --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1); /* @kind other */
+  --dur-instant: 100ms;  /* @kind other */ /* press feedback */
+  --dur-quick: 180ms;    /* @kind other */ /* state change: select, check */
+  --dur-standard: 260ms; /* @kind other */ /* feedback reveal, push */
+  --dur-sheet: 420ms;    /* @kind other */ /* sheet present */
+
+  /* layout */
+  --sidebar-width: 280px;       /* iPad/Mac */
+  --content-max: 720px;         /* runner reading column */
+  --content-max-wide: 1040px;   /* home grid on Mac */
+  --tabbar-height: 49px;        /* + safe-area-inset-bottom */
+  --navbar-height: 44px;
+  --blur-material: saturate(180%) blur(20px); /* @kind other */
+}
+
+/* Explicit light scope — lets a light island sit inside a dark page (and wins over the OS dark query). */
+[data-theme="light"] {
+  /* elevation — light mode only; dark relies on surface lightness */
+  --shadow-card: 0 0.5px 0 rgba(28, 27, 24, 0.04), 0 1px 2px rgba(28, 27, 24, 0.05);
+  --shadow-raised: 0 1px 2px rgba(28, 27, 24, 0.06), 0 4px 12px rgba(28, 27, 24, 0.06);
+  --shadow-sheet: 0 -1px 0 rgba(28, 27, 24, 0.04), 0 -8px 32px rgba(28, 27, 24, 0.12);
+  --shadow-popover: 0 2px 6px rgba(28, 27, 24, 0.08), 0 12px 32px rgba(28, 27, 24, 0.14);
+}
+
+[data-theme="dark"] {
+  --shadow-card: none;
+  --shadow-raised: 0 0 0 0.5px rgba(255, 255, 255, 0.06);
+  --shadow-sheet: 0 0 0 0.5px rgba(255, 255, 255, 0.08);
+  --shadow-popover: 0 0 0 0.5px rgba(255, 255, 255, 0.08), 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-theme="auto"] {
+    --shadow-card: none;
+    --shadow-raised: 0 0 0 0.5px rgba(255, 255, 255, 0.06);
+    --shadow-sheet: 0 0 0 0.5px rgba(255, 255, 255, 0.08);
+    --shadow-popover: 0 0 0 0.5px rgba(255, 255, 255, 0.08), 0 12px 32px rgba(0, 0, 0, 0.5);
+  }
+}

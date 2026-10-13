@@ -1,0 +1,54 @@
+/* Type follows Apple's Dynamic Type "Large" sizes so every style maps 1:1 to a
+   SwiftUI Font.TextStyle. SF Pro (system font) for all text, Inter as the web
+   fallback off Apple platforms; SF Mono / JetBrains Mono for small labels and numbers. */
+
+:root {
+  /* -apple-system resolves to SF Pro on iPhone/iPad/Mac; Inter is the web fallback. */
+  --font-ui: -apple-system, BlinkMacSystemFont, "Inter", system-ui, "Segoe UI", sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "Inter", system-ui, "Segoe UI", sans-serif;
+  --font-reading: -apple-system, BlinkMacSystemFont, "Inter", system-ui, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* size / line-height pairs — SwiftUI TextStyle in comments */
+  --size-large-title: 34px; --lh-large-title: 41px;  /* .largeTitle */
+  --size-title-1: 28px;     --lh-title-1: 34px;      /* .title */
+  --size-title-2: 22px;     --lh-title-2: 28px;      /* .title2 */
+  --size-title-3: 20px;     --lh-title-3: 25px;      /* .title3 */
+  --size-headline: 17px;    --lh-headline: 22px;     /* .headline (semibold) */
+  --size-body: 17px;        --lh-body: 22px;         /* .body */
+  --size-callout: 16px;     --lh-callout: 21px;      /* .callout */
+  --size-subhead: 15px;     --lh-subhead: 20px;      /* .subheadline */
+  --size-footnote: 13px;    --lh-footnote: 18px;     /* .footnote */
+  --size-caption-1: 12px;   --lh-caption-1: 16px;    /* .caption */
+  --size-caption-2: 11px;   --lh-caption-2: 13px;    /* .caption2 */
+
+  /* reading styles — same face, extra leading for long stems */
+  --size-reading: 18px;     --lh-reading: 28px;      /* stem on iPhone */
+  --size-reading-lg: 20px;  --lh-reading-lg: 31px;   /* stem on iPad/Mac */
+  --size-reading-sm: 16px;  --lh-reading-sm: 25px;   /* rationale, option reasons */
+
+  --tracking-tight: -0.4px;  /* large title / title 1 */
+  --tracking-caps: 0.06em;   /* small uppercase section labels */
+
+  /* semantic shorthands */
+  --text-large-title: var(--weight-bold) var(--size-large-title)/var(--lh-large-title) var(--font-display);
+  --text-title-1: var(--weight-bold) var(--size-title-1)/var(--lh-title-1) var(--font-display);
+  --text-title-2: var(--weight-bold) var(--size-title-2)/var(--lh-title-2) var(--font-display);
+  --text-title-3: var(--weight-semibold) var(--size-title-3)/var(--lh-title-3) var(--font-display);
+  --text-headline: var(--weight-semibold) var(--size-headline)/var(--lh-headline) var(--font-ui);
+  --text-body: var(--weight-regular) var(--size-body)/var(--lh-body) var(--font-ui);
+  --text-callout: var(--weight-regular) var(--size-callout)/var(--lh-callout) var(--font-ui);
+  --text-subhead: var(--weight-regular) var(--size-subhead)/var(--lh-subhead) var(--font-ui);
+  --text-footnote: var(--weight-regular) var(--size-footnote)/var(--lh-footnote) var(--font-mono);   /* small labels → mono */
+  --text-caption: var(--weight-regular) var(--size-caption-1)/var(--lh-caption-1) var(--font-mono);
+  --text-caption-2: var(--weight-regular) var(--size-caption-2)/var(--lh-caption-2) var(--font-mono);
+  --text-reading: var(--weight-regular) var(--size-reading)/var(--lh-reading) var(--font-reading);
+  --text-reading-lg: var(--weight-regular) var(--size-reading-lg)/var(--lh-reading-lg) var(--font-reading);
+  --text-reading-sm: var(--weight-regular) var(--size-reading-sm)/var(--lh-reading-sm) var(--font-reading);
+  --text-mono: var(--weight-regular) var(--size-footnote)/var(--lh-footnote) var(--font-mono);
+}
