@@ -113,6 +113,25 @@ public struct QBankClient: Sendable {
         try await send(Request(.post, "/api/practice-sets/\(id)/restore"))
     }
 
+    // MARK: Course exams
+
+    /// Adds an exam, such as "Exam 1", over some of the course's weeks, after its other exams.
+    /// A week already in another exam is refused with 409, naming it ("Week 2 is in Exam 1."), as
+    /// is a name the course already uses; a week the course has no sets in is refused with 400.
+    public func createCourseExam(courseID: String, name: String, weekLabels: [String]) async throws(QBankError) -> CourseExam {
+        try await send(Request(.post, "/api/courses/\(courseID)/course-exams", body: CourseExamRequest(name: name, weekLabels: weekLabels)))
+    }
+
+    /// Renames an exam and replaces its weeks, with the same refusals as `createCourseExam`.
+    public func updateCourseExam(id: String, name: String, weekLabels: [String]) async throws(QBankError) -> CourseExam {
+        try await send(Request(.put, "/api/course-exams/\(id)", body: CourseExamRequest(name: name, weekLabels: weekLabels)))
+    }
+
+    /// Removes an exam. Its weeks, their sets, and her past exams stay as they are.
+    public func deleteCourseExam(id: String) async throws(QBankError) {
+        _ = try await exchange(Request(.delete, "/api/course-exams/\(id)"))
+    }
+
     // MARK: Semesters and courses
 
     /// Adds semester `number` (1, 2, or 3), named "Semester N". A number that exists is

@@ -84,7 +84,7 @@ public struct WaitingProgress: Sendable, Equatable {
             termCount: course.termCount, reviewCount: course.reviewCount,
             answeredCount: Self.clamp(course.answeredCount + answered, to: course.questionCount),
             fullyRightCount: Self.clamp(course.fullyRightCount + fullyRight, to: course.questionCount),
-            points: course.points, maxPoints: course.maxPoints, weeks: weeks
+            points: course.points, maxPoints: course.maxPoints, weeks: weeks, exams: course.exams
         )
     }
 

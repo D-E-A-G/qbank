@@ -1,8 +1,8 @@
 {
-  "recordedFrom": "2b7a4291fc79877edeb8e4eb0e430209ef56fd8b",
+  "recordedFrom": "a1a22c1424b751417b30830ee4b96266f5519255",
   "request": {
     "method": "GET",
-    "path": "/api/courses/6081c42b-988b-40d1-8068-273a13195673/exams",
+    "path": "/api/courses/2fc1aa3a-1d04-46d1-89ab-4077a36647f8/exams",
     "query": {},
     "authorization": "Bearer synthetic-session-token",
     "body": null
@@ -11,7 +11,7 @@
     "status": 200,
     "headers": {},
     "body": {
-      "courseId": "6081c42b-988b-40d1-8068-273a13195673",
+      "courseId": "2fc1aa3a-1d04-46d1-89ab-4077a36647f8",
       "weeks": [
         {
           "label": "Week 1",
@@ -27,17 +27,18 @@
         }
       ],
       "inProgress": {
-        "id": "ebad5273-b423-465f-aabe-51210d3da700",
-        "courseId": "6081c42b-988b-40d1-8068-273a13195673",
+        "id": "842114a9-60c2-4ffd-82d6-cb4b2d2e68f6",
+        "courseId": "2fc1aa3a-1d04-46d1-89ab-4077a36647f8",
         "weeks": [
           "Week 1"
         ],
+        "courseExamId": null,
         "pool": "wrong",
         "practiceWeeks": [],
         "questionCount": 1,
         "timeLimitSeconds": 90,
-        "startedAt": "2026-10-13T00:02:35.538Z",
-        "endsAt": "2026-10-13T00:04:05.538Z",
+        "startedAt": "2026-10-13T03:38:35.807Z",
+        "endsAt": "2026-10-13T03:40:05.807Z",
         "finishedAt": null,
         "endReason": null,
         "answeredCount": 0,
@@ -48,21 +49,22 @@
       },
       "exams": [
         {
-          "id": "a03e90aa-6bd5-4811-b832-61188300940b",
-          "courseId": "6081c42b-988b-40d1-8068-273a13195673",
+          "id": "c57fff2b-d7f7-4d6f-ad8c-9771f4255f45",
+          "courseId": "2fc1aa3a-1d04-46d1-89ab-4077a36647f8",
           "weeks": [
             "Week 1",
             "Week 2"
           ],
+          "courseExamId": null,
           "pool": "all",
           "practiceWeeks": [
             "Week 2"
           ],
           "questionCount": 4,
           "timeLimitSeconds": 360,
-          "startedAt": "2026-10-13T00:02:35.503Z",
-          "endsAt": "2026-10-13T00:08:35.503Z",
-          "finishedAt": "2026-10-13T00:02:35.525Z",
+          "startedAt": "2026-10-13T03:38:35.610Z",
+          "endsAt": "2026-10-13T03:44:35.610Z",
+          "finishedAt": "2026-10-13T03:38:35.729Z",
           "endReason": "finished",
           "answeredCount": 1,
           "fullyRight": 1,

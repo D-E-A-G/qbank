@@ -53,6 +53,81 @@ public struct CourseDetail: Codable, Sendable, Equatable, Identifiable {
     public let points: Int
     public let maxPoints: Int
     public let weeks: [Week]
+    /// The course's exams, such as Exam 1, each with the weeks it covers, in the order they were
+    /// added. Empty until one is made, and from a server older than course exams.
+    public let exams: [CourseExam]
+
+    public init(
+        id: String, code: String, title: String, archivedAt: Date?, semester: SemesterRef,
+        questionCount: Int, examQuestionCount: Int, weekCount: Int, termCount: Int, reviewCount: Int,
+        answeredCount: Int, fullyRightCount: Int, points: Int, maxPoints: Int, weeks: [Week], exams: [CourseExam] = []
+    ) {
+        self.id = id
+        self.code = code
+        self.title = title
+        self.archivedAt = archivedAt
+        self.semester = semester
+        self.questionCount = questionCount
+        self.examQuestionCount = examQuestionCount
+        self.weekCount = weekCount
+        self.termCount = termCount
+        self.reviewCount = reviewCount
+        self.answeredCount = answeredCount
+        self.fullyRightCount = fullyRightCount
+        self.points = points
+        self.maxPoints = maxPoints
+        self.weeks = weeks
+        self.exams = exams
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, code, title, archivedAt, semester, questionCount, examQuestionCount, weekCount, termCount
+        case reviewCount, answeredCount, fullyRightCount, points, maxPoints, weeks, exams
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        code = try container.decode(String.self, forKey: .code)
+        title = try container.decode(String.self, forKey: .title)
+        archivedAt = try container.decodeIfPresent(Date.self, forKey: .archivedAt)
+        semester = try container.decode(SemesterRef.self, forKey: .semester)
+        questionCount = try container.decode(Int.self, forKey: .questionCount)
+        examQuestionCount = try container.decode(Int.self, forKey: .examQuestionCount)
+        weekCount = try container.decode(Int.self, forKey: .weekCount)
+        termCount = try container.decode(Int.self, forKey: .termCount)
+        reviewCount = try container.decode(Int.self, forKey: .reviewCount)
+        answeredCount = try container.decode(Int.self, forKey: .answeredCount)
+        fullyRightCount = try container.decode(Int.self, forKey: .fullyRightCount)
+        points = try container.decode(Int.self, forKey: .points)
+        maxPoints = try container.decode(Int.self, forKey: .maxPoints)
+        weeks = try container.decode([Week].self, forKey: .weeks)
+        // Added with course exams; a server from before them leaves it out, which reads as none.
+        exams = try container.decodeIfPresent([CourseExam].self, forKey: .exams) ?? []
+    }
+}
+
+/// An exam of a course, such as "Exam 1", and the weeks it covers. Shared by everyone, like the
+/// weeks. A week is in one exam of its course at most.
+public struct CourseExam: Codable, Sendable, Equatable, Identifiable {
+    public let id: String
+    public let name: String
+    public let sortOrder: Int
+    /// Its weeks, in week order. A week whose sets were all moved away stays until it is taken out.
+    public let weekLabels: [String]
+
+    public init(id: String, name: String, sortOrder: Int, weekLabels: [String]) {
+        self.id = id
+        self.name = name
+        self.sortOrder = sortOrder
+        self.weekLabels = weekLabels
+    }
+}
+
+/// The body of `POST /api/courses/{id}/course-exams` and `PUT /api/course-exams/{id}`.
+struct CourseExamRequest: Encodable {
+    let name: String
+    let weekLabels: [String]
 }
 
 /// One week of a course.

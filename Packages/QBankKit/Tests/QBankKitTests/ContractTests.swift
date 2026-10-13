@@ -158,7 +158,8 @@ struct ContentContractTests {
         #expect(set.questionIDs.count == 8)
         #expect(set.status == .imported)
         #expect(set.lastAnsweredAt == nil)
-        #expect(QBankJSON.formatDate(set.importedAt) == "2026-10-13T00:02:35.395Z")
+        #expect(QBankJSON.formatDate(set.importedAt) == "2026-10-13T03:38:35.224Z")
+        #expect(course.exams.isEmpty, "a course has no exams until one is made")
     }
 
     @Test func missingCourse() async throws {
@@ -452,6 +453,7 @@ struct ExamContractTests {
         #expect(running.fullyRight == nil)
         #expect(running.pool == .all)
         #expect(running.practiceWeeks == ["Week 2"])
+        #expect(running.courseExamID == nil, "the course has no exams")
     }
 
     @Test func setupAfterExams() throws {
@@ -670,6 +672,110 @@ struct CatalogContractTests {
         #expect(error == .server(ServerError(status: status, code: .requestRefused, message: message)))
         #expect(error.isTemporary == false)
         #expect(error.needsSignIn == false)
+    }
+}
+
+@Suite("Contract: course exams")
+struct CourseExamContractTests {
+    @Test func createSendsTheNameAndWeeks() async throws {
+        let fixture = try Fixture.load("course-exam-create")
+        let transport = try FixtureTransport([fixture])
+        let (client, _) = TestClient.make(transport)
+        let exam = try await client.createCourseExam(courseID: courseID(of: fixture), name: "Exam 1", weekLabels: ["Week 2", "Week 1"])
+        try expectRequest(transport.requests.first, matches: fixture)
+        #expect(exam.id == "ce000000-0000-4000-8000-000000000001")
+        #expect(exam.name == "Exam 1")
+        #expect(exam.sortOrder == 1)
+        #expect(exam.weekLabels == ["Week 1", "Week 2"], "the server keeps weeks in week order")
+    }
+
+    @Test func updateRenamesAndReplacesTheWeeks() async throws {
+        let fixture = try Fixture.load("course-exam-update")
+        let transport = try FixtureTransport([fixture])
+        let (client, _) = TestClient.make(transport)
+        let id = String(fixture.request.path.split(separator: "/").last!)
+        let exam = try await client.updateCourseExam(id: id, name: "Midterm", weekLabels: ["Week 1", "Week 2"])
+        try expectRequest(transport.requests.first, matches: fixture)
+        #expect(exam.id == id)
+        #expect(exam.name == "Midterm")
+        #expect(exam.weekLabels == ["Week 1", "Week 2"])
+    }
+
+    @Test func deleteReadsTheEmptyAnswer() async throws {
+        let fixture = try Fixture.load("course-exam-delete")
+        let transport = try FixtureTransport([fixture])
+        let (client, _) = TestClient.make(transport)
+        try await client.deleteCourseExam(id: String(fixture.request.path.split(separator: "/").last!))
+        try expectRequest(transport.requests.first, matches: fixture)
+        #expect(fixture.response.status == 204)
+    }
+
+    @Test func courseListsItsExams() throws {
+        let course = try Fixture.load("course-with-exams").decodeBody(CourseDetail.self)
+        #expect(course.exams.map(\.name) == ["Midterm", "Exam 2"])
+        #expect(course.exams.map(\.weekLabels) == [["Week 1", "Week 2"], ["Week 3"]])
+        #expect(course.exams.map(\.sortOrder) == [1, 2])
+        #expect(course.weeks.map(\.label) == ["Week 1", "Week 2", "Week 3"])
+    }
+
+    /// A past exam belongs to the course exam holding every week it covered; one across two exams belongs to none.
+    @Test func pastExamsNameTheirCourseExam() throws {
+        let setup = try Fixture.load("exam-setup-course-exams").decodeBody(ExamSetup.self)
+        #expect(setup.exams.map(\.weeks) == [["Week 1", "Week 2", "Week 3"], ["Week 1", "Week 2"]])
+        #expect(setup.exams.map(\.courseExamID) == [nil, "ce000000-0000-4000-8000-000000000001"])
+    }
+
+    @Test(arguments: [
+        ("course-exam-create-week-taken", 409, "Week 2 is in Exam 1."),
+        ("course-exam-create-name-taken", 409, "This course already has an exam named exam 1."),
+        ("course-exam-create-unknown-week", 400, "Week 9 is not a week in this course."),
+        ("course-exam-create-blank", 400, "Exam name is required."),
+        ("course-exam-update-week-taken", 409, "Week 1 is in Midterm."),
+        ("course-exam-not-found", 404, "That exam is not in the app."),
+    ])
+    func refusalsSayWhyInHerWords(name: String, status: Int, message: String) async throws {
+        let fixture = try Fixture.load(name)
+        let transport = try FixtureTransport([fixture])
+        let (client, _) = TestClient.make(transport)
+        let body = fixture.request.body
+        let weeks = body?["weekLabels"]?.arrayValue?.compactMap(\.stringValue) ?? []
+        let error = await #expect(throws: QBankError.self) {
+            switch fixture.request.method {
+            case "POST":
+                _ = try await client.createCourseExam(courseID: courseID(of: fixture), name: body?["name"]?.stringValue ?? "", weekLabels: weeks)
+            case "PUT":
+                _ = try await client.updateCourseExam(id: String(fixture.request.path.split(separator: "/").last!), name: body?["name"]?.stringValue ?? "", weekLabels: weeks)
+            default:
+                try await client.deleteCourseExam(id: String(fixture.request.path.split(separator: "/").last!))
+            }
+        }
+        try expectRequest(transport.requests.first, matches: fixture)
+        #expect(error == .server(ServerError(status: status, code: .requestRefused, message: message)))
+        #expect(error?.needsSignIn == false)
+    }
+
+    /// A server from before course exams sends neither field: the course has no exams, and no
+    /// past exam belongs to one.
+    @Test func olderServerReadsAsNoExams() throws {
+        guard case .object(var course) = try Fixture.load("course").response.body else {
+            Issue.record("The course fixture is not an object")
+            return
+        }
+        course["exams"] = nil
+        let detail = try JSONValue.object(course).decode(CourseDetail.self)
+        #expect(detail.exams.isEmpty)
+        #expect(detail.weeks.count == 2)
+
+        guard case .object(var setup) = try Fixture.load("exam-setup-in-progress").response.body,
+              case .object(var running)? = setup["inProgress"] else {
+            Issue.record("The exam setup fixture has no running exam")
+            return
+        }
+        running["courseExamId"] = nil
+        setup["inProgress"] = .object(running)
+        let decoded = try JSONValue.object(setup).decode(ExamSetup.self)
+        #expect(decoded.inProgress != nil)
+        #expect(decoded.inProgress?.courseExamID == nil)
     }
 }
 

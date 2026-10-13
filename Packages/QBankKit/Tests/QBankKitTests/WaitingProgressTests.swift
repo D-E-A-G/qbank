@@ -23,7 +23,8 @@ struct WaitingProgressTests {
             semester: .init(id: "s1", number: 1, name: "Semester 1"),
             questionCount: questions, examQuestionCount: 0, weekCount: 1, termCount: 0,
             reviewCount: 0, answeredCount: answered, fullyRightCount: right, points: 7, maxPoints: 9,
-            weeks: [Week(label: "Week 1", sets: sets, examBankCount: 0)]
+            weeks: [Week(label: "Week 1", sets: sets, examBankCount: 0)],
+            exams: [CourseExam(id: "x1", name: "Exam 1", sortOrder: 1, weekLabels: ["Week 1"])]
         )
     }
 
@@ -106,6 +107,7 @@ struct WaitingProgressTests {
         #expect(counted.fullyRightCount == 20, "two new right answers, two right answers now wrong")
         #expect(counted.points == 7, "points stay the server's")
         #expect(counted.weeks[0].label == "Week 1")
+        #expect(counted.exams == course.exams, "the course's exams stay")
     }
 
     @Test func homeCountsTheWaitingAnswersThroughTheSavedCourse() {
