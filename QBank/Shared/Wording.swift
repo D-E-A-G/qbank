@@ -64,6 +64,29 @@ nonisolated enum Wording {
             : "No exam bank yet · exams use practice questions"
     }
 
+    /// The format line above a question: "Single answer", "Select all that apply".
+    static func format(_ type: QuestionType?) -> String {
+        switch type {
+        case .single: "Single answer"
+        case .priority: "Priority / first action"
+        case .sata: "Select all that apply"
+        case .highlight: "Highlight"
+        case .order: "Ordering"
+        case .match: "Matching"
+        case .matrix: "Matrix"
+        case .cloze: "Drop-down"
+        case nil: "Question"
+        }
+    }
+
+    /// How long a run took: "45 sec" under a minute, then whole minutes, "1 min", "24 min".
+    static func duration(_ seconds: TimeInterval) -> String {
+        let whole = max(0, Int(seconds.rounded()))
+        if whole < 60 { return "\(whole) sec" }
+        let minutes = max(1, Int((Double(whole) / 60).rounded()))
+        return minutes == 1 ? "1 min" : "\(minutes) min"
+    }
+
     /// What went wrong, in words for her. The server's own messages are written for her, so they
     /// are shown as they come; everything else is said plainly. Nil when there is nothing to say.
     static func problem(_ error: QBankError) -> String? {

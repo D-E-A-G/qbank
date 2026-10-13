@@ -4,8 +4,9 @@ import QBankKit
 import Synchronization
 
 /// An in-process stand-in for the QBank server, for UI tests and simulator review. It answers the
-/// calls the app makes with invented accounts and courses, the way the real routes answer them,
-/// so the app runs end to end through `QBankClient` without a network or a real account.
+/// app's calls with invented accounts, courses and questions, the way the real routes answer them,
+/// and scores answers with the server's rules, so the app runs end to end through `QBankClient`
+/// without a network or a real account.
 nonisolated final class FakeQBankServer: HTTPTransport {
     struct Credentials {
         let email: String
@@ -63,6 +64,10 @@ nonisolated final class FakeQBankServer: HTTPTransport {
         var place: String?
         var psychosocialRestored = false
         var tokenCount = 0
+        /// Saved answers by `clientAttemptId`, so a repeated send is answered with the saved one.
+        var attempts: [String: Data] = [:]
+        /// Her latest answer to each question: (status, answered at).
+        var latest: [String: (status: String, at: Date)] = [:]
     }
 
     private let state: Mutex<State>
@@ -108,7 +113,8 @@ nonisolated final class FakeQBankServer: HTTPTransport {
             method: request.httpMethod ?? "GET",
             path: url.path(),
             token: request.value(forHTTPHeaderField: "Authorization")?.replacingOccurrences(of: "Bearer ", with: ""),
-            body: request.httpBody.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] } ?? [:]
+            body: request.httpBody.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] } ?? [:],
+            rawBody: request.httpBody
         )
         let data = try JSONSerialization.data(withJSONObject: body)
         let response = HTTPURLResponse(url: url, statusCode: status, httpVersion: "HTTP/1.1", headerFields: ["Content-Type": "application/json"])!
@@ -117,7 +123,7 @@ nonisolated final class FakeQBankServer: HTTPTransport {
 
     private typealias Reply = (Int, [String: Any])
 
-    private func answer(method: String, path: String, token: String?, body: [String: Any]) -> Reply {
+    private func answer(method: String, path: String, token: String?, body: [String: Any], rawBody: Data?) -> Reply {
         if method == "POST", path == "/api/sign-in/password" {
             return signIn(email: body["email"] as? String ?? "", password: body["password"] as? String ?? "")
         }
@@ -166,9 +172,15 @@ nonisolated final class FakeQBankServer: HTTPTransport {
             }
             if restored { return failure(404, "request_refused", "That set is not the current version.") }
             return (200, psychosocial())
+        case ("POST", "/api/attempts"):
+            return recordAttempt(rawBody)
         default:
-            return failure(404, "request_refused", "That is not in the app.")
+            break
         }
+        if method == "GET", path.hasPrefix("/api/practice-sets/") {
+            return practiceSet(id: String(path.dropFirst("/api/practice-sets/".count)))
+        }
+        return failure(404, "request_refused", "That is not in the app.")
     }
 
     // MARK: Accounts
@@ -389,7 +401,7 @@ nonisolated final class FakeQBankServer: HTTPTransport {
                     set("anxiety-v1", "Anxiety, Panic, and Anxiolytics", questions: 13, daysAgo: 0),
                 ]),
                 week("Weeks 1-3", bank: 0, sets: [
-                    set("mixed-v1", "Mixed Clinical Judgment", questions: 12, daysAgo: 4),
+                    set("mixed-v1", "Mixed Clinical Judgment", questions: 8, daysAgo: 4),
                 ]),
             ],
         ]
@@ -426,7 +438,20 @@ nonisolated final class FakeQBankServer: HTTPTransport {
         status: String = "imported", canRestore: Bool = false,
         answered: Int = 0, right: Int = 0, lastAnsweredDaysAgo: Int? = nil
     ) -> [String: Any] {
-        [
+        let questionIDs = (0..<questions).map { "\(id)-q\($0)" }
+        // Once she answers here, the set's line counts her answers, as the server's does.
+        let latest = state.withLock { state in questionIDs.compactMap { state.latest[$0] } }
+        if !latest.isEmpty {
+            return [
+                "id": id, "title": title, "description": "", "questionCount": questions,
+                "importedAt": date(days: -daysAgo), "activeSince": date(days: -daysAgo),
+                "status": status, "canRestore": canRestore,
+                "answeredCount": latest.count, "fullyRightCount": latest.count { $0.status == "correct" },
+                "lastAnsweredAt": QBankJSON.formatDate(latest.map(\.at).max() ?? now),
+                "questionIds": questionIDs,
+            ]
+        }
+        return [
             "id": id, "title": title, "description": "", "questionCount": questions,
             "importedAt": date(days: -daysAgo), "activeSince": date(days: -daysAgo),
             "status": status, "canRestore": canRestore,
@@ -434,6 +459,63 @@ nonisolated final class FakeQBankServer: HTTPTransport {
             "lastAnsweredAt": json(answered == 0 ? nil : date(days: -(lastAnsweredDaysAgo ?? 1))),
             "questionIds": (0..<questions).map { "\(id)-q\($0)" },
         ]
+    }
+
+    // MARK: Practice
+
+    /// A set of the Mental Health course, its questions drawn from `FakePracticeQuestions`.
+    private func practiceSet(id: String) -> Reply {
+        let found = (mentalHealth()["weeks"] as? [[String: Any]] ?? []).lazy.compactMap { week -> ([String: Any], String)? in
+            guard let sets = week["sets"] as? [[String: Any]], let set = sets.first(where: { $0["id"] as? String == id }) else { return nil }
+            return (set, week["label"] as? String ?? "")
+        }.first
+        guard let (set, weekLabel) = found, let count = set["questionCount"] as? Int else {
+            return failure(404, "request_refused", "That set is not in the app.")
+        }
+        return (200, [
+            "id": id, "courseId": Self.mentalHealthID, "title": set["title"] as? String ?? "", "weekLabel": weekLabel,
+            "kind": "practice",
+            "questions": (0..<count).map { FakePracticeQuestions.question(setID: id, index: $0) },
+        ])
+    }
+
+    /// Scores an answer with the server's rules and saves it. A repeated `clientAttemptId` gets the
+    /// saved attempt back with `replayed`, as on the server.
+    private func recordAttempt(_ rawBody: Data?) -> Reply {
+        guard let rawBody, let submission = try? JSONDecoder().decode(FakeSubmission.self, from: rawBody) else {
+            return failure(400, "invalid_request", "That answer could not be read.")
+        }
+        if let data = state.withLock({ $0.attempts[submission.clientAttemptId] }),
+           var saved = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            saved["replayed"] = true
+            return (200, saved)
+        }
+        guard let template = FakePracticeQuestions.template(forQuestionID: submission.questionId),
+              let data = try? JSONSerialization.data(withJSONObject: template.merging(
+                  ["id": submission.questionId, "publicId": "Q", "position": 1], uniquingKeysWith: { $1 })),
+              let question = try? QBankJSON.decoder.decode(Question.self, from: data) else {
+            return failure(404, "request_refused", "That question is not in the app.")
+        }
+        let score: Score
+        do {
+            score = try Scoring.score(question.body, response: submission.response)
+        } catch {
+            return failure(400, "invalid_request", error.message)
+        }
+        let answeredAt = Date.now
+        let saved: [String: Any] = [
+            "clientAttemptId": submission.clientAttemptId, "questionId": submission.questionId, "courseId": Self.mentalHealthID,
+            "status": score.status.rawValue, "points": score.points, "maxPoints": score.maxPoints,
+            "guessed": submission.guessed, "answeredAt": QBankJSON.formatDate(answeredAt),
+            "inReview": score.staysInReview(guessed: submission.guessed), "label": score.label, "replayed": false,
+        ]
+        let record = (try? JSONSerialization.data(withJSONObject: saved)) ?? Data()
+        let status = score.status.rawValue
+        state.withLock { state in
+            state.attempts[submission.clientAttemptId] = record
+            state.latest[submission.questionId] = (status, answeredAt)
+        }
+        return (201, saved)
     }
 
     // MARK: Plumbing
@@ -450,5 +532,13 @@ nonisolated final class FakeQBankServer: HTTPTransport {
     private func failure(_ status: Int, _ code: String, _ message: String) -> Reply {
         (status, ["error": code, "message": message])
     }
+}
+
+/// The parts of `POST /api/attempts` the fake server reads.
+private nonisolated struct FakeSubmission: Decodable {
+    let clientAttemptId: String
+    let questionId: String
+    let response: AnswerResponse
+    let guessed: Bool
 }
 #endif

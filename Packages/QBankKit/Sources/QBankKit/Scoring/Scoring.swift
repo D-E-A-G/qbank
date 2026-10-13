@@ -11,6 +11,35 @@ public struct Score: Sendable, Equatable {
     /// False when she skipped the question or never reached it. An empty submission is still answered.
     public let answered: Bool
 
+    public init(points: Int, maxPoints: Int, status: ScoreStatus, answered: Bool) {
+        self.points = points
+        self.maxPoints = maxPoints
+        self.status = status
+        self.answered = answered
+    }
+
+    /// The score the server gave a saved answer. The screens show this one, never their own.
+    public init(_ saved: SavedAttempt) {
+        self.init(points: saved.points, maxPoints: saved.maxPoints, status: saved.status, answered: true)
+    }
+
+    /// The banner word: Correct, Partly correct, Not correct, or Not answered.
+    public var label: String {
+        guard answered else { return "Not answered" }
+        switch status {
+        case .correct: return "Correct"
+        case .partial: return "Partly correct"
+        case .incorrect: return "Not correct"
+        }
+    }
+
+    /// "N of M points" for a submitted multi-part answer. Single-answer and priority questions
+    /// show no point line, and neither does a question she did not answer.
+    public func pointsText(for type: QuestionType) -> String? {
+        guard answered, type != .single, type != .priority else { return nil }
+        return "\(points) of \(maxPoints) points"
+    }
+
     /// Whether this answer keeps the question in Review. A guess stays even when fully right;
     /// a question she did not answer never enters Review.
     public func staysInReview(guessed: Bool) -> Bool {
@@ -95,5 +124,18 @@ public enum Scoring {
 
     private static func exact<T: Equatable>(_ expected: [T], _ choices: [T?]) -> Int {
         expected.indices.count { index in index < choices.count && choices[index] == expected[index] }
+    }
+}
+
+extension QuestionType {
+    /// The scoring rule the feedback banner explains under the points. Select-all and highlight
+    /// share one sentence and ordering has its own; the other formats score a point per part and
+    /// add none.
+    public var scoringRule: String? {
+        switch self {
+        case .sata, .highlight: "+1 for each correct choice, -1 for each wrong one"
+        case .order: "items in the right position; full credit needs all of them"
+        case .single, .priority, .match, .matrix, .cloze: nil
+        }
     }
 }
