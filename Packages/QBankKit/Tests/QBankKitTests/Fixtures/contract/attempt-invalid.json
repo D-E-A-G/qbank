@@ -1,0 +1,28 @@
+{
+  "recordedFrom": "2b7a4291fc79877edeb8e4eb0e430209ef56fd8b",
+  "request": {
+    "method": "POST",
+    "path": "/api/attempts",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": {
+      "clientAttemptId": "22222222-2222-4222-8222-222222222222",
+      "questionId": "0cac9fe8-9223-4442-8cf3-b930c6d6d4fa",
+      "response": {
+        "type": "sata",
+        "picks": [
+          0
+        ]
+      },
+      "guessed": false
+    }
+  },
+  "response": {
+    "status": 400,
+    "headers": {},
+    "body": {
+      "error": "invalid_response",
+      "message": "Cannot score a single question with a sata answer."
+    }
+  }
+}

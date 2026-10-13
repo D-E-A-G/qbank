@@ -1,0 +1,95 @@
+{
+  "recordedFrom": "2b7a4291fc79877edeb8e4eb0e430209ef56fd8b",
+  "request": {
+    "method": "GET",
+    "path": "/api/courses/6081c42b-988b-40d1-8068-273a13195673/review",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "filter": "all",
+      "counts": {
+        "all": 7,
+        "missed": 2,
+        "partial": 4,
+        "guessed": 1
+      },
+      "questions": [
+        {
+          "questionId": "9ef41f2f-f325-46c3-b718-4e58466fd1c4",
+          "topic": "Invented cloze topic",
+          "weekLabel": "Week 1",
+          "format": "Drop-down cloze",
+          "status": "partial",
+          "guessed": false,
+          "answeredAt": "2026-10-13T00:02:35.480Z",
+          "setTitle": "Week 1 - Set 1: Invented basics"
+        },
+        {
+          "questionId": "8a42afe7-8190-4732-adf8-d4fc5dd99ee0",
+          "topic": "Invented matrix topic",
+          "weekLabel": "Week 1",
+          "format": "Matrix",
+          "status": "partial",
+          "guessed": false,
+          "answeredAt": "2026-10-13T00:02:35.476Z",
+          "setTitle": "Week 1 - Set 1: Invented basics"
+        },
+        {
+          "questionId": "8f5f7b74-9d6c-47d9-bd95-7e40cbe955e2",
+          "topic": "Invented match topic",
+          "weekLabel": "Week 1",
+          "format": "Matching",
+          "status": "partial",
+          "guessed": false,
+          "answeredAt": "2026-10-13T00:02:35.472Z",
+          "setTitle": "Week 1 - Set 1: Invented basics"
+        },
+        {
+          "questionId": "af8621ee-2e54-46d6-a671-7277fdda2d25",
+          "topic": "Invented order topic",
+          "weekLabel": "Week 1",
+          "format": "Ordered response",
+          "status": "partial",
+          "guessed": false,
+          "answeredAt": "2026-10-13T00:02:35.469Z",
+          "setTitle": "Week 1 - Set 1: Invented basics"
+        },
+        {
+          "questionId": "2889259f-bd71-4728-a70a-8f0f66859b13",
+          "topic": "Invented priority topic",
+          "weekLabel": "Week 1",
+          "format": "Priority / first action",
+          "status": "correct",
+          "guessed": true,
+          "answeredAt": "2026-10-13T00:02:35.461Z",
+          "setTitle": "Week 1 - Set 1: Invented basics"
+        },
+        {
+          "questionId": "88ee2607-d52e-4ca9-8525-2978ead685c0",
+          "topic": "Invented select-all topic",
+          "weekLabel": "Week 1",
+          "format": "Select all that apply",
+          "status": "incorrect",
+          "guessed": false,
+          "answeredAt": "2026-10-13T00:02:35.458Z",
+          "setTitle": "Week 1 - Set 1: Invented basics"
+        },
+        {
+          "questionId": "0cac9fe8-9223-4442-8cf3-b930c6d6d4fa",
+          "topic": "Invented single topic",
+          "weekLabel": "Week 1",
+          "format": "Single answer",
+          "status": "incorrect",
+          "guessed": false,
+          "answeredAt": "2026-10-13T00:02:35.438Z",
+          "setTitle": "Week 1 - Set 1: Invented basics"
+        }
+      ]
+    }
+  }
+}

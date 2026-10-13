@@ -1,0 +1,23 @@
+{
+  "recordedFrom": "2b7a4291fc79877edeb8e4eb0e430209ef56fd8b",
+  "request": {
+    "method": "POST",
+    "path": "/api/courses/6081c42b-988b-40d1-8068-273a13195673/exams",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": {
+      "weeks": [
+        "Week 2"
+      ],
+      "pool": "wrong"
+    }
+  },
+  "response": {
+    "status": 400,
+    "headers": {},
+    "body": {
+      "error": "no_wrong_questions",
+      "message": "Week 2 has no wrong questions. Untick it, or turn off Wrong questions only."
+    }
+  }
+}

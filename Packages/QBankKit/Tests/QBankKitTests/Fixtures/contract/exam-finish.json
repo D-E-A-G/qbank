@@ -1,0 +1,242 @@
+{
+  "recordedFrom": "2b7a4291fc79877edeb8e4eb0e430209ef56fd8b",
+  "request": {
+    "method": "POST",
+    "path": "/api/exams/a03e90aa-6bd5-4811-b832-61188300940b/finish",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": {
+      "reason": "finished"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "id": "a03e90aa-6bd5-4811-b832-61188300940b",
+      "courseId": "6081c42b-988b-40d1-8068-273a13195673",
+      "courseCode": "NURS 101",
+      "courseTitle": "Invented Nursing Basics",
+      "weeks": [
+        "Week 1",
+        "Week 2"
+      ],
+      "pool": "all",
+      "practiceWeeks": [
+        "Week 2"
+      ],
+      "timeLimitSeconds": 360,
+      "startedAt": "2026-10-13T00:02:35.503Z",
+      "endsAt": "2026-10-13T00:08:35.503Z",
+      "finishedAt": "2026-10-13T00:02:35.525Z",
+      "endReason": "finished",
+      "serverNow": "2026-10-13T00:02:35.525Z",
+      "questions": [
+        {
+          "id": "c5c4ce64-492c-4ca6-a6c1-a2779e23d809",
+          "publicId": "E2",
+          "position": 1,
+          "type": "single",
+          "topic": "Invented exam topic 2",
+          "cj": "Analyze cues",
+          "stem": "An invented exam stem.",
+          "ask": "Which is right?",
+          "rationale": "Invented exam rationale.",
+          "takeaway": "Invented exam takeaway.",
+          "body": {
+            "twinOf": "Q2",
+            "options": [
+              {
+                "t": "Right",
+                "ok": true,
+                "why": "Yes."
+              },
+              {
+                "t": "Wrong",
+                "why": "No."
+              },
+              {
+                "t": "Also wrong",
+                "why": "No."
+              }
+            ]
+          },
+          "terms": [],
+          "weekLabel": "Week 1"
+        },
+        {
+          "id": "c975d26a-b6ed-4ecb-af35-cf2008f8a5e0",
+          "publicId": "R2",
+          "position": 2,
+          "type": "single",
+          "topic": "Invented week 2 topic 2",
+          "cj": "Analyze cues",
+          "stem": "An invented stem.",
+          "ask": "Which is right?",
+          "rationale": "Invented rationale.",
+          "takeaway": "Invented takeaway.",
+          "body": {
+            "options": [
+              {
+                "t": "Right",
+                "ok": true
+              },
+              {
+                "t": "Wrong"
+              },
+              {
+                "t": "Also wrong"
+              }
+            ]
+          },
+          "terms": [],
+          "weekLabel": "Week 2"
+        },
+        {
+          "id": "e8723421-974e-4ae0-b1e8-ab97f62f243b",
+          "publicId": "R1",
+          "position": 3,
+          "type": "single",
+          "topic": "Invented week 2 topic 1",
+          "cj": "Analyze cues",
+          "stem": "An invented stem.",
+          "ask": "Which is right?",
+          "rationale": "Invented rationale.",
+          "takeaway": "Invented takeaway.",
+          "body": {
+            "options": [
+              {
+                "t": "Right",
+                "ok": true
+              },
+              {
+                "t": "Wrong"
+              },
+              {
+                "t": "Also wrong"
+              }
+            ]
+          },
+          "terms": [],
+          "weekLabel": "Week 2"
+        },
+        {
+          "id": "4af32af6-c2d6-4527-a339-214185442a23",
+          "publicId": "E1",
+          "position": 4,
+          "type": "single",
+          "topic": "Invented exam topic 1",
+          "cj": "Analyze cues",
+          "stem": "An invented exam stem.",
+          "ask": "Which is right?",
+          "rationale": "Invented exam rationale.",
+          "takeaway": "Invented exam takeaway.",
+          "body": {
+            "twinOf": "Q1",
+            "options": [
+              {
+                "t": "Right",
+                "ok": true,
+                "why": "Yes."
+              },
+              {
+                "t": "Wrong",
+                "why": "No."
+              },
+              {
+                "t": "Also wrong",
+                "why": "No."
+              }
+            ]
+          },
+          "terms": [],
+          "weekLabel": "Week 1"
+        }
+      ],
+      "answeredQuestionIds": [
+        "c5c4ce64-492c-4ca6-a6c1-a2779e23d809"
+      ],
+      "result": {
+        "questionCount": 4,
+        "answered": 1,
+        "unanswered": 3,
+        "fullyRight": 1,
+        "partial": 0,
+        "missed": 0,
+        "guessed": 0,
+        "points": 1,
+        "maxPoints": 4,
+        "minutesUsed": 1,
+        "reviewCount": 0,
+        "examBankWrong": 0,
+        "byWeek": [
+          {
+            "label": "Week 1",
+            "right": 1,
+            "total": 2
+          },
+          {
+            "label": "Week 2",
+            "right": 0,
+            "total": 2
+          }
+        ],
+        "byStep": [
+          {
+            "label": "Analyze cues",
+            "right": 1,
+            "total": 4
+          }
+        ],
+        "items": [
+          {
+            "questionId": "c5c4ce64-492c-4ca6-a6c1-a2779e23d809",
+            "status": "correct",
+            "points": 1,
+            "maxPoints": 1,
+            "guessed": false,
+            "response": {
+              "type": "single",
+              "choice": 0
+            },
+            "shuffle": {
+              "kind": "options",
+              "order": [
+                0,
+                2,
+                1
+              ]
+            }
+          },
+          {
+            "questionId": "c975d26a-b6ed-4ecb-af35-cf2008f8a5e0",
+            "status": "unanswered",
+            "points": 0,
+            "maxPoints": 1,
+            "guessed": false,
+            "response": null,
+            "shuffle": null
+          },
+          {
+            "questionId": "e8723421-974e-4ae0-b1e8-ab97f62f243b",
+            "status": "unanswered",
+            "points": 0,
+            "maxPoints": 1,
+            "guessed": false,
+            "response": null,
+            "shuffle": null
+          },
+          {
+            "questionId": "4af32af6-c2d6-4527-a339-214185442a23",
+            "status": "unanswered",
+            "points": 0,
+            "maxPoints": 1,
+            "guessed": false,
+            "response": null,
+            "shuffle": null
+          }
+        ]
+      }
+    }
+  }
+}

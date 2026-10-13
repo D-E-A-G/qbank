@@ -1,0 +1,33 @@
+{
+  "recordedFrom": "2b7a4291fc79877edeb8e4eb0e430209ef56fd8b",
+  "request": {
+    "method": "GET",
+    "path": "/api/courses/6081c42b-988b-40d1-8068-273a13195673/exams",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "courseId": "6081c42b-988b-40d1-8068-273a13195673",
+      "weeks": [
+        {
+          "label": "Week 1",
+          "questionCount": 2,
+          "wrongCount": 1,
+          "source": "exam"
+        },
+        {
+          "label": "Week 2",
+          "questionCount": 2,
+          "wrongCount": 0,
+          "source": "practice"
+        }
+      ],
+      "inProgress": null,
+      "exams": []
+    }
+  }
+}

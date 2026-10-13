@@ -1,0 +1,26 @@
+{
+  "recordedFrom": "2b7a4291fc79877edeb8e4eb0e430209ef56fd8b",
+  "request": {
+    "method": "POST",
+    "path": "/api/attempts",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": {
+      "clientAttemptId": "11111111-1111-4111-8111-111111111111",
+      "questionId": "0cac9fe8-9223-4442-8cf3-b930c6d6d4fa",
+      "response": {
+        "type": "single",
+        "choice": 0
+      },
+      "guessed": false
+    }
+  },
+  "response": {
+    "status": 409,
+    "headers": {},
+    "body": {
+      "error": "attempt_conflict",
+      "message": "That attempt id was already saved with a different answer."
+    }
+  }
+}

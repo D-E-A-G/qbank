@@ -1,0 +1,676 @@
+{
+  "recordedFrom": "2b7a4291fc79877edeb8e4eb0e430209ef56fd8b",
+  "request": {
+    "method": "GET",
+    "path": "/api/me/export",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "format": "nclex-qbank-progress",
+      "version": 1,
+      "exportedAt": "2026-10-13T00:02:35.545Z",
+      "account": {
+        "id": "GPk4e5YvG1XWCaspBsljrnmmgWFH6VFO",
+        "name": "Sam Student",
+        "email": "student@example.com"
+      },
+      "lastCourseId": "6081c42b-988b-40d1-8068-273a13195673",
+      "courses": [
+        {
+          "id": "6081c42b-988b-40d1-8068-273a13195673",
+          "code": "NURS 101",
+          "title": "Invented Nursing Basics",
+          "archivedAt": null,
+          "semester": {
+            "id": "4083dbda-2bef-4b13-b406-d226ee2a8f50",
+            "number": 1,
+            "name": "Semester 1"
+          },
+          "questionCount": 10,
+          "answeredCount": 8,
+          "fullyRightCount": 2,
+          "points": 7,
+          "maxPoints": 16,
+          "reviewCount": 7,
+          "review": [
+            {
+              "questionId": "9ef41f2f-f325-46c3-b718-4e58466fd1c4",
+              "topic": "Invented cloze topic",
+              "weekLabel": "Week 1",
+              "format": "Drop-down cloze",
+              "status": "partial",
+              "guessed": false,
+              "answeredAt": "2026-10-13T00:02:35.480Z",
+              "setTitle": "Week 1 - Set 1: Invented basics"
+            },
+            {
+              "questionId": "8a42afe7-8190-4732-adf8-d4fc5dd99ee0",
+              "topic": "Invented matrix topic",
+              "weekLabel": "Week 1",
+              "format": "Matrix",
+              "status": "partial",
+              "guessed": false,
+              "answeredAt": "2026-10-13T00:02:35.476Z",
+              "setTitle": "Week 1 - Set 1: Invented basics"
+            },
+            {
+              "questionId": "8f5f7b74-9d6c-47d9-bd95-7e40cbe955e2",
+              "topic": "Invented match topic",
+              "weekLabel": "Week 1",
+              "format": "Matching",
+              "status": "partial",
+              "guessed": false,
+              "answeredAt": "2026-10-13T00:02:35.472Z",
+              "setTitle": "Week 1 - Set 1: Invented basics"
+            },
+            {
+              "questionId": "af8621ee-2e54-46d6-a671-7277fdda2d25",
+              "topic": "Invented order topic",
+              "weekLabel": "Week 1",
+              "format": "Ordered response",
+              "status": "partial",
+              "guessed": false,
+              "answeredAt": "2026-10-13T00:02:35.469Z",
+              "setTitle": "Week 1 - Set 1: Invented basics"
+            },
+            {
+              "questionId": "2889259f-bd71-4728-a70a-8f0f66859b13",
+              "topic": "Invented priority topic",
+              "weekLabel": "Week 1",
+              "format": "Priority / first action",
+              "status": "correct",
+              "guessed": true,
+              "answeredAt": "2026-10-13T00:02:35.461Z",
+              "setTitle": "Week 1 - Set 1: Invented basics"
+            },
+            {
+              "questionId": "88ee2607-d52e-4ca9-8525-2978ead685c0",
+              "topic": "Invented select-all topic",
+              "weekLabel": "Week 1",
+              "format": "Select all that apply",
+              "status": "incorrect",
+              "guessed": false,
+              "answeredAt": "2026-10-13T00:02:35.458Z",
+              "setTitle": "Week 1 - Set 1: Invented basics"
+            },
+            {
+              "questionId": "0cac9fe8-9223-4442-8cf3-b930c6d6d4fa",
+              "topic": "Invented single topic",
+              "weekLabel": "Week 1",
+              "format": "Single answer",
+              "status": "incorrect",
+              "guessed": false,
+              "answeredAt": "2026-10-13T00:02:35.438Z",
+              "setTitle": "Week 1 - Set 1: Invented basics"
+            }
+          ]
+        }
+      ],
+      "questions": [
+        {
+          "id": "0cac9fe8-9223-4442-8cf3-b930c6d6d4fa",
+          "lineageId": "f72a99aa-16dc-4aef-ba7d-f37df8992072",
+          "publicId": "Q1",
+          "courseId": "6081c42b-988b-40d1-8068-273a13195673",
+          "setId": "30722b59-8c29-4610-b17d-001f0d99a995",
+          "setTitle": "Week 1 - Set 1: Invented basics",
+          "setIsCurrent": true,
+          "setKind": "practice",
+          "weekLabel": "Week 1",
+          "type": "single",
+          "format": "Single answer",
+          "topic": "Invented single topic"
+        },
+        {
+          "id": "2889259f-bd71-4728-a70a-8f0f66859b13",
+          "lineageId": "16d3214a-d1f0-4702-84d8-6b0b546bf45d",
+          "publicId": "Q2",
+          "courseId": "6081c42b-988b-40d1-8068-273a13195673",
+          "setId": "30722b59-8c29-4610-b17d-001f0d99a995",
+          "setTitle": "Week 1 - Set 1: Invented basics",
+          "setIsCurrent": true,
+          "setKind": "practice",
+          "weekLabel": "Week 1",
+          "type": "priority",
+          "format": "Priority / first action",
+          "topic": "Invented priority topic"
+        },
+        {
+          "id": "88ee2607-d52e-4ca9-8525-2978ead685c0",
+          "lineageId": "1dd538c8-c0e8-4345-8182-4fcb108c2afe",
+          "publicId": "Q3",
+          "courseId": "6081c42b-988b-40d1-8068-273a13195673",
+          "setId": "30722b59-8c29-4610-b17d-001f0d99a995",
+          "setTitle": "Week 1 - Set 1: Invented basics",
+          "setIsCurrent": true,
+          "setKind": "practice",
+          "weekLabel": "Week 1",
+          "type": "sata",
+          "format": "Select all that apply",
+          "topic": "Invented select-all topic"
+        },
+        {
+          "id": "d7cf2cde-e16a-4531-8f39-7240f11b3bce",
+          "lineageId": "6e106fea-51d4-4548-9edd-91eb76bbdf64",
+          "publicId": "Q4",
+          "courseId": "6081c42b-988b-40d1-8068-273a13195673",
+          "setId": "30722b59-8c29-4610-b17d-001f0d99a995",
+          "setTitle": "Week 1 - Set 1: Invented basics",
+          "setIsCurrent": true,
+          "setKind": "practice",
+          "weekLabel": "Week 1",
+          "type": "highlight",
+          "format": "Highlight",
+          "topic": "Invented highlight topic"
+        },
+        {
+          "id": "af8621ee-2e54-46d6-a671-7277fdda2d25",
+          "lineageId": "63ecd2fa-ad03-4b5d-af78-5504c2a37a12",
+          "publicId": "Q5",
+          "courseId": "6081c42b-988b-40d1-8068-273a13195673",
+          "setId": "30722b59-8c29-4610-b17d-001f0d99a995",
+          "setTitle": "Week 1 - Set 1: Invented basics",
+          "setIsCurrent": true,
+          "setKind": "practice",
+          "weekLabel": "Week 1",
+          "type": "order",
+          "format": "Ordered response",
+          "topic": "Invented order topic"
+        },
+        {
+          "id": "8f5f7b74-9d6c-47d9-bd95-7e40cbe955e2",
+          "lineageId": "027409a1-df02-4904-8b35-7acc5373330c",
+          "publicId": "Q6",
+          "courseId": "6081c42b-988b-40d1-8068-273a13195673",
+          "setId": "30722b59-8c29-4610-b17d-001f0d99a995",
+          "setTitle": "Week 1 - Set 1: Invented basics",
+          "setIsCurrent": true,
+          "setKind": "practice",
+          "weekLabel": "Week 1",
+          "type": "match",
+          "format": "Matching",
+          "topic": "Invented match topic"
+        },
+        {
+          "id": "8a42afe7-8190-4732-adf8-d4fc5dd99ee0",
+          "lineageId": "5dec0725-4413-41a9-b00c-7f89a97f661a",
+          "publicId": "Q7",
+          "courseId": "6081c42b-988b-40d1-8068-273a13195673",
+          "setId": "30722b59-8c29-4610-b17d-001f0d99a995",
+          "setTitle": "Week 1 - Set 1: Invented basics",
+          "setIsCurrent": true,
+          "setKind": "practice",
+          "weekLabel": "Week 1",
+          "type": "matrix",
+          "format": "Matrix",
+          "topic": "Invented matrix topic"
+        },
+        {
+          "id": "9ef41f2f-f325-46c3-b718-4e58466fd1c4",
+          "lineageId": "a99b1797-8643-42db-be69-c5a14c5625df",
+          "publicId": "Q8",
+          "courseId": "6081c42b-988b-40d1-8068-273a13195673",
+          "setId": "30722b59-8c29-4610-b17d-001f0d99a995",
+          "setTitle": "Week 1 - Set 1: Invented basics",
+          "setIsCurrent": true,
+          "setKind": "practice",
+          "weekLabel": "Week 1",
+          "type": "cloze",
+          "format": "Drop-down cloze",
+          "topic": "Invented cloze topic"
+        },
+        {
+          "id": "4af32af6-c2d6-4527-a339-214185442a23",
+          "lineageId": "0847b891-4c18-4700-b490-e14fe2b2112c",
+          "publicId": "E1",
+          "courseId": "6081c42b-988b-40d1-8068-273a13195673",
+          "setId": "174e214b-1bb9-4b67-910a-4df1f35fd08d",
+          "setTitle": "Week 1 exam bank",
+          "setIsCurrent": true,
+          "setKind": "exam",
+          "weekLabel": "Week 1",
+          "type": "single",
+          "format": "Single answer",
+          "topic": "Invented exam topic 1"
+        },
+        {
+          "id": "c5c4ce64-492c-4ca6-a6c1-a2779e23d809",
+          "lineageId": "a20c23a7-7688-462d-878f-9ab556e20321",
+          "publicId": "E2",
+          "courseId": "6081c42b-988b-40d1-8068-273a13195673",
+          "setId": "174e214b-1bb9-4b67-910a-4df1f35fd08d",
+          "setTitle": "Week 1 exam bank",
+          "setIsCurrent": true,
+          "setKind": "exam",
+          "weekLabel": "Week 1",
+          "type": "single",
+          "format": "Single answer",
+          "topic": "Invented exam topic 2"
+        },
+        {
+          "id": "e8723421-974e-4ae0-b1e8-ab97f62f243b",
+          "lineageId": "d8f2919c-5bbf-4311-b416-969d54edce89",
+          "publicId": "R1",
+          "courseId": "6081c42b-988b-40d1-8068-273a13195673",
+          "setId": "cd08c515-5dc9-4285-8f5d-4683aa650461",
+          "setTitle": "Week 2 - Set 1: Invented follow-up",
+          "setIsCurrent": true,
+          "setKind": "practice",
+          "weekLabel": "Week 2",
+          "type": "single",
+          "format": "Single answer",
+          "topic": "Invented week 2 topic 1"
+        },
+        {
+          "id": "c975d26a-b6ed-4ecb-af35-cf2008f8a5e0",
+          "lineageId": "4d60df75-11c4-4c9f-bd54-3db7e42fe7e5",
+          "publicId": "R2",
+          "courseId": "6081c42b-988b-40d1-8068-273a13195673",
+          "setId": "cd08c515-5dc9-4285-8f5d-4683aa650461",
+          "setTitle": "Week 2 - Set 1: Invented follow-up",
+          "setIsCurrent": true,
+          "setKind": "practice",
+          "weekLabel": "Week 2",
+          "type": "single",
+          "format": "Single answer",
+          "topic": "Invented week 2 topic 2"
+        }
+      ],
+      "studySessions": [
+        {
+          "id": "a03e90aa-6bd5-4811-b832-61188300940b",
+          "courseId": "6081c42b-988b-40d1-8068-273a13195673",
+          "mode": "exam",
+          "setId": null,
+          "questionIds": [
+            "c5c4ce64-492c-4ca6-a6c1-a2779e23d809",
+            "c975d26a-b6ed-4ecb-af35-cf2008f8a5e0",
+            "e8723421-974e-4ae0-b1e8-ab97f62f243b",
+            "4af32af6-c2d6-4527-a339-214185442a23"
+          ],
+          "examWeeks": [
+            "Week 1",
+            "Week 2"
+          ],
+          "examPool": "all",
+          "examPracticeWeeks": [
+            "Week 2"
+          ],
+          "timeLimitSeconds": 360,
+          "startedAt": "2026-10-13T00:02:35.503Z",
+          "finishedAt": "2026-10-13T00:02:35.525Z",
+          "score": {
+            "points": 1,
+            "answered": 1,
+            "maxPoints": 4,
+            "fullyRight": 1,
+            "minutesUsed": 1,
+            "reviewCount": 0,
+            "questionCount": 4
+          },
+          "endReason": "finished"
+        },
+        {
+          "id": "ebad5273-b423-465f-aabe-51210d3da700",
+          "courseId": "6081c42b-988b-40d1-8068-273a13195673",
+          "mode": "exam",
+          "setId": null,
+          "questionIds": [
+            "4af32af6-c2d6-4527-a339-214185442a23"
+          ],
+          "examWeeks": [
+            "Week 1"
+          ],
+          "examPool": "wrong",
+          "examPracticeWeeks": [],
+          "timeLimitSeconds": 90,
+          "startedAt": "2026-10-13T00:02:35.538Z",
+          "finishedAt": null,
+          "score": null,
+          "endReason": null
+        }
+      ],
+      "attempts": [
+        {
+          "id": "25bb750f-82b7-4b59-81c2-91fbaddaf185",
+          "clientAttemptId": "11111111-1111-4111-8111-111111111111",
+          "studySessionId": null,
+          "questionId": "0cac9fe8-9223-4442-8cf3-b930c6d6d4fa",
+          "response": {
+            "type": "single",
+            "choice": 1
+          },
+          "shuffle": {
+            "kind": "options",
+            "order": [
+              2,
+              0,
+              1
+            ]
+          },
+          "status": "incorrect",
+          "points": 0,
+          "maxPoints": 1,
+          "guessed": false,
+          "answeredAt": "2026-10-13T00:02:35.438Z"
+        },
+        {
+          "id": "66ce06da-b615-4033-bdbf-0a6309399f13",
+          "clientAttemptId": "44444444-4444-4444-8444-444444444444",
+          "studySessionId": null,
+          "questionId": "88ee2607-d52e-4ca9-8525-2978ead685c0",
+          "response": {
+            "type": "sata",
+            "picks": [
+              0,
+              2
+            ]
+          },
+          "shuffle": {
+            "kind": "options",
+            "order": [
+              3,
+              2,
+              1,
+              0
+            ]
+          },
+          "status": "incorrect",
+          "points": 0,
+          "maxPoints": 3,
+          "guessed": false,
+          "answeredAt": "2026-10-13T00:02:35.458Z"
+        },
+        {
+          "id": "898630c2-a6ad-45ca-9a6c-6d44b871ebf7",
+          "clientAttemptId": "55555555-5555-4555-8555-555555555555",
+          "studySessionId": null,
+          "questionId": "2889259f-bd71-4728-a70a-8f0f66859b13",
+          "response": {
+            "type": "priority",
+            "choice": 0
+          },
+          "shuffle": {
+            "kind": "options",
+            "order": [
+              1,
+              2,
+              0
+            ]
+          },
+          "status": "correct",
+          "points": 1,
+          "maxPoints": 1,
+          "guessed": true,
+          "answeredAt": "2026-10-13T00:02:35.461Z"
+        },
+        {
+          "id": "49ceeca0-366e-4d66-9938-1214b18c1d95",
+          "clientAttemptId": "66666666-6666-4666-8666-000000000000",
+          "studySessionId": null,
+          "questionId": "d7cf2cde-e16a-4531-8f39-7240f11b3bce",
+          "response": {
+            "type": "highlight",
+            "picks": [
+              1,
+              2
+            ]
+          },
+          "shuffle": {
+            "kind": "plain"
+          },
+          "status": "correct",
+          "points": 2,
+          "maxPoints": 2,
+          "guessed": false,
+          "answeredAt": "2026-10-13T00:02:35.465Z"
+        },
+        {
+          "id": "cc5a87cc-e621-4cf3-80b3-a5ec166611c9",
+          "clientAttemptId": "66666666-6666-4666-8666-000000000001",
+          "studySessionId": null,
+          "questionId": "af8621ee-2e54-46d6-a671-7277fdda2d25",
+          "response": {
+            "type": "order",
+            "positions": [
+              0,
+              2,
+              1
+            ]
+          },
+          "shuffle": {
+            "kind": "order",
+            "start": [
+              2,
+              1,
+              0
+            ]
+          },
+          "status": "partial",
+          "points": 1,
+          "maxPoints": 3,
+          "guessed": false,
+          "answeredAt": "2026-10-13T00:02:35.469Z"
+        },
+        {
+          "id": "efee8749-b895-499e-b7ab-76ebfe16502c",
+          "clientAttemptId": "66666666-6666-4666-8666-000000000002",
+          "studySessionId": null,
+          "questionId": "8f5f7b74-9d6c-47d9-bd95-7e40cbe955e2",
+          "response": {
+            "type": "match",
+            "choices": [
+              "Class A",
+              null
+            ]
+          },
+          "shuffle": {
+            "kind": "match",
+            "choices": [
+              "Class C",
+              "Class A",
+              "Class B"
+            ]
+          },
+          "status": "partial",
+          "points": 1,
+          "maxPoints": 2,
+          "guessed": false,
+          "answeredAt": "2026-10-13T00:02:35.472Z"
+        },
+        {
+          "id": "fb41ded8-210e-4b88-a8bb-34f751c0237c",
+          "clientAttemptId": "66666666-6666-4666-8666-000000000003",
+          "studySessionId": null,
+          "questionId": "8a42afe7-8190-4732-adf8-d4fc5dd99ee0",
+          "response": {
+            "type": "matrix",
+            "choices": [
+              "Indicated",
+              "Indicated"
+            ]
+          },
+          "shuffle": {
+            "kind": "plain"
+          },
+          "status": "partial",
+          "points": 1,
+          "maxPoints": 2,
+          "guessed": false,
+          "answeredAt": "2026-10-13T00:02:35.476Z"
+        },
+        {
+          "id": "716b3ee9-4b3c-425b-928f-4960481f3861",
+          "clientAttemptId": "66666666-6666-4666-8666-000000000004",
+          "studySessionId": null,
+          "questionId": "9ef41f2f-f325-46c3-b718-4e58466fd1c4",
+          "response": {
+            "type": "cloze",
+            "choices": [
+              1,
+              null
+            ]
+          },
+          "shuffle": {
+            "kind": "cloze",
+            "blanks": [
+              [
+                2,
+                0,
+                1
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          "status": "partial",
+          "points": 1,
+          "maxPoints": 2,
+          "guessed": false,
+          "answeredAt": "2026-10-13T00:02:35.480Z"
+        },
+        {
+          "id": "31180391-e469-4880-b4c5-e6e1b6897475",
+          "clientAttemptId": "77777777-7777-4777-8777-777777777777",
+          "studySessionId": "a03e90aa-6bd5-4811-b832-61188300940b",
+          "questionId": "c5c4ce64-492c-4ca6-a6c1-a2779e23d809",
+          "response": {
+            "type": "single",
+            "choice": 0
+          },
+          "shuffle": {
+            "kind": "options",
+            "order": [
+              0,
+              2,
+              1
+            ]
+          },
+          "status": "correct",
+          "points": 1,
+          "maxPoints": 1,
+          "guessed": false,
+          "answeredAt": "2026-10-13T00:02:35.514Z"
+        }
+      ],
+      "questionProgress": [
+        {
+          "questionLineageId": "027409a1-df02-4904-8b35-7acc5373330c",
+          "attempts": 1,
+          "correctAttempts": 0,
+          "lastStatus": "partial",
+          "lastGuessed": false,
+          "lastAnsweredAt": "2026-10-13T00:02:35.472Z",
+          "lastPoints": 1,
+          "lastMaxPoints": 2,
+          "inReview": true,
+          "lastAttemptId": "efee8749-b895-499e-b7ab-76ebfe16502c"
+        },
+        {
+          "questionLineageId": "16d3214a-d1f0-4702-84d8-6b0b546bf45d",
+          "attempts": 1,
+          "correctAttempts": 1,
+          "lastStatus": "correct",
+          "lastGuessed": true,
+          "lastAnsweredAt": "2026-10-13T00:02:35.461Z",
+          "lastPoints": 1,
+          "lastMaxPoints": 1,
+          "inReview": true,
+          "lastAttemptId": "898630c2-a6ad-45ca-9a6c-6d44b871ebf7"
+        },
+        {
+          "questionLineageId": "1dd538c8-c0e8-4345-8182-4fcb108c2afe",
+          "attempts": 1,
+          "correctAttempts": 0,
+          "lastStatus": "incorrect",
+          "lastGuessed": false,
+          "lastAnsweredAt": "2026-10-13T00:02:35.458Z",
+          "lastPoints": 0,
+          "lastMaxPoints": 3,
+          "inReview": true,
+          "lastAttemptId": "66ce06da-b615-4033-bdbf-0a6309399f13"
+        },
+        {
+          "questionLineageId": "5dec0725-4413-41a9-b00c-7f89a97f661a",
+          "attempts": 1,
+          "correctAttempts": 0,
+          "lastStatus": "partial",
+          "lastGuessed": false,
+          "lastAnsweredAt": "2026-10-13T00:02:35.476Z",
+          "lastPoints": 1,
+          "lastMaxPoints": 2,
+          "inReview": true,
+          "lastAttemptId": "fb41ded8-210e-4b88-a8bb-34f751c0237c"
+        },
+        {
+          "questionLineageId": "63ecd2fa-ad03-4b5d-af78-5504c2a37a12",
+          "attempts": 1,
+          "correctAttempts": 0,
+          "lastStatus": "partial",
+          "lastGuessed": false,
+          "lastAnsweredAt": "2026-10-13T00:02:35.469Z",
+          "lastPoints": 1,
+          "lastMaxPoints": 3,
+          "inReview": true,
+          "lastAttemptId": "cc5a87cc-e621-4cf3-80b3-a5ec166611c9"
+        },
+        {
+          "questionLineageId": "6e106fea-51d4-4548-9edd-91eb76bbdf64",
+          "attempts": 1,
+          "correctAttempts": 1,
+          "lastStatus": "correct",
+          "lastGuessed": false,
+          "lastAnsweredAt": "2026-10-13T00:02:35.465Z",
+          "lastPoints": 2,
+          "lastMaxPoints": 2,
+          "inReview": false,
+          "lastAttemptId": "49ceeca0-366e-4d66-9938-1214b18c1d95"
+        },
+        {
+          "questionLineageId": "a20c23a7-7688-462d-878f-9ab556e20321",
+          "attempts": 1,
+          "correctAttempts": 1,
+          "lastStatus": "correct",
+          "lastGuessed": false,
+          "lastAnsweredAt": "2026-10-13T00:02:35.514Z",
+          "lastPoints": 1,
+          "lastMaxPoints": 1,
+          "inReview": false,
+          "lastAttemptId": "31180391-e469-4880-b4c5-e6e1b6897475"
+        },
+        {
+          "questionLineageId": "a99b1797-8643-42db-be69-c5a14c5625df",
+          "attempts": 1,
+          "correctAttempts": 0,
+          "lastStatus": "partial",
+          "lastGuessed": false,
+          "lastAnsweredAt": "2026-10-13T00:02:35.480Z",
+          "lastPoints": 1,
+          "lastMaxPoints": 2,
+          "inReview": true,
+          "lastAttemptId": "716b3ee9-4b3c-425b-928f-4960481f3861"
+        },
+        {
+          "questionLineageId": "f72a99aa-16dc-4aef-ba7d-f37df8992072",
+          "attempts": 1,
+          "correctAttempts": 0,
+          "lastStatus": "incorrect",
+          "lastGuessed": false,
+          "lastAnsweredAt": "2026-10-13T00:02:35.438Z",
+          "lastPoints": 0,
+          "lastMaxPoints": 1,
+          "inReview": true,
+          "lastAttemptId": "25bb750f-82b7-4b59-81c2-91fbaddaf185"
+        }
+      ],
+      "reviewClears": []
+    }
+  }
+}
