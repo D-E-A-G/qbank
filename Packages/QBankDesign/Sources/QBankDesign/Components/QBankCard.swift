@@ -36,6 +36,7 @@ public struct QBankCard<Content: View>: View {
 }
 
 /// A whole card as one button: the surface darkens one step while pressed.
+/// Disabled cards are dimmed to 40%.
 public struct QBankCardButtonStyle: ButtonStyle {
     private let padding: CGFloat
 
@@ -44,13 +45,25 @@ public struct QBankCardButtonStyle: ButtonStyle {
     }
 
     public func makeBody(configuration: Configuration) -> some View {
+        QBankCardButtonBody(configuration: configuration, padding: padding)
+    }
+}
+
+private struct QBankCardButtonBody: View {
+    let configuration: ButtonStyleConfiguration
+    let padding: CGFloat
+    @Environment(\.isEnabled) private var isEnabled
+
+    var body: some View {
+        let pressed = configuration.isPressed && isEnabled
         configuration.label
             .foregroundStyle(.qbank(.text1))
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(RoundedRectangle(cornerRadius: QBankRadius.md, style: .continuous))
-            .qbankCardBackground(pressed: configuration.isPressed)
-            .animation(QBankMotion.press, value: configuration.isPressed)
+            .qbankCardBackground(pressed: pressed)
+            .opacity(isEnabled ? 1 : 0.4)
+            .animation(QBankMotion.press, value: pressed)
     }
 }
 

@@ -24,7 +24,7 @@ public struct QBankButtonStyle: ButtonStyle {
         case large
         /// 44pt tall, semibold callout text.
         case medium
-        /// 32pt tall, semibold subheadline text. Inline actions in rows (Restore).
+        /// 32pt tall (with a 44pt tap target), semibold subheadline text. Inline actions in rows (Restore).
         case small
 
         public var minHeight: CGFloat {
@@ -41,6 +41,11 @@ public struct QBankButtonStyle: ButtonStyle {
             case .medium: 16
             case .small: 12
             }
+        }
+
+        /// Extra tap area above and below, so every size keeps a 44pt target.
+        public var tapSlop: CGFloat {
+            max(0, (QBankSpacing.rowMin - minHeight) / 2)
         }
 
         /// Lets the button grow with large text instead of truncating its label.
@@ -117,10 +122,12 @@ private struct QBankButtonBody: View {
                 (pressed ? pressedFill : fill).map { AnyShapeStyle(.qbank($0)) } ?? AnyShapeStyle(.clear),
                 in: RoundedRectangle(cornerRadius: size.cornerRadius, style: .continuous)
             )
-            .contentShape(RoundedRectangle(cornerRadius: size.cornerRadius, style: .continuous))
             .scaleEffect(pressed && !reduceMotion ? 0.98 : 1)
             .opacity(isEnabled ? 1 : 0.4)
             .animation(QBankMotion.press, value: pressed)
+            // Small buttons draw 32pt tall but keep a 44pt tap target.
+            .padding(.vertical, size.tapSlop)
+            .contentShape(Rectangle())
     }
 
     private var foreground: QBankColorToken {

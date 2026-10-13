@@ -24,13 +24,17 @@ public struct QBankProgressBar: View {
     private let value: Double
     private let tone: Tone
     private let height: CGFloat
+    private let accessibilityTitle: String
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    /// - Parameter value: From 0 to 1; values outside are clamped.
-    public init(value: Double, tone: Tone = .tint, height: CGFloat = 4) {
+    /// - Parameters:
+    ///   - value: From 0 to 1; values outside are clamped.
+    ///   - accessibilityTitle: What the bar measures, read by VoiceOver before the percentage.
+    public init(value: Double, tone: Tone = .tint, height: CGFloat = 4, accessibilityTitle: String = "Progress") {
         self.value = value
         self.tone = tone
         self.height = height
+        self.accessibilityTitle = accessibilityTitle
     }
 
     /// The value clamped to 0...1, with NaN as 0.
@@ -53,7 +57,8 @@ public struct QBankProgressBar: View {
             .clipShape(Capsule())
             .animation(reduceMotion ? nil : QBankMotion.reveal, value: fraction)
             .accessibilityElement()
-            .accessibilityValue(Text(fraction, format: .percent.precision(.fractionLength(0))))
+            .accessibilityLabel(accessibilityTitle)
+            .accessibilityValue(QBankProgressPill.percentText(fraction))
     }
 }
 

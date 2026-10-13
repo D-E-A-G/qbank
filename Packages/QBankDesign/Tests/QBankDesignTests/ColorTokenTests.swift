@@ -27,6 +27,14 @@ struct ColorTokenTests {
         #expect(Set(themed).subtracting(swiftNames).sorted() == [])
         let dark = try #require(web.blocks["[data-theme=\"dark\"]"]).keys
         #expect(Set(dark) == Set(themed))
+        // :root defines the same light defaults, so nothing lives only there.
+        let root = try #require(web.blocks[":root"])
+        #expect(Set(themed).subtracting(root.keys).sorted() == [])
+        let rootSemantic = root.keys.filter { name in
+            QBankBaseColors.byCSSName[name] == nil
+                && !["--accent-", "--guess-", "--icon-"].contains { name.hasPrefix($0) }
+        }
+        #expect(Set(rootSemantic).subtracting(themed).sorted() == [])
     }
 
     @Test("Accent, guess and app icon ramps equal the web palette blocks", arguments: QBankPalette.allCases)
@@ -49,6 +57,21 @@ struct ColorTokenTests {
         ]
         for (name, value) in expectations {
             #expect(try web.color(name, palette: palette, appearance: .light) == value, "\(name) in \(palette.rawValue)")
+        }
+    }
+
+    @Test("Every raw ramp color equals the web, and none is missing")
+    func rampsMatch() throws {
+        let root = try #require(web.blocks[":root"])
+        let semantic = try #require(web.blocks["[data-theme=\"light\"]"]).keys
+        // Ramp stops are the numbered literals, such as --paper-100, that no theme redefines.
+        let webRamps = root.filter { name, value in
+            value.hasPrefix("#") && name.last?.isNumber == true && !semantic.contains(name)
+                && !["--accent-", "--guess-", "--icon-"].contains { name.hasPrefix($0) }
+        }
+        #expect(Set(webRamps.keys) == Set(QBankBaseColors.byCSSName.keys))
+        for (name, value) in QBankBaseColors.byCSSName {
+            #expect(try WebTokens.color(#require(root[name])) == value, "\(name)")
         }
     }
 

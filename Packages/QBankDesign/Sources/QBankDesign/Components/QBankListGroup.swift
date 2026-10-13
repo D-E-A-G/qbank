@@ -24,10 +24,10 @@ public struct QBankListGroup<Content: View>: View {
             }
             VStack(spacing: 0) {
                 Group(subviews: content) { rows in
-                    ForEach(rows.indices, id: \.self) { index in
-                        rows[index]
+                    ForEach(rows) { row in
+                        row
                             .overlay(alignment: .bottom) {
-                                if index < rows.count - 1 {
+                                if row.id != rows.last?.id {
                                     Rectangle()
                                         .fill(.qbank(.separator))
                                         .frame(height: QBankBorder.hairline)
@@ -59,8 +59,7 @@ public struct QBankSectionHeader: View {
 
     public var body: some View {
         Text(title.uppercased())
-            .qbankFont(.footnote, weight: .semibold)
-            .tracking(QBankTextStyle.footnote.size * QBankTextStyle.capsTrackingEm)
+            .qbankFont(.footnote, weight: .semibold, trackingEm: QBankTextStyle.capsTrackingEm)
             .foregroundStyle(.qbank(.text3))
             .accessibilityAddTraits(.isHeader)
             .accessibilityLabel(title)
@@ -70,6 +69,8 @@ public struct QBankSectionHeader: View {
 /// One row of a ``QBankListGroup``: an optional icon, a title with an optional
 /// detail line, a trailing value or custom accessory, and an optional chevron.
 /// For a tappable row, wrap it in a `Button` with `.buttonStyle(.qbankRow)`.
+/// VoiceOver reads a row as one element; pass `accessibilityChildren: .contain`
+/// when the accessory holds its own control, such as a Restore button.
 public struct QBankListRow<Accessory: View>: View {
     private let title: String
     private let detail: String?
@@ -79,6 +80,7 @@ public struct QBankListRow<Accessory: View>: View {
     private let isDestructive: Bool
     private let isSelected: Bool
     private let accessory: Accessory
+    private let accessibilityChildren: AccessibilityChildBehavior
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     public init(
@@ -89,6 +91,7 @@ public struct QBankListRow<Accessory: View>: View {
         showsChevron: Bool = false,
         isDestructive: Bool = false,
         isSelected: Bool = false,
+        accessibilityChildren: AccessibilityChildBehavior = .combine,
         @ViewBuilder accessory: () -> Accessory
     ) {
         self.title = title
@@ -99,6 +102,7 @@ public struct QBankListRow<Accessory: View>: View {
         self.isDestructive = isDestructive
         self.isSelected = isSelected
         self.accessory = accessory()
+        self.accessibilityChildren = accessibilityChildren
     }
 
     public var body: some View {
@@ -146,8 +150,7 @@ public struct QBankListRow<Accessory: View>: View {
         .frame(minHeight: QBankSpacing.rowMin)
         .background(isSelected ? AnyShapeStyle(.qbank(.tintSoft)) : AnyShapeStyle(.clear))
         .contentShape(Rectangle())
-        // A row reads as one element, unless its accessory holds its own controls.
-        .accessibilityElement(children: Accessory.self == EmptyView.self ? .combine : .contain)
+        .accessibilityElement(children: accessibilityChildren)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
@@ -160,7 +163,8 @@ extension QBankListRow where Accessory == EmptyView {
         systemImage: String? = nil,
         showsChevron: Bool = false,
         isDestructive: Bool = false,
-        isSelected: Bool = false
+        isSelected: Bool = false,
+        accessibilityChildren: AccessibilityChildBehavior = .combine
     ) {
         self.init(
             title,
@@ -169,19 +173,32 @@ extension QBankListRow where Accessory == EmptyView {
             systemImage: systemImage,
             showsChevron: showsChevron,
             isDestructive: isDestructive,
-            isSelected: isSelected
+            isSelected: isSelected,
+            accessibilityChildren: accessibilityChildren
         ) { EmptyView() }
     }
 }
 
 /// A list row as one button: the row darkens to `surfacePressed` while pressed.
+/// Disabled rows are dimmed to 40%.
 public struct QBankRowButtonStyle: ButtonStyle {
     public init() {}
 
     public func makeBody(configuration: Configuration) -> some View {
+        QBankRowButtonBody(configuration: configuration)
+    }
+}
+
+private struct QBankRowButtonBody: View {
+    let configuration: ButtonStyleConfiguration
+    @Environment(\.isEnabled) private var isEnabled
+
+    var body: some View {
+        let pressed = configuration.isPressed && isEnabled
         configuration.label
-            .background(configuration.isPressed ? AnyShapeStyle(.qbank(.surfacePressed)) : AnyShapeStyle(.clear))
-            .animation(QBankMotion.press, value: configuration.isPressed)
+            .background(pressed ? AnyShapeStyle(.qbank(.surfacePressed)) : AnyShapeStyle(.clear))
+            .opacity(isEnabled ? 1 : 0.4)
+            .animation(QBankMotion.press, value: pressed)
     }
 }
 
@@ -201,7 +218,11 @@ extension ButtonStyle where Self == QBankRowButtonStyle {
                     )
                 }
                 .buttonStyle(.qbankRow)
-                QBankListRow("Psychosocial Assessment and Safety Screening", detail: "Replaced Oct 6 · 12 questions") {
+                QBankListRow(
+                    "Psychosocial Assessment and Safety Screening",
+                    detail: "Replaced Oct 6 · 12 questions",
+                    accessibilityChildren: .contain
+                ) {
                     Button {} label: { Label("Restore", systemImage: "arrow.counterclockwise") }
                         .buttonStyle(.qbank(.secondary, size: .small))
                 }

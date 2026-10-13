@@ -37,7 +37,11 @@ struct QBankGallery: View {
                         )
                     }
                     .buttonStyle(.qbankRow)
-                    QBankListRow("Psychosocial Assessment and Safety Screening", detail: "Replaced Oct 6 · 12 questions") {
+                    QBankListRow(
+                        "Psychosocial Assessment and Safety Screening",
+                        detail: "Replaced Oct 6 · 12 questions",
+                        accessibilityChildren: .contain
+                    ) {
                         Button {} label: { Label("Restore", systemImage: "arrow.counterclockwise") }
                             .buttonStyle(.qbank(.secondary, size: .small))
                     }
@@ -70,7 +74,7 @@ struct QBankGallery: View {
                         QBankTimerPill(secondsRemaining: 245)
                     }
                 }
-                QBankProgressBar(value: 3.0 / 17)
+                QBankProgressBar(value: 3.0 / 17, accessibilityTitle: "Question 3 of 17")
                 Button("Check answer") {}
                     .buttonStyle(.qbank(.primary, size: .large, fullWidth: true))
                 HStack(spacing: QBankSpacing.space3) {

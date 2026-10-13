@@ -26,7 +26,7 @@ extension QBankTextStyle {
     }
 
     /// The font at the reader's text size, without the extra line spacing.
-    /// Prefer ``SwiftUICore/View/qbankFont(_:weight:design:)``, which also sets the line height.
+    /// Prefer ``SwiftUICore/View/qbankFont(_:weight:design:trackingEm:)``, which also sets the line height.
     public var font: Font {
         Font.system(textStyle, design: design.fontDesign, weight: weight.fontWeight)
     }
@@ -54,14 +54,25 @@ extension QBankTextStyle.Design {
 
 extension View {
     /// Sets a QBank text style: its size, weight, face, tracking and line height,
-    /// all scaled with Dynamic Type. `weight` and `design` override the style's own,
-    /// as the web does for semibold labels or SF Pro at footnote size.
+    /// all scaled with Dynamic Type. As with CSS `line-height`, the extra leading is
+    /// split above and below each line, so one-line text is as tall as the web's.
+    /// - Parameters:
+    ///   - weight: Overrides the style's weight, as the web does for semibold labels.
+    ///   - design: Overrides the style's face, for example SF Pro at footnote size.
+    ///   - trackingEm: Overrides the style's letter spacing, in em of the scaled size,
+    ///     for example ``QBankTextStyle/capsTrackingEm`` for small uppercase labels.
     public func qbankFont(
         _ style: QBankTextStyle,
         weight: QBankTextStyle.Weight? = nil,
-        design: QBankTextStyle.Design? = nil
+        design: QBankTextStyle.Design? = nil,
+        trackingEm: Double? = nil
     ) -> some View {
-        modifier(QBankFontModifier(style: style, weight: weight ?? style.weight, design: design ?? style.design))
+        modifier(QBankFontModifier(
+            style: style,
+            weight: weight ?? style.weight,
+            design: design ?? style.design,
+            trackingEm: trackingEm
+        ))
     }
 }
 
@@ -69,22 +80,26 @@ private struct QBankFontModifier: ViewModifier {
     let style: QBankTextStyle
     let weight: QBankTextStyle.Weight
     let design: QBankTextStyle.Design
+    let trackingEm: Double?
     @ScaledMetric private var size: CGFloat
     @ScaledMetric private var lineHeight: CGFloat
 
-    init(style: QBankTextStyle, weight: QBankTextStyle.Weight, design: QBankTextStyle.Design) {
+    init(style: QBankTextStyle, weight: QBankTextStyle.Weight, design: QBankTextStyle.Design, trackingEm: Double?) {
         self.style = style
         self.weight = weight
         self.design = design
+        self.trackingEm = trackingEm
         _size = ScaledMetric(wrappedValue: style.size, relativeTo: style.textStyle)
         _lineHeight = ScaledMetric(wrappedValue: style.lineHeight, relativeTo: style.textStyle)
     }
 
     func body(content: Content) -> some View {
+        let leading = max(0, lineHeight - naturalLineHeight)
         content
             .font(.system(size: size, weight: weight.fontWeight, design: design.fontDesign))
-            .tracking(style.tracking)
-            .lineSpacing(max(0, lineHeight - naturalLineHeight))
+            .tracking(trackingEm.map { size * $0 } ?? style.tracking)
+            .lineSpacing(leading)
+            .padding(.vertical, leading / 2)
     }
 
     /// The system font's own line height at this size; line spacing adds the rest.

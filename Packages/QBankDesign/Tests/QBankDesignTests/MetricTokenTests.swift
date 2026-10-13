@@ -47,7 +47,11 @@ struct MetricTokenTests {
     @Test("Tracking")
     func tracking() throws {
         #expect(try WebTokens.number(#require(typography["--tracking-tight"]), unit: "px") == QBankTextStyle.largeTitle.tracking)
-        #expect(QBankTextStyle.title1.tracking == QBankTextStyle.largeTitle.tracking)
+        // The web sets tight tracking on the large title and title 1 only.
+        for style in QBankTextStyle.allCases {
+            let expected = [.largeTitle, .title1].contains(style) ? -0.4 : 0
+            #expect(style.tracking == expected, "\(style)")
+        }
         #expect(try WebTokens.number(#require(typography["--tracking-caps"]), unit: "em") == QBankTextStyle.capsTrackingEm)
     }
 

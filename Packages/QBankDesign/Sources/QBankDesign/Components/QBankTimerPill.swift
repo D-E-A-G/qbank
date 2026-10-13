@@ -26,6 +26,13 @@ public struct QBankTimerPill: View {
         return "\(clamped / 60):\(rest < 10 ? "0" : "")\(rest)"
     }
 
+    /// What VoiceOver reads: "12 minutes, 38 seconds", and "running low" in the low state.
+    nonisolated public static func spokenText(_ seconds: Int, isLow: Bool) -> String {
+        let duration = Duration.seconds(max(0, seconds))
+            .formatted(.units(allowed: [.minutes, .seconds], width: .wide))
+        return isLow ? "\(duration), running low" : duration
+    }
+
     private var isLow: Bool { secondsRemaining <= lowAt }
 
     public var body: some View {
@@ -59,7 +66,7 @@ public struct QBankTimerPill: View {
         .animation(reduceMotion ? nil : QBankMotion.reveal, value: isLow)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Time left")
-        .accessibilityValue(Self.clockText(secondsRemaining))
+        .accessibilityValue(Self.spokenText(secondsRemaining, isLow: isLow))
         .accessibilityAddTraits(.updatesFrequently)
     }
 }
