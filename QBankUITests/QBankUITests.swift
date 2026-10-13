@@ -100,14 +100,12 @@ final class QBankUITests: XCTestCase {
     }
 
     @MainActor
-    func testSetsAndTilesSayWhatIsComing() throws {
+    func testTilesSayWhatIsComing() throws {
         let app = launch("signed-in")
         XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 10))
-        app.buttons["course.set.Rights, Law, and Ethics"].tap()
-        XCTAssertTrue(app.staticTexts["comingSoon.message"].waitForExistence(timeout: 5))
-        app.navigationBars.buttons["NURS 310"].tap()
         app.buttons["course.tile.review"].tap()
         XCTAssertTrue(app.navigationBars["Review"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["comingSoon.message"].exists)
     }
 
     // MARK: Settings (slice 1d)
@@ -263,17 +261,6 @@ final class QBankUITests: XCTestCase {
 
     // MARK: Helpers
 
-    @MainActor
-    private func launch(_ scenario: String, keepPhoneSettings: Bool = false) -> XCUIApplication {
-        let app = XCUIApplication()
-        app.launchEnvironment["QB_UITEST_SCENARIO"] = scenario
-        if keepPhoneSettings {
-            app.launchEnvironment["QB_UITEST_KEEP_PHONE_SETTINGS"] = "1"
-        }
-        app.launch()
-        return app
-    }
-
     /// The signed-in scenario opens her last course; Settings is one tab away.
     @MainActor
     private func openSettings(_ app: XCUIApplication) {
@@ -331,15 +318,6 @@ final class QBankUITests: XCTestCase {
         guard app.keyboards.firstMatch.exists else { return }
         app.swipeDown()
         _ = app.keyboards.firstMatch.waitForNonExistence(timeout: 3)
-    }
-
-    /// Keeps a screenshot in the test results, for comparing the screens with the wireframes.
-    @MainActor
-    private func attach(_ app: XCUIApplication, _ name: String) {
-        let attachment = XCTAttachment(screenshot: app.screenshot())
-        attachment.name = name
-        attachment.lifetime = .keepAlways
-        add(attachment)
     }
 
     /// The date `daysAgo` days back as the app writes it, such as "Oct 6".

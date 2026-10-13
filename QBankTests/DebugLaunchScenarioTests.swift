@@ -111,6 +111,32 @@ struct DebugLaunchScenarioTests {
         #expect(DebugLaunchScenario.makeModel(environment: environment)?.look.look == .matchDevice)
     }
 
+    @Test func fakeServerServesEveryFormatAndScoresWithTheServersRules() async throws {
+        let app = try #require(DebugLaunchScenario.makeModel(environment: [DebugLaunchScenario.scenarioKey: "signed-in"]))
+        let set = try await app.client.practiceSet(id: "mixed-v1")
+        #expect(set.courseID == FakeQBankServer.mentalHealthID)
+        #expect(set.questions.compactMap(\.type) == QuestionType.allCases)
+        #expect(set.questions.allSatisfy { !$0.rationale.isEmpty && !$0.takeaway.isEmpty })
+        #expect(set.questions[1].table != nil)
+        #expect(set.questions[0].images.first?.placement == .rationale)
+
+        let sata = set.questions[2]
+        let submission = AttemptSubmission(clientAttemptID: "fake-1", questionID: sata.id, response: .sata(picks: [0, 1, 3]), guessed: true)
+        let saved = try await app.client.recordAttempt(submission)
+        #expect(saved.status == .partial)
+        #expect(saved.points == 1)
+        #expect(saved.maxPoints == 3)
+        #expect(saved.label == "Partly correct")
+        #expect(saved.inReview)
+        #expect(!saved.replayed)
+        #expect(try await app.client.recordAttempt(submission).replayed, "a repeated id is answered with the saved attempt")
+
+        let course = try await app.client.course(id: FakeQBankServer.mentalHealthID)
+        let mixed = try #require(course.weeks.last?.sets.first)
+        #expect(mixed.answeredCount == 1)
+        #expect(mixed.fullyRightCount == 0)
+    }
+
     @Test func unknownScenarioIsRejected() {
         let environment = [DebugLaunchScenario.scenarioKey: "welcome"]
         #expect(throws: DebugLaunchScenario.UnknownScenario.self) {

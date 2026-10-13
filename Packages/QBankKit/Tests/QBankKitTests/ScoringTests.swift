@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import QBankKit
 
@@ -129,5 +130,48 @@ struct ScoringTests {
         #expect(throws: ScoringError.self) {
             try Scoring.score(.unsupported(typeName: "hotspot"), response: nil)
         }
+    }
+
+    // The banner wording from `score.test.ts`: label, points line, and rule sentence.
+
+    @Test func rulesExplainPlusMinusAndOrdering() {
+        #expect(QuestionType.sata.scoringRule == "+1 for each correct choice, -1 for each wrong one")
+        #expect(QuestionType.highlight.scoringRule == "+1 for each correct choice, -1 for each wrong one")
+        #expect(QuestionType.order.scoringRule == "items in the right position; full credit needs all of them")
+        for type in [QuestionType.single, .priority, .match, .matrix, .cloze] {
+            #expect(type.scoringRule == nil)
+        }
+    }
+
+    @Test func labelsNameEachOutcome() throws {
+        let single = QuestionBody.single(options: Self.options([0], count: 3))
+        let sata = QuestionBody.sata(options: Self.options([0, 2], count: 3))
+        #expect(try Scoring.score(single, response: .single(choice: 0)).label == "Correct")
+        #expect(try Scoring.score(sata, response: .sata(picks: [0])).label == "Partly correct")
+        #expect(try Scoring.score(sata, response: .sata(picks: [1])).label == "Not correct")
+        #expect(try Scoring.score(sata, response: nil).label == "Not answered")
+    }
+
+    @Test func pointsShowForMultiPartAnswersOnly() throws {
+        let sata = QuestionBody.sata(options: Self.options([0, 2], count: 3))
+        #expect(try Scoring.score(sata, response: .sata(picks: [0])).pointsText(for: .sata) == "1 of 2 points")
+        let highlight = QuestionBody.highlight(segments: Self.options([0, 2], count: 3))
+        #expect(try Scoring.score(highlight, response: .highlight(picks: [0, 2])).pointsText(for: .highlight) == "2 of 2 points")
+        let order = QuestionBody.order(items: ["A", "B"].map { OrderItem(text: $0) })
+        #expect(try Scoring.score(order, response: .order(positions: [0, 1])).pointsText(for: .order) == "2 of 2 points")
+        let single = try Scoring.score(.single(options: Self.options([0], count: 3)), response: .single(choice: 0))
+        #expect(single.pointsText(for: .single) == nil)
+        #expect(single.pointsText(for: .priority) == nil)
+        #expect(try Scoring.score(sata, response: nil).pointsText(for: .sata) == nil)
+    }
+
+    @Test func savedAttemptGivesTheServersScore() throws {
+        let saved = try QBankJSON.decoder.decode(SavedAttempt.self, from: Data("""
+        {"clientAttemptId":"a","questionId":"q","courseId":"c","status":"partial","points":1,"maxPoints":3,
+         "guessed":false,"answeredAt":"2026-10-13T00:02:35.438Z","inReview":true,"label":"Partly correct","replayed":false}
+        """.utf8))
+        let score = Score(saved)
+        #expect(score == Score(points: 1, maxPoints: 3, status: .partial, answered: true))
+        #expect(score.label == saved.label)
     }
 }

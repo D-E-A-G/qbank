@@ -4,10 +4,14 @@ import SwiftUI
 
 /// A course: score line, the Exam, Review and Terms tiles, then each week's exam line and sets.
 struct CourseView: View {
+    let app: AppModel
     let route: CourseRoute
     @State private var model: CourseModel
+    /// The set she is practicing, shown full screen over the tabs.
+    @State private var practicing: PracticeRoute?
 
     init(app: AppModel, route: CourseRoute) {
+        self.app = app
         self.route = route
         _model = State(initialValue: CourseModel(app: app, id: route.id))
     }
@@ -26,6 +30,12 @@ struct CourseView: View {
             await model.load()
             await place
         }
+        .fullScreenCover(item: $practicing, onDismiss: {
+            // Her answers changed the set's line and the course's score.
+            Task { await model.load() }
+        }, content: { route in
+            PracticeView(app: app, route: route)
+        })
     }
 
     @ViewBuilder
@@ -43,6 +53,8 @@ struct CourseView: View {
                 }
                 ForEach(course.weeks) { week in
                     WeekSection(week: week, isRestoring: model.isRestoring) { set in
+                        practicing = PracticeRoute(setID: set.id, courseID: course.id, title: set.title)
+                    } restore: { set in
                         Task { await model.restore(set) }
                     }
                 }
@@ -124,6 +136,7 @@ private struct Tile: View {
 private struct WeekSection: View {
     let week: Week
     let isRestoring: Bool
+    let open: (PracticeSetSummary) -> Void
     let restore: (PracticeSetSummary) -> Void
 
     var body: some View {
@@ -141,7 +154,7 @@ private struct WeekSection: View {
             if !week.sets.isEmpty {
                 QBankListGroup {
                     ForEach(week.sets) { set in
-                        SetRow(set: set, isRestoring: isRestoring) { restore(set) }
+                        SetRow(set: set, isRestoring: isRestoring) { open(set) } restore: { restore(set) }
                     }
                 }
             }
@@ -155,12 +168,13 @@ private struct WeekSection: View {
 private struct SetRow: View {
     let set: PracticeSetSummary
     let isRestoring: Bool
+    let open: () -> Void
     let restore: () -> Void
     @State private var asksToRestore = false
 
     var body: some View {
         HStack(spacing: 0) {
-            NavigationLink(value: ComingSoonRoute.practice(set.title)) {
+            Button(action: open) {
                 SetLabel(set: set, showsChevron: !set.canRestore)
             }
             .buttonStyle(.qbankRow)

@@ -4,7 +4,9 @@ import SwiftUI
 /// The QBank button. Primary is the one main action on a screen (Check answer,
 /// Import); secondary, quiet and plain are for the rest. Labels are sentence case,
 /// verb first. Pressed: the fill darkens one step and the button scales to 0.98.
-/// Disabled: 40% opacity.
+/// Disabled: grey, a sunken fill with a muted label, so it reads as unavailable and
+/// its words stay legible in light and dark. (Fading the whole button, as the web
+/// does, leaves the primary label unreadable in dark mode.)
 public struct QBankButtonStyle: ButtonStyle {
     public enum Variant: String, CaseIterable, Sendable {
         /// Tint fill, on-tint text.
@@ -113,17 +115,16 @@ private struct QBankButtonBody: View {
             .labelStyle(QBankButtonLabelStyle())
             .qbankFont(size.textStyle, weight: .semibold)
             .multilineTextAlignment(.center)
-            .foregroundStyle(.qbank(foreground))
+            .foregroundStyle(.qbank(isEnabled ? foreground : .text3))
             .padding(.horizontal, size.horizontalPadding)
             .padding(.vertical, size.verticalPadding)
             .frame(minHeight: size.minHeight)
             .frame(maxWidth: fullWidth ? .infinity : nil)
             .background(
-                (pressed ? pressedFill : fill).map { AnyShapeStyle(.qbank($0)) } ?? AnyShapeStyle(.clear),
+                (pressed ? pressedFill : currentFill).map { AnyShapeStyle(.qbank($0)) } ?? AnyShapeStyle(.clear),
                 in: RoundedRectangle(cornerRadius: size.cornerRadius, style: .continuous)
             )
             .scaleEffect(pressed && !reduceMotion ? 0.98 : 1)
-            .opacity(isEnabled ? 1 : 0.4)
             .animation(QBankMotion.press, value: pressed)
             // Small buttons draw 32pt tall but keep a 44pt tap target.
             .padding(.vertical, size.tapSlop)
@@ -137,6 +138,12 @@ private struct QBankButtonBody: View {
         case .quiet: .text1
         case .destructive: .wrong
         }
+    }
+
+    /// The fill at rest: grey when disabled, except for a plain button, which has none.
+    private var currentFill: QBankColorToken? {
+        guard !isEnabled else { return fill }
+        return variant == .plain ? nil : .surfaceSunken
     }
 
     /// `nil` is no fill.

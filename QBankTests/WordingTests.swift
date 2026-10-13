@@ -68,4 +68,27 @@ struct WordingTests {
         #expect(Wording.problem(.unexpectedResponse(status: 200, detail: "")) == "Something went wrong. Try again.")
         #expect(Wording.problem(.cancelled) == nil)
     }
+
+    @Test func formatsUseTheWebsLabels() {
+        #expect(Wording.format(.single) == "Single answer")
+        #expect(Wording.format(.priority) == "Priority / first action")
+        #expect(Wording.format(.sata) == "Select all that apply")
+        #expect(Wording.format(.highlight) == "Highlight")
+        #expect(Wording.format(.order) == "Ordering")
+        #expect(Wording.format(.match) == "Matching")
+        #expect(Wording.format(.matrix) == "Matrix")
+        #expect(Wording.format(.cloze) == "Drop-down")
+        #expect(Wording.format(nil) == "Question")
+    }
+
+    @Test func durationIsSecondsThenWholeMinutes() {
+        #expect(Wording.duration(0) == "0 sec")
+        #expect(Wording.duration(44.6) == "45 sec")
+        #expect(Wording.duration(59.4) == "59 sec")
+        #expect(Wording.duration(60) == "1 min")
+        #expect(Wording.duration(89) == "1 min")
+        #expect(Wording.duration(90) == "2 min")
+        #expect(Wording.duration(24 * 60 + 10) == "24 min")
+        #expect(Wording.duration(-5) == "0 sec")
+    }
 }
