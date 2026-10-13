@@ -1,0 +1,35 @@
+name: CI
+
+# Pull requests run only Linux checks: this workflow references no secrets,
+# reads the repository with a read-only token, and never runs on a Mac. The
+# Xcode build and tests run in xcode.yml, which never runs on pull requests.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Linux checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Shell scripts pass shellcheck
+        run: shellcheck test/*.sh
+
+      - name: Repository and pipeline rules
+        run: ./test/release-checks.sh
+
+      - name: Swift packages that build on Linux
+        run: ./test/package-tests.sh --linux
