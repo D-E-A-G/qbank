@@ -1,0 +1,144 @@
+# Privacy manifest and App Store privacy labels
+
+Two Apple declarations say what data QBank handles. They must agree with each other and with [privacy-policy.md](privacy-policy.md):
+
+- the **privacy manifest**, `PrivacyInfo.xcprivacy`, a file inside the app target that ships in every build;
+- the **App Privacy answers** (the "nutrition labels") the owner fills in once in App Store Connect, under the app's App Privacy page.
+
+This file is the source for both. It describes the app at TestFlight parity (phases 1a to 1e of the plan). Any change that sends a new kind of data to the server, adds a third-party SDK, or uses a new required-reason API updates this file, the manifest, and the policy in the same pull request.
+
+## Why these answers
+
+Apple counts data as **collected** when it leaves the device and is kept longer than it takes to answer the request. QBank's server keeps your account, sessions, answers, and progress, so those are collected. Data that stays on the phone (the offline copy, the look setting) is not collected.
+
+Everything collected is **linked** to you, because it is stored under your account. Nothing is used for **tracking**: no ads, no data brokers, no joining with other companies' data. The only purpose is **App Functionality**: signing in and keeping your progress.
+
+## Collected data types
+
+| App Store Connect category | Data type | Manifest key | What it is in QBank | Linked | Tracking | Purpose |
+|---|---|---|---|---|---|---|
+| Contact Info | Email Address | `NSPrivacyCollectedDataTypeEmailAddress` | the account's sign-in email | yes | no | App Functionality |
+| Identifiers | User ID | `NSPrivacyCollectedDataTypeUserID` | the server's account id that every answer is stored under | yes | no | App Functionality |
+| User Content | Other User Content | `NSPrivacyCollectedDataTypeOtherUserContent` | answers, guesses, per-question progress, the Review list, exam picks and scores | yes | no | App Functionality |
+| Usage Data | Product Interaction | `NSPrivacyCollectedDataTypeProductInteraction` | study-session start and end times and the last-opened course (Apple lists "saved place" under this type) | yes | no | App Functionality |
+
+Answer these in App Store Connect exactly this way: "Yes, we collect data from this app", then the four types above, each "linked to the user", "not used for tracking", purpose "App Functionality" only.
+
+### Considered and not declared
+
+| Data | Why not declared |
+|---|---|
+| Password | Apple's list of data types has no password type. The app sends it only to sign in, and the server keeps a one-way hash. |
+| Name | The account name is set by the owner on the server, not collected by the app. Declare **Name** if a later version lets you type or change it in the app. |
+| IP address and user agent of a session | The server's sign-in library records them with each session; QBank reads them for nothing. Apple says to declare an IP address by how it is used (location, device ID, diagnostics), and QBank uses it for none of these. Cleaner still: a server task turns that recording off (see [release.md](release.md)), and this row then goes away. |
+| Crash data, performance data, other diagnostics | The app has no crash or analytics SDK and sends no diagnostics. TestFlight crash reports and feedback are collected by Apple, and Apple says developers are not responsible for disclosing data Apple collects. |
+| Photos, files, audio | Not read in phases 1 and 2. The export file goes where you send it; QBank never receives it. |
+| Purchases, financial info, health, location, contacts, browsing, search history, sensitive info | Not handled. |
+
+### When later phases change the answers
+
+| Phase | Change |
+|---|---|
+| 3 Passkeys and Face ID | nothing new is collected that Apple's labels count (a passkey's public key is a credential). Face ID is handled by iOS and never reaches the app. |
+| 3 Import | an imported question file becomes shared course content; it is not personal data, so no new type. Re-check if the file can carry personal notes. |
+| Q Make questions (Khine's account only) | **Photos or Videos** and **Other User Content** (notes, files) sent to the server and on to the AI provider for App Functionality, linked, not tracking. Name the AI provider in the policy. |
+| 4 Free on this phone | data in on-phone mode is never sent anywhere and is not collected; the signed-in mode keeps the answers above. |
+
+## Draft `PrivacyInfo.xcprivacy`
+
+The app target (owned by the phase-0 Xcode project) should carry this file, added to the app target's resources so it lands in the app bundle. Kun's Eddie's Wallet ships the same shape at `EddysWallet/PrivacyInfo.xcprivacy`.
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeEmailAddress</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeUserID</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeOtherUserContent</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeProductInteraction</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+	</array>
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>
+```
+
+## Required-reason APIs
+
+Apple rejects an upload that calls one of these API groups without a declared reason. Declare only what the code really calls; check with a search of the app's sources before each release.
+
+| API group | Expected in QBank | Reason code | Why |
+|---|---|---|---|
+| User defaults (`UserDefaults`, `@AppStorage`) | yes: the look setting, small app state | `CA92.1` | read and written only by the app itself |
+| File timestamp (`creationDate`, `modificationDate`, `stat`) | only if the offline store reads file dates | `C617.1` | files inside the app's own container |
+| System boot time (`systemUptime`, `mach_absolute_time`) | only if a timer measures elapsed time this way | `35F9.1` | time between events inside the app; never sent off the phone |
+| Disk space (`volumeAvailableCapacity...`) | only if the offline store checks free space before saving | `E174.1` | to avoid writing when the phone is full |
+| Active keyboards | no | | |
+
+The exam timer is ruled by the server's clock (`serverNow`), so it should not need the boot-time group.
+
+## Related build settings
+
+- **Export compliance:** the app uses only Apple's HTTPS, which is exempt. Set `ITSAppUsesNonExemptEncryption` to `NO` in the app's Info.plist so App Store Connect stops asking on every build.
+- **No tracking prompt:** the app never shows the App Tracking Transparency prompt and has no `NSUserTrackingUsageDescription`.
+- **Usage descriptions** (`NS...UsageDescription`) are added only with the feature that needs them: photo library or camera for phase Q, and none for phases 1 and 2.
