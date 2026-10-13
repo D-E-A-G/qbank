@@ -1,0 +1,24 @@
+{
+  "recordedFrom": "2b7a4291fc79877edeb8e4eb0e430209ef56fd8b",
+  "request": {
+    "method": "POST",
+    "path": "/api/sign-in/password",
+    "query": {},
+    "authorization": null,
+    "body": {
+      "email": "locked@example.com",
+      "password": "wrong"
+    }
+  },
+  "response": {
+    "status": 429,
+    "headers": {
+      "retry-after": "900"
+    },
+    "body": {
+      "error": "too_many_attempts",
+      "message": "Too many tries. Try again in 15 minutes.",
+      "retryAfterSeconds": 900
+    }
+  }
+}

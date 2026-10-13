@@ -1,0 +1,27 @@
+{
+  "recordedFrom": "2b7a4291fc79877edeb8e4eb0e430209ef56fd8b",
+  "request": {
+    "method": "POST",
+    "path": "/api/attempts",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": {
+      "clientAttemptId": "88888888-8888-4888-8888-888888888888",
+      "questionId": "c5c4ce64-492c-4ca6-a6c1-a2779e23d809",
+      "response": {
+        "type": "single",
+        "choice": 1
+      },
+      "guessed": false,
+      "studySessionId": "a03e90aa-6bd5-4811-b832-61188300940b"
+    }
+  },
+  "response": {
+    "status": 409,
+    "headers": {},
+    "body": {
+      "error": "already_answered",
+      "message": "That question was already answered on this exam."
+    }
+  }
+}

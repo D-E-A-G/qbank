@@ -1,0 +1,55 @@
+{
+  "recordedFrom": "2b7a4291fc79877edeb8e4eb0e430209ef56fd8b",
+  "request": {
+    "method": "GET",
+    "path": "/api/courses/6081c42b-988b-40d1-8068-273a13195673/exams",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "courseId": "6081c42b-988b-40d1-8068-273a13195673",
+      "weeks": [
+        {
+          "label": "Week 1",
+          "questionCount": 2,
+          "wrongCount": 1,
+          "source": "exam"
+        },
+        {
+          "label": "Week 2",
+          "questionCount": 2,
+          "wrongCount": 0,
+          "source": "practice"
+        }
+      ],
+      "inProgress": {
+        "id": "a03e90aa-6bd5-4811-b832-61188300940b",
+        "courseId": "6081c42b-988b-40d1-8068-273a13195673",
+        "weeks": [
+          "Week 1",
+          "Week 2"
+        ],
+        "pool": "all",
+        "practiceWeeks": [
+          "Week 2"
+        ],
+        "questionCount": 4,
+        "timeLimitSeconds": 360,
+        "startedAt": "2026-10-13T00:02:35.503Z",
+        "endsAt": "2026-10-13T00:08:35.503Z",
+        "finishedAt": null,
+        "endReason": null,
+        "answeredCount": 0,
+        "fullyRight": null,
+        "points": null,
+        "maxPoints": null,
+        "minutesUsed": null
+      },
+      "exams": []
+    }
+  }
+}

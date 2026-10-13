@@ -1,0 +1,88 @@
+{
+  "recordedFrom": "2b7a4291fc79877edeb8e4eb0e430209ef56fd8b",
+  "request": {
+    "method": "GET",
+    "path": "/api/courses/6081c42b-988b-40d1-8068-273a13195673",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "id": "6081c42b-988b-40d1-8068-273a13195673",
+      "code": "NURS 101",
+      "title": "Invented Nursing Basics",
+      "archivedAt": null,
+      "semester": {
+        "id": "4083dbda-2bef-4b13-b406-d226ee2a8f50",
+        "number": 1,
+        "name": "Semester 1"
+      },
+      "questionCount": 10,
+      "examQuestionCount": 4,
+      "weekCount": 2,
+      "termCount": 1,
+      "reviewCount": 0,
+      "answeredCount": 0,
+      "fullyRightCount": 0,
+      "points": 0,
+      "maxPoints": 0,
+      "weeks": [
+        {
+          "label": "Week 1",
+          "sets": [
+            {
+              "id": "30722b59-8c29-4610-b17d-001f0d99a995",
+              "title": "Week 1 - Set 1: Invented basics",
+              "description": "Invented practice questions, one per format.",
+              "questionCount": 8,
+              "importedAt": "2026-10-13T00:02:35.395Z",
+              "activeSince": "2026-10-13T00:02:35.395Z",
+              "status": "imported",
+              "canRestore": false,
+              "answeredCount": 0,
+              "fullyRightCount": 0,
+              "lastAnsweredAt": null,
+              "questionIds": [
+                "0cac9fe8-9223-4442-8cf3-b930c6d6d4fa",
+                "2889259f-bd71-4728-a70a-8f0f66859b13",
+                "88ee2607-d52e-4ca9-8525-2978ead685c0",
+                "d7cf2cde-e16a-4531-8f39-7240f11b3bce",
+                "af8621ee-2e54-46d6-a671-7277fdda2d25",
+                "8f5f7b74-9d6c-47d9-bd95-7e40cbe955e2",
+                "8a42afe7-8190-4732-adf8-d4fc5dd99ee0",
+                "9ef41f2f-f325-46c3-b718-4e58466fd1c4"
+              ]
+            }
+          ],
+          "examBankCount": 2
+        },
+        {
+          "label": "Week 2",
+          "sets": [
+            {
+              "id": "cd08c515-5dc9-4285-8f5d-4683aa650461",
+              "title": "Week 2 - Set 1: Invented follow-up",
+              "description": "Two more invented questions.",
+              "questionCount": 2,
+              "importedAt": "2026-10-13T00:02:35.401Z",
+              "activeSince": "2026-10-13T00:02:35.401Z",
+              "status": "imported",
+              "canRestore": false,
+              "answeredCount": 0,
+              "fullyRightCount": 0,
+              "lastAnsweredAt": null,
+              "questionIds": [
+                "e8723421-974e-4ae0-b1e8-ab97f62f243b",
+                "c975d26a-b6ed-4ecb-af35-cf2008f8a5e0"
+              ]
+            }
+          ],
+          "examBankCount": 0
+        }
+      ]
+    }
+  }
+}

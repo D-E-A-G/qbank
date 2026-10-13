@@ -1,0 +1,25 @@
+{
+  "recordedFrom": "2b7a4291fc79877edeb8e4eb0e430209ef56fd8b",
+  "request": {
+    "method": "GET",
+    "path": "/api/courses/6081c42b-988b-40d1-8068-273a13195673/terms",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "terms": [
+        {
+          "key": "tachy",
+          "term": "Tachycardia",
+          "meaning": "An invented definition of a fast heart rate.",
+          "weekLabel": "Week 1",
+          "setTitle": "Week 1 - Set 1: Invented basics"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "recordedFrom": "2b7a4291fc79877edeb8e4eb0e430209ef56fd8b",
+  "request": {
+    "method": "GET",
+    "path": "/api/courses/6081c42b-988b-40d1-8068-273a13195673/review/practice",
+    "query": {
+      "question": "0cac9fe8-9223-4442-8cf3-b930c6d6d4fa"
+    },
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "id": "6081c42b-988b-40d1-8068-273a13195673",
+      "courseId": "6081c42b-988b-40d1-8068-273a13195673",
+      "title": "Review question",
+      "weekLabel": "",
+      "kind": "practice",
+      "questions": [
+        {
+          "id": "0cac9fe8-9223-4442-8cf3-b930c6d6d4fa",
+          "publicId": "Q1",
+          "position": 1,
+          "type": "single",
+          "topic": "Invented single topic",
+          "cj": "Analyze cues",
+          "stem": "An invented client has an invented finding.",
+          "ask": "Which action comes first?",
+          "rationale": "The useful action matches the finding.",
+          "takeaway": "Match the action to the finding.",
+          "body": {
+            "table": {
+              "head": [
+                "Time",
+                "HR"
+              ],
+              "rows": [
+                [
+                  "0900",
+                  82
+                ],
+                [
+                  "0915",
+                  "94",
+                  "extra"
+                ]
+              ],
+              "caption": "Invented readings"
+            },
+            "options": [
+              {
+                "t": "The useful action",
+                "ok": true,
+                "why": "It addresses the finding."
+              },
+              {
+                "t": "A distractor",
+                "why": "It does not change the finding."
+              },
+              {
+                "t": "Another distractor",
+                "why": "Neither does this."
+              }
+            ]
+          },
+          "terms": [
+            {
+              "key": "tachy",
+              "term": "Tachycardia",
+              "meaning": "An invented definition of a fast heart rate."
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

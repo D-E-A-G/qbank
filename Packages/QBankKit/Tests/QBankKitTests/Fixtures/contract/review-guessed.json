@@ -1,0 +1,37 @@
+{
+  "recordedFrom": "2b7a4291fc79877edeb8e4eb0e430209ef56fd8b",
+  "request": {
+    "method": "GET",
+    "path": "/api/courses/6081c42b-988b-40d1-8068-273a13195673/review",
+    "query": {
+      "filter": "guessed"
+    },
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "filter": "guessed",
+      "counts": {
+        "all": 7,
+        "missed": 2,
+        "partial": 4,
+        "guessed": 1
+      },
+      "questions": [
+        {
+          "questionId": "2889259f-bd71-4728-a70a-8f0f66859b13",
+          "topic": "Invented priority topic",
+          "weekLabel": "Week 1",
+          "format": "Priority / first action",
+          "status": "correct",
+          "guessed": true,
+          "answeredAt": "2026-10-13T00:02:35.461Z",
+          "setTitle": "Week 1 - Set 1: Invented basics"
+        }
+      ]
+    }
+  }
+}

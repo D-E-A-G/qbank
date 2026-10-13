@@ -1,0 +1,18 @@
+{
+  "recordedFrom": "2b7a4291fc79877edeb8e4eb0e430209ef56fd8b",
+  "request": {
+    "method": "GET",
+    "path": "/api/courses/00000000-0000-4000-8000-000000000000",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 404,
+    "headers": {},
+    "body": {
+      "error": "request_refused",
+      "message": "That course is not in the app."
+    }
+  }
+}

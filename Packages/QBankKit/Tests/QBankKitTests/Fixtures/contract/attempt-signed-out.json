@@ -1,0 +1,26 @@
+{
+  "recordedFrom": "2b7a4291fc79877edeb8e4eb0e430209ef56fd8b",
+  "request": {
+    "method": "POST",
+    "path": "/api/attempts",
+    "query": {},
+    "authorization": null,
+    "body": {
+      "clientAttemptId": "33333333-3333-4333-8333-333333333333",
+      "questionId": "0cac9fe8-9223-4442-8cf3-b930c6d6d4fa",
+      "response": {
+        "type": "single",
+        "choice": 0
+      },
+      "guessed": false
+    }
+  },
+  "response": {
+    "status": 401,
+    "headers": {},
+    "body": {
+      "error": "unauthenticated",
+      "message": "Sign in to continue."
+    }
+  }
+}

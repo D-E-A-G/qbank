@@ -1,0 +1,43 @@
+{
+  "recordedFrom": "2b7a4291fc79877edeb8e4eb0e430209ef56fd8b",
+  "request": {
+    "method": "POST",
+    "path": "/api/attempts",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": {
+      "clientAttemptId": "11111111-1111-4111-8111-111111111111",
+      "questionId": "0cac9fe8-9223-4442-8cf3-b930c6d6d4fa",
+      "response": {
+        "type": "single",
+        "choice": 1
+      },
+      "guessed": false,
+      "shuffle": {
+        "kind": "options",
+        "order": [
+          2,
+          0,
+          1
+        ]
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "clientAttemptId": "11111111-1111-4111-8111-111111111111",
+      "questionId": "0cac9fe8-9223-4442-8cf3-b930c6d6d4fa",
+      "courseId": "6081c42b-988b-40d1-8068-273a13195673",
+      "status": "incorrect",
+      "points": 0,
+      "maxPoints": 1,
+      "guessed": false,
+      "answeredAt": "2026-10-13T00:02:35.438Z",
+      "inReview": true,
+      "label": "Not correct",
+      "replayed": true
+    }
+  }
+}

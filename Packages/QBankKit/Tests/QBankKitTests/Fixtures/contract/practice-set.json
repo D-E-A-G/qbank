@@ -1,0 +1,315 @@
+{
+  "recordedFrom": "2b7a4291fc79877edeb8e4eb0e430209ef56fd8b",
+  "request": {
+    "method": "GET",
+    "path": "/api/practice-sets/30722b59-8c29-4610-b17d-001f0d99a995",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "id": "30722b59-8c29-4610-b17d-001f0d99a995",
+      "courseId": "6081c42b-988b-40d1-8068-273a13195673",
+      "title": "Week 1 - Set 1: Invented basics",
+      "weekLabel": "Week 1",
+      "kind": "practice",
+      "questions": [
+        {
+          "id": "0cac9fe8-9223-4442-8cf3-b930c6d6d4fa",
+          "publicId": "Q1",
+          "position": 1,
+          "type": "single",
+          "topic": "Invented single topic",
+          "cj": "Analyze cues",
+          "stem": "An invented client has an invented finding.",
+          "ask": "Which action comes first?",
+          "rationale": "The useful action matches the finding.",
+          "takeaway": "Match the action to the finding.",
+          "body": {
+            "table": {
+              "head": [
+                "Time",
+                "HR"
+              ],
+              "rows": [
+                [
+                  "0900",
+                  82
+                ],
+                [
+                  "0915",
+                  "94",
+                  "extra"
+                ]
+              ],
+              "caption": "Invented readings"
+            },
+            "options": [
+              {
+                "t": "The useful action",
+                "ok": true,
+                "why": "It addresses the finding."
+              },
+              {
+                "t": "A distractor",
+                "why": "It does not change the finding."
+              },
+              {
+                "t": "Another distractor",
+                "why": "Neither does this."
+              }
+            ]
+          },
+          "terms": [
+            {
+              "key": "tachy",
+              "term": "Tachycardia",
+              "meaning": "An invented definition of a fast heart rate."
+            }
+          ]
+        },
+        {
+          "id": "2889259f-bd71-4728-a70a-8f0f66859b13",
+          "publicId": "Q2",
+          "position": 2,
+          "type": "priority",
+          "topic": "Invented priority topic",
+          "cj": "Analyze cues",
+          "stem": "Four invented clients.",
+          "ask": "Whom does the nurse see first?",
+          "rationale": "Unstable before stable.",
+          "takeaway": "Airway, breathing, circulation.",
+          "body": {
+            "images": [
+              {
+                "alt": "An invented one-pixel image",
+                "src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+                "caption": "Invented caption"
+              },
+              {
+                "at": "rationale",
+                "alt": "An invented grey box",
+                "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 20 10\"><rect width=\"20\" height=\"10\" fill=\"#ccc\"/></svg>"
+              }
+            ],
+            "options": [
+              {
+                "t": "The unstable client",
+                "ok": true,
+                "why": "Airway first."
+              },
+              {
+                "t": "The stable client",
+                "why": "Can wait."
+              },
+              {
+                "t": "The sleeping client",
+                "why": "Can wait too."
+              }
+            ]
+          },
+          "terms": []
+        },
+        {
+          "id": "88ee2607-d52e-4ca9-8525-2978ead685c0",
+          "publicId": "Q3",
+          "position": 3,
+          "type": "sata",
+          "topic": "Invented select-all topic",
+          "cj": "Analyze cues",
+          "stem": "An invented finding.",
+          "ask": "Select all that apply.",
+          "rationale": "Three are right.",
+          "takeaway": "Count the right ones.",
+          "body": {
+            "options": [
+              {
+                "t": "Right one",
+                "ok": true,
+                "why": "Yes."
+              },
+              {
+                "t": "Right two",
+                "ok": true,
+                "why": "Yes."
+              },
+              {
+                "t": "Wrong one",
+                "why": "No."
+              },
+              {
+                "t": "Right three",
+                "ok": true,
+                "why": "Yes."
+              }
+            ]
+          },
+          "terms": []
+        },
+        {
+          "id": "d7cf2cde-e16a-4531-8f39-7240f11b3bce",
+          "publicId": "Q4",
+          "position": 4,
+          "type": "highlight",
+          "topic": "Invented highlight topic",
+          "cj": "Analyze cues",
+          "stem": "An invented note.",
+          "ask": "Highlight the findings that need follow-up.",
+          "rationale": "Two findings need follow-up.",
+          "takeaway": "Look for change.",
+          "body": {
+            "segments": [
+              {
+                "t": "The client is alert.",
+                "why": "Expected."
+              },
+              {
+                "t": "Heart rate 128.",
+                "ok": true,
+                "why": "Too fast."
+              },
+              {
+                "t": "Skin is cool and clammy.",
+                "ok": true,
+                "why": "Poor perfusion."
+              },
+              {
+                "t": "Ate breakfast.",
+                "why": "Expected."
+              }
+            ]
+          },
+          "terms": []
+        },
+        {
+          "id": "af8621ee-2e54-46d6-a671-7277fdda2d25",
+          "publicId": "Q5",
+          "position": 5,
+          "type": "order",
+          "topic": "Invented order topic",
+          "cj": "Analyze cues",
+          "stem": "An invented procedure.",
+          "ask": "Put the steps in order.",
+          "rationale": "One, two, three.",
+          "takeaway": "Order matters.",
+          "body": {
+            "items": [
+              {
+                "t": "Step one",
+                "why": "First."
+              },
+              {
+                "t": "Step two"
+              },
+              {
+                "t": "Step three"
+              }
+            ]
+          },
+          "terms": []
+        },
+        {
+          "id": "8f5f7b74-9d6c-47d9-bd95-7e40cbe955e2",
+          "publicId": "Q6",
+          "position": 6,
+          "type": "match",
+          "topic": "Invented match topic",
+          "cj": "Analyze cues",
+          "stem": "Invented drugs.",
+          "ask": "Match each drug to its class.",
+          "rationale": "A to A, B to B.",
+          "takeaway": "Classes.",
+          "body": {
+            "extra": [
+              {
+                "r": "Class C",
+                "why": "Matches nothing."
+              }
+            ],
+            "pairs": [
+              {
+                "l": "Drug A",
+                "r": "Class A",
+                "why": "A goes with A."
+              },
+              {
+                "l": "Drug B",
+                "r": "Class B"
+              }
+            ]
+          },
+          "terms": []
+        },
+        {
+          "id": "8a42afe7-8190-4732-adf8-d4fc5dd99ee0",
+          "publicId": "Q7",
+          "position": 7,
+          "type": "matrix",
+          "topic": "Invented matrix topic",
+          "cj": "Analyze cues",
+          "stem": "Invented orders.",
+          "ask": "Is each order indicated or not?",
+          "rationale": "One helps, one does not.",
+          "takeaway": "Think it through.",
+          "body": {
+            "rows": [
+              {
+                "t": "Order one",
+                "ans": "Indicated",
+                "why": "Helps."
+              },
+              {
+                "t": "Order two",
+                "ans": "Not indicated"
+              }
+            ],
+            "columns": [
+              "Indicated",
+              "Not indicated"
+            ]
+          },
+          "terms": []
+        },
+        {
+          "id": "9ef41f2f-f325-46c3-b718-4e58466fd1c4",
+          "publicId": "Q8",
+          "position": 8,
+          "type": "cloze",
+          "topic": "Invented cloze topic",
+          "cj": "Analyze cues",
+          "stem": "An invented client.",
+          "ask": "Complete the sentence.",
+          "rationale": "Infection because of the wound.",
+          "takeaway": "Link risk to cause.",
+          "body": {
+            "cloze": {
+              "text": "The client is most at risk for {0} because of {1}.",
+              "blanks": [
+                {
+                  "ans": 1,
+                  "why": "Invented reason.",
+                  "opts": [
+                    "bleeding",
+                    "infection",
+                    "falls"
+                  ]
+                },
+                {
+                  "ans": 0,
+                  "opts": [
+                    "the wound",
+                    "the diet"
+                  ]
+                }
+              ]
+            }
+          },
+          "terms": []
+        }
+      ]
+    }
+  }
+}

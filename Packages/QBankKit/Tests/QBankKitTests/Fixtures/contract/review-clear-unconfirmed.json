@@ -1,0 +1,20 @@
+{
+  "recordedFrom": "2b7a4291fc79877edeb8e4eb0e430209ef56fd8b",
+  "request": {
+    "method": "POST",
+    "path": "/api/courses/6081c42b-988b-40d1-8068-273a13195673/review/clear",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": {
+      "confirmed": false
+    }
+  },
+  "response": {
+    "status": 400,
+    "headers": {},
+    "body": {
+      "error": "confirmation_required",
+      "message": "Clear all 7 questions from this course's Review list?"
+    }
+  }
+}
