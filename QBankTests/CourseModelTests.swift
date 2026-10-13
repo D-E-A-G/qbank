@@ -69,4 +69,43 @@ struct CourseModelTests {
         #expect(model.course != nil)
         #expect(server.calls.count == 2)
     }
+
+    @Test func withoutSignalTheSavedCourseShowsWithHerWaitingAnswers() async throws {
+        let server = StubServer([
+            "GET /api/courses/c1": .ok(Bodies.courseDetail(sets: [Bodies.set(id: "set1", questionIDs: ["q-sata", "q-single"])])),
+            "GET /api/practice-sets/set1": .ok(PracticeModelTests.practiceSet()),
+        ])
+        let connection = Connection()
+        let (app, _) = TestApp.make(server, account: .student(), connection: connection)
+        let model = CourseModel(app: app, id: "c1")
+        await model.load()
+        #expect(model.savedAt == nil)
+        let practice = PracticeModel(app: app, setID: "set1", courseID: "c1", title: "Invented set")
+        await practice.load()
+
+        connection.update(isOnline: false)
+        practice.update(.sata([0, 2]))
+        await practice.check()
+        practice.next()
+        practice.update(.single(1))
+        await practice.check()
+        #expect(app.offline?.waiting.count == 2)
+
+        await model.load()
+        #expect(model.savedAt != nil)
+        #expect(model.problem == nil)
+        let set = try #require(model.course?.weeks.first?.sets.first)
+        #expect(set.answeredCount == 2)
+        #expect(set.fullyRightCount == 1)
+        #expect(Wording.status(set) == "Done today · 1 of 2 fully right")
+        #expect(model.course?.answeredCount == 2)
+        #expect(server.calls.filter { $0 == "GET /api/courses/c1" }.count == 1, "without a network path it reads the phone's copy")
+    }
+
+    @Test func offlineTheCourseIsNotRememberedAsHerPlace() async {
+        let server = StubServer()
+        let (app, _) = TestApp.make(server, account: .student(), connection: Connection(isOnline: false))
+        await CourseModel(app: app, id: "c1").rememberPlace()
+        #expect(server.requests.isEmpty)
+    }
 }

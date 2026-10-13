@@ -14,6 +14,45 @@ nonisolated enum Wording {
         return date.formatted(.dateTime.month(.abbreviated).day())
     }
 
+    /// A time today, such as "7:40 AM", or a short month and day such as "Oct 10", in the phone's language.
+    static func time(_ date: Date, now: Date = .now, calendar: Calendar = .current) -> String {
+        calendar.isDate(date, inSameDayAs: now)
+            ? date.formatted(date: .omitted, time: .shortened)
+            : date.formatted(.dateTime.month(.abbreviated).day())
+    }
+
+    /// The badge on a course shown from the phone's copy: "Saved 7:40 AM", "Saved Oct 10".
+    static func saved(_ date: Date, now: Date = .now) -> String {
+        "Saved \(time(date, now: now))"
+    }
+
+    /// Answers on the phone that QBank does not have yet: "3 waiting to send".
+    static func waitingToSend(_ count: Int) -> String {
+        "\(count) waiting to send"
+    }
+
+    /// When a group of waiting answers was given: "answered 8:02 AM", "answered 8:02 to 8:06 AM".
+    static func answered(from first: Date, to last: Date, now: Date = .now) -> String {
+        let start = time(first, now: now)
+        let end = time(last, now: now)
+        return start == end ? "answered \(start)" : "answered \(start) to \(end)"
+    }
+
+    /// A saved course in Saved for offline: "86 questions · updated 7:40 AM", or
+    /// "70 of 86 questions · updated 7:40 AM" while some of its sets are not saved yet.
+    static func savedCourse(_ course: SavedCourse, now: Date = .now) -> String {
+        let questions = course.isComplete
+            ? count(course.questionCount, "question")
+            : "\(min(course.savedQuestionCount, course.questionCount)) of \(count(course.questionCount, "question"))"
+        return "\(questions) · updated \(time(course.savedAt, now: now))"
+    }
+
+    /// The Saved for offline row in Settings: "2 courses · updated 7:40 AM".
+    static func savedCourses(_ courses: [SavedCourse], now: Date = .now) -> String {
+        guard let latest = courses.map(\.savedAt).max() else { return "Nothing saved yet" }
+        return "\(count(courses.count, "course")) · updated \(time(latest, now: now))"
+    }
+
     /// The course line on Home and under the Course title: "86 questions · 3 weeks".
     static func size(questions: Int, weeks: Int) -> String {
         "\(count(questions, "question")) · \(count(weeks, "week"))"

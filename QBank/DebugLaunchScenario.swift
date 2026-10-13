@@ -7,17 +7,35 @@ import QBankKit
 /// composes synthetic data and in-process fakes, never a real account or the
 /// production server: the app talks to `FakeQBankServer` and keeps its session
 /// in memory, so the Keychain is never touched. Settings kept on the phone, such
-/// as Look, live in their own defaults suite, emptied at launch.
+/// as Look, live in their own defaults suite, and saved courses and unsent
+/// answers in their own folder, `Application Support/QBankUITest`; both are
+/// emptied at launch.
 ///
 /// Supported environment variables:
 /// - `QB_UITEST_SCENARIO`: the scenario to start in, one of `Scenario`'s raw
 ///   values. Absent means a normal launch.
 /// - `QB_UITEST_KEEP_PHONE_SETTINGS`: `1` keeps the suite from the previous
 ///   launch, to check that a setting survives a relaunch.
+/// - `QB_UITEST_KEEP_PHONE_DATA`: `1` keeps the courses saved and the answers
+///   left waiting by the previous launch, to check that they survive a relaunch.
+///   The fake server starts afresh either way.
+/// - `QB_UITEST_NETWORK`: `offline` starts without a network; absent or
+///   `online` starts with one.
+///
+/// While the app runs, a test turns the network off and on by posting the
+/// Darwin notifications `networkOfflineNotification` and
+/// `networkOnlineNotification` (see `DebugNetwork`).
 nonisolated enum DebugLaunchScenario {
     static let scenarioKey = "QB_UITEST_SCENARIO"
     static let keepPhoneSettingsKey = "QB_UITEST_KEEP_PHONE_SETTINGS"
+    static let keepPhoneDataKey = "QB_UITEST_KEEP_PHONE_DATA"
+    static let networkKey = "QB_UITEST_NETWORK"
     static let defaultsSuite = "com.dimitrygallego.qbank.uitest"
+    static let networkOfflineNotification = "com.dimitrygallego.qbank.uitest.network.offline"
+    static let networkOnlineNotification = "com.dimitrygallego.qbank.uitest.network.online"
+
+    /// The network of the app's scenario, kept while the app runs.
+    @MainActor private static var network: DebugNetwork?
 
     enum Scenario: String, CaseIterable {
         /// No session on the phone: the sign-in screen. `FakeQBankServer.student`
@@ -47,9 +65,13 @@ nonisolated enum DebugLaunchScenario {
     /// The model for the requested scenario, or nil for a normal launch. An
     /// unknown scenario stops the app so a test never silently runs against
     /// the default state.
+    ///
+    /// - Parameter phoneFolder: Where saved courses and unsent answers go; unit
+    ///   tests give each model its own.
     @MainActor
     static func makeModel(
-        environment: [String: String] = ProcessInfo.processInfo.environment
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        phoneFolder: URL? = nil
     ) -> AppModel? {
         let scenario: Scenario?
         do {
@@ -59,12 +81,29 @@ nonisolated enum DebugLaunchScenario {
         }
         guard let scenario else { return nil }
         let defaults = phoneSettings(keep: environment[keepPhoneSettingsKey] == "1")
+        let storage = phoneData(in: phoneFolder ?? defaultPhoneFolder, keep: environment[keepPhoneDataKey] == "1")
+        let isOnline = environment[networkKey] != "offline"
         switch scenario {
         case .signedOut:
-            return model(server: FakeQBankServer(signedIn: false), session: nil, defaults: defaults)
+            return model(server: FakeQBankServer(signedIn: false), session: nil, defaults: defaults, storage: storage, isOnline: isOnline)
         case .signedIn:
-            return model(server: FakeQBankServer(signedIn: true), session: FakeQBankServer.storedStudentSession(), defaults: defaults)
+            return model(
+                server: FakeQBankServer(signedIn: true), session: FakeQBankServer.storedStudentSession(),
+                defaults: defaults, storage: storage, isOnline: isOnline
+            )
         }
+    }
+
+    static var defaultPhoneFolder: URL {
+        URL.applicationSupportDirectory.appendingPathComponent("QBankUITest", isDirectory: true)
+    }
+
+    /// The scenario's own folder for saved courses and unsent answers, emptied unless kept.
+    static func phoneData(in folder: URL, keep: Bool) -> PhoneStorage {
+        if !keep {
+            try? FileManager.default.removeItem(at: folder)
+        }
+        return .files(root: folder)
     }
 
     /// The scenario's own defaults suite, so a test never sees the developer's settings or
@@ -78,14 +117,22 @@ nonisolated enum DebugLaunchScenario {
     }
 
     @MainActor
-    private static func model(server: FakeQBankServer, session: StoredSession?, defaults: UserDefaults) -> AppModel {
-        AppModel(
+    private static func model(
+        server: FakeQBankServer, session: StoredSession?, defaults: UserDefaults, storage: PhoneStorage, isOnline: Bool
+    ) -> AppModel {
+        let connection = Connection(isOnline: isOnline)
+        let network = DebugNetwork(server: server, connection: connection, isOnline: isOnline)
+        network.listen()
+        self.network = network
+        return AppModel(
             client: QBankClient(
                 configuration: APIConfiguration(baseURL: URL(string: "https://fake-qbank.invalid")!),
                 transport: server,
                 sessionStore: InMemorySessionStore(session)
             ),
-            look: LookStore(defaults: defaults)
+            look: LookStore(defaults: defaults),
+            storage: storage,
+            connection: connection
         )
     }
 }

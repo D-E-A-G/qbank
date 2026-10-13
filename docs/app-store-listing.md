@@ -60,7 +60,7 @@ Timed exams
 - See your score by week and by clinical judgment step when you finish.
 
 Study without signal
-- Courses you have opened stay on your phone. Practice offline, and your answers send by themselves when you are back online.
+- Your courses stay on your phone. Practice offline, and your answers send by themselves when you are back online.
 
 Private by design
 - No ads, no tracking, no third-party analytics.

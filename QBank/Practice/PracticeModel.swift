@@ -2,10 +2,12 @@ import Foundation
 import Observation
 import QBankKit
 
-/// One run through a practice set: the questions in order, her answer to each, and the score the
-/// server gave it. Works like the web runner (`apps/web/src/practice/PracticeScreen.tsx`): every
-/// opening shuffles the choices, Check answer sends the answer and shows the server's score, and
-/// after the last question the set result.
+/// One run through a practice set: the questions in order, her answer to each, and its score.
+/// Works like the web runner (`apps/web/src/practice/PracticeScreen.tsx`): every opening shuffles
+/// the choices, Check answer sends the answer and shows the server's score, and after the last
+/// question the set result. Without a connection the set comes from the phone, and Check answer
+/// keeps the answer on the phone to send later and shows the score the phone gives it, with the
+/// server's rules.
 @Observable
 final class PracticeModel {
     /// Her work on one question during this run.
@@ -16,7 +18,7 @@ final class PracticeModel {
         var guessed = false
         /// Made once per opening, so a retried send is never counted twice.
         let clientAttemptID: String
-        /// The server's score, once she has checked.
+        /// Her score once she has checked: the server's, or the phone's while the answer waits to be sent.
         var score: Score?
     }
 
@@ -43,16 +45,13 @@ final class PracticeModel {
     private(set) var index = 0
     /// True while Check answer is sending.
     private(set) var isChecking = false
-    /// True while a send waits for the connection to come back.
-    private(set) var isWaiting = false
     /// Why the last Check answer did not go through.
     private(set) var problem: String?
     private(set) var startedAt: Date?
     private(set) var finishedAt: Date?
 
-    private let app: AppModel
+    let app: AppModel
     private let now: () -> Date
-    private let sleep: (Duration) async throws -> Void
     private let makeLayout: (QuestionBody) -> Layout
     private let newAttemptID: () -> String
 
@@ -62,7 +61,6 @@ final class PracticeModel {
         courseID: String,
         title: String,
         now: @escaping () -> Date = { .now },
-        sleep: @escaping (Duration) async throws -> Void = { try await Task.sleep(for: $0) },
         makeLayout: @escaping (QuestionBody) -> Layout = { Layout.make(for: $0) },
         newAttemptID: @escaping () -> String = { AttemptSubmission.newID() }
     ) {
@@ -71,7 +69,6 @@ final class PracticeModel {
         self.courseID = courseID
         self.initialTitle = title
         self.now = now
-        self.sleep = sleep
         self.makeLayout = makeLayout
         self.newAttemptID = newAttemptID
     }
@@ -88,6 +85,15 @@ final class PracticeModel {
 
     var isRevealed: Bool { attempt?.score != nil }
     var isLast: Bool { index == questions.count - 1 }
+
+    /// Whether the current answer is checked and waits on the phone to be sent.
+    var isWaitingToSend: Bool {
+        guard let attempt, attempt.score != nil else { return false }
+        return app.offline?.waiting.contains { $0.id == attempt.clientAttemptID } ?? false
+    }
+
+    /// Answers on the phone that QBank does not have yet, from this run and earlier ones.
+    var waitingCount: Int { app.offline?.waiting.count ?? 0 }
 
     /// "3 of 17".
     var countText: String { "\(index + 1) of \(questions.count)" }
@@ -122,7 +128,7 @@ final class PracticeModel {
             return
         }
         do {
-            let loaded = try await app.client.practiceSet(id: setID)
+            let loaded = try await app.load(.practiceSet(setID)) { () async throws(QBankError) in try await app.client.practiceSet(id: setID) }.value
             if loaded.kind == .exam {
                 phase = .failed("This set’s questions are asked only on exams.")
                 return
@@ -134,7 +140,9 @@ final class PracticeModel {
             begin(loaded)
         } catch {
             if app.handle(error) { return }
-            if let words = Wording.problem(error) {
+            if case .transport = error {
+                phase = .failed("No connection, and this set is not saved on this phone yet. Open it once with a connection to practice it offline.")
+            } else if let words = Wording.problem(error) {
                 phase = .failed(words)
             }
         }
@@ -166,25 +174,24 @@ final class PracticeModel {
         attempts[index].guessed = guessed
     }
 
-    /// Sends the answer and shows the score the server gave it. A dropped connection is retried
-    /// with the same answer id until the server answers, so an answer that arrived before the
-    /// connection dropped is never counted twice. A refusal is said in her words.
+    /// Sends the answer and shows the score the server gave it. Without a connection, or when
+    /// QBank cannot be reached, the answer is kept on the phone and sent later with the same id, so
+    /// it is never counted twice; she sees the phone's score, which uses the server's rules. A
+    /// refusal is said in her words.
     func check() async {
         guard canCheck, let question, let attempt, let response = attempt.draft.response else { return }
         problem = nil
+        let phoneScore: Score
         do {
-            // Catches an answer the question cannot take before it leaves the phone.
-            _ = try Scoring.score(question.body, response: response)
+            // Also catches an answer the question cannot take before it leaves the phone.
+            phoneScore = try Scoring.score(question.body, response: response)
         } catch {
             problem = error.message
             return
         }
         let checking = index
         isChecking = true
-        defer {
-            isChecking = false
-            isWaiting = false
-        }
+        defer { isChecking = false }
         let submission = AttemptSubmission(
             clientAttemptID: attempt.clientAttemptID,
             questionID: question.id,
@@ -192,14 +199,29 @@ final class PracticeModel {
             guessed: attempt.guessed,
             shuffle: attempt.layout
         )
+        let score: Score
         do {
-            let saved = try await send(submission)
-            guard attempts.indices.contains(checking), attempts[checking].score == nil else { return }
-            attempts[checking].score = Score(saved)
+            switch try await app.submit(submission, courseID: courseID) {
+            case .sent(let saved):
+                score = Score(saved)
+            case .waiting(let reason):
+                // A session that ended goes to sign-in; the answer waits for her on the phone.
+                if app.handle(reason) { return }
+                score = phoneScore
+            case .accepted:
+                score = phoneScore
+            }
         } catch {
             if error == .cancelled || app.handle(error) { return }
-            problem = Wording.problem(error)
+            if case .storage = error {
+                problem = "This iPhone could not save your answer. Try again."
+            } else {
+                problem = Wording.problem(error)
+            }
+            return
         }
+        guard attempts.indices.contains(checking), attempts[checking].score == nil else { return }
+        attempts[checking].score = score
     }
 
     /// The next question, or the set result after the last one.
@@ -211,41 +233,6 @@ final class PracticeModel {
         } else if phase == .answering {
             finishedAt = now()
             phase = .finished
-        }
-    }
-
-    private func send(_ submission: AttemptSubmission) async throws(QBankError) -> SavedAttempt {
-        var delay = Self.firstRetryDelay
-        while true {
-            do {
-                return try await app.client.recordAttempt(submission)
-            } catch where Self.isTransient(error) {
-                isWaiting = true
-            }
-            do {
-                try await sleep(delay)
-            } catch {
-                throw .cancelled
-            }
-            delay = min(delay * 2, Self.longestRetryDelay)
-        }
-    }
-
-    static let firstRetryDelay = Duration.seconds(1)
-    static let longestRetryDelay = Duration.seconds(15)
-
-    /// A failed connection, or a proxy or a restarting server in front of the API: worth sending
-    /// again with the same id. A refusal from the API itself is final.
-    nonisolated static func isTransient(_ error: QBankError) -> Bool {
-        switch error {
-        case .transport:
-            return true
-        case .server(let server):
-            return server.status == 502 || server.status == 504
-        case .unexpectedResponse(let status, _):
-            return status == 502 || status == 503 || status == 504
-        case .cancelled, .notSignedIn, .storage, .invalidRequest:
-            return false
         }
     }
 }

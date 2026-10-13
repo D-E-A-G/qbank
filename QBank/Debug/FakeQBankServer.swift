@@ -72,6 +72,13 @@ nonisolated final class FakeQBankServer: HTTPTransport {
 
     private let state: Mutex<State>
     private let now: Date
+    private let offline = Mutex(false)
+
+    /// Without signal, every call fails before it reaches the server, as on a phone with no network.
+    var isOffline: Bool {
+        get { offline.withLock { $0 } }
+        set { offline.withLock { $0 = newValue } }
+    }
 
     /// - Parameters:
     ///   - signedIn: Starts with `student`'s session, as `sessionToken`.
@@ -108,6 +115,7 @@ nonisolated final class FakeQBankServer: HTTPTransport {
     }
 
     func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+        if isOffline { throw URLError(.notConnectedToInternet) }
         let url = request.url ?? URL(string: "https://fake.invalid")!
         let (status, body) = answer(
             method: request.httpMethod ?? "GET",
@@ -235,26 +243,62 @@ nonisolated final class FakeQBankServer: HTTPTransport {
     private func semesters() -> [[String: Any]] {
         state.withLock { state in
             state.semesters.sorted { $0.number < $1.number }.map { semester in
-                semesterJSON(semester, courses: state.courses)
+                semesterJSON(semester, courses: state.courses, latest: state.latest)
             }
         }
     }
 
-    private func semesterJSON(_ semester: FakeSemester, courses: [FakeCourse]) -> [String: Any] {
+    private func semesterJSON(_ semester: FakeSemester, courses: [FakeCourse], latest: [String: (status: String, at: Date)]) -> [String: Any] {
         [
             "id": semester.id, "number": semester.number, "name": semester.name,
             "startsOn": json(semester.startsOn), "endsOn": json(semester.endsOn),
-            "courses": courses.filter { $0.semesterID == semester.id }.sorted { $0.sortOrder < $1.sortOrder }.map(courseJSON),
+            "courses": courses.filter { $0.semesterID == semester.id }.sorted { $0.sortOrder < $1.sortOrder }.map { courseJSON($0, latest: latest) },
         ]
     }
 
-    private func courseJSON(_ course: FakeCourse) -> [String: Any] {
-        [
+    private func courseJSON(_ course: FakeCourse, latest: [String: (status: String, at: Date)]) -> [String: Any] {
+        let added = Self.added(courseID: course.id, latest: latest)
+        return [
             "id": course.id, "code": course.code, "title": course.title, "sortOrder": course.sortOrder,
             "archivedAt": json(course.archivedAt),
             "questionCount": course.questions, "weekCount": course.weeks, "reviewCount": course.review,
-            "answeredCount": course.answered, "fullyRightCount": course.right, "points": course.points, "maxPoints": course.maxPoints,
+            "answeredCount": course.answered + added.answered, "fullyRightCount": course.right + added.right,
+            "points": course.points, "maxPoints": course.maxPoints,
         ]
+    }
+
+    /// Progress she made before the scenario starts, by set: questions answered, fully right, and
+    /// days since her last answer.
+    private static let earlierProgress: [String: (answered: Int, right: Int, lastAnsweredDaysAgo: Int)] = [
+        "rights-v1": (17, 13, 9),
+        "communication-v1": (9, 6, 1),
+        "vitals-v1": (43, 35, 1),
+        "safety-v1": (42, 30, 1),
+        "mobility-v1": (7, 5, 1),
+    ]
+
+    /// Every set of each course, in all its versions.
+    private static let setsByCourse: [String: Set<String>] = [
+        mentalHealthID: ["rights-v1", "communication-v1", "psychosocial-v1", "psychosocial-v2", "depression-v1", "anxiety-v1", "mixed-v1"],
+        fundamentalsID: ["vitals-v1", "safety-v1", "mobility-v1"],
+    ]
+
+    /// What her answers here add to a course's invented counts. A set she answered here counts her
+    /// answers instead of its earlier progress, as the set's own line does.
+    private static func added(courseID: String, latest: [String: (status: String, at: Date)]) -> (answered: Int, right: Int) {
+        let sets = setsByCourse[courseID] ?? []
+        var bySet: [String: [String]] = [:]
+        for (questionID, answer) in latest {
+            let setID = questionID.split(separator: "-").dropLast().joined(separator: "-")
+            if sets.contains(setID) {
+                bySet[setID, default: []].append(answer.status)
+            }
+        }
+        return bySet.reduce(into: (0, 0)) { total, entry in
+            let earlier = earlierProgress[entry.key]
+            total.0 += entry.value.count - (earlier?.answered ?? 0)
+            total.1 += entry.value.count { $0 == "correct" } - (earlier?.right ?? 0)
+        }
     }
 
     // MARK: Editing semesters and courses, with the content service's rules and words
@@ -269,7 +313,7 @@ nonisolated final class FakeQBankServer: HTTPTransport {
             }
             let semester = FakeSemester(id: "8d7b4f0e-0000-4000-8000-00000000000\(number)", number: number, name: "Semester \(number)")
             state.semesters.append(semester)
-            return (201, semesterJSON(semester, courses: state.courses))
+            return (201, semesterJSON(semester, courses: state.courses, latest: state.latest))
         }
     }
 
@@ -294,7 +338,7 @@ nonisolated final class FakeQBankServer: HTTPTransport {
                 if key == "startsOn" { semester.startsOn = date } else { semester.endsOn = date }
             }
             state.semesters[index] = semester
-            return (200, semesterJSON(semester, courses: state.courses))
+            return (200, semesterJSON(semester, courses: state.courses, latest: state.latest))
         }
     }
 
@@ -317,7 +361,7 @@ nonisolated final class FakeQBankServer: HTTPTransport {
                 semesterID: semesterID, code: code, title: title, sortOrder: order
             )
             state.courses.append(course)
-            return (201, courseJSON(course))
+            return (201, courseJSON(course, latest: state.latest))
         }
     }
 
@@ -351,7 +395,7 @@ nonisolated final class FakeQBankServer: HTTPTransport {
                 course.archivedAt = archived ? QBankJSON.formatDate(.now) : nil
             }
             state.courses[index] = course
-            return (200, courseJSON(course))
+            return (200, courseJSON(course, latest: state.latest))
         }
     }
 
@@ -382,18 +426,18 @@ nonisolated final class FakeQBankServer: HTTPTransport {
     }
 
     private func mentalHealth() -> [String: Any] {
-        [
+        let added = state.withLock { Self.added(courseID: Self.mentalHealthID, latest: $0.latest) }
+        return [
             "id": Self.mentalHealthID, "code": "NURS 310", "title": "Mental Health", "archivedAt": NSNull(),
             "semester": ["id": "fake-semester-1", "number": 1, "name": "Semester 1"],
             "questionCount": 86, "examQuestionCount": 134, "weekCount": 3, "termCount": 180, "reviewCount": 12,
-            "answeredCount": 35, "fullyRightCount": 24, "points": 61, "maxPoints": 92,
+            "answeredCount": 35 + added.answered, "fullyRightCount": 24 + added.right, "points": 61, "maxPoints": 92,
             "weeks": [
                 week("Week 1", bank: 17, sets: [
-                    set("rights-v1", "Rights, Law, and Ethics", questions: 17, daysAgo: 20,
-                        answered: 17, right: 13, lastAnsweredDaysAgo: 9),
+                    set("rights-v1", "Rights, Law, and Ethics", questions: 17, daysAgo: 20),
                 ]),
                 week("Week 2", bank: 0, sets: [
-                    set("communication-v1", "Therapeutic Communication and the Relationship", questions: 14, daysAgo: 12, answered: 9, right: 6),
+                    set("communication-v1", "Therapeutic Communication and the Relationship", questions: 14, daysAgo: 12),
                     psychosocial(),
                 ]),
                 week("Week 3", bank: 31, sets: [
@@ -408,15 +452,16 @@ nonisolated final class FakeQBankServer: HTTPTransport {
     }
 
     private func fundamentals() -> [String: Any] {
-        [
+        let added = state.withLock { Self.added(courseID: Self.fundamentalsID, latest: $0.latest) }
+        return [
             "id": Self.fundamentalsID, "code": "NURS 220", "title": "Fundamentals", "archivedAt": NSNull(),
             "semester": ["id": "fake-semester-1", "number": 1, "name": "Semester 1"],
             "questionCount": 146, "examQuestionCount": 146, "weekCount": 3, "termCount": 212, "reviewCount": 5,
-            "answeredCount": 92, "fullyRightCount": 70, "points": 131, "maxPoints": 170,
+            "answeredCount": 92 + added.answered, "fullyRightCount": 70 + added.right, "points": 131, "maxPoints": 170,
             "weeks": [
-                week("Week 1", bank: 0, sets: [set("vitals-v1", "Vital Signs Under Pressure", questions: 43, daysAgo: 30, answered: 43, right: 35)]),
-                week("Week 2", bank: 0, sets: [set("safety-v1", "Safety and Infection Control", questions: 42, daysAgo: 22, answered: 42, right: 30)]),
-                week("Week 3", bank: 0, sets: [set("mobility-v1", "Mobility and Skin Integrity", questions: 61, daysAgo: 8, answered: 7, right: 5)]),
+                week("Week 1", bank: 0, sets: [set("vitals-v1", "Vital Signs Under Pressure", questions: 43, daysAgo: 30)]),
+                week("Week 2", bank: 0, sets: [set("safety-v1", "Safety and Infection Control", questions: 42, daysAgo: 22)]),
+                week("Week 3", bank: 0, sets: [set("mobility-v1", "Mobility and Skin Integrity", questions: 61, daysAgo: 8)]),
             ],
         ]
     }
@@ -435,9 +480,9 @@ nonisolated final class FakeQBankServer: HTTPTransport {
 
     private func set(
         _ id: String, _ title: String, questions: Int, daysAgo: Int,
-        status: String = "imported", canRestore: Bool = false,
-        answered: Int = 0, right: Int = 0, lastAnsweredDaysAgo: Int? = nil
+        status: String = "imported", canRestore: Bool = false
     ) -> [String: Any] {
+        let earlier = Self.earlierProgress[id]
         let questionIDs = (0..<questions).map { "\(id)-q\($0)" }
         // Once she answers here, the set's line counts her answers, as the server's does.
         let latest = state.withLock { state in questionIDs.compactMap { state.latest[$0] } }
@@ -455,28 +500,36 @@ nonisolated final class FakeQBankServer: HTTPTransport {
             "id": id, "title": title, "description": "", "questionCount": questions,
             "importedAt": date(days: -daysAgo), "activeSince": date(days: -daysAgo),
             "status": status, "canRestore": canRestore,
-            "answeredCount": answered, "fullyRightCount": right,
-            "lastAnsweredAt": json(answered == 0 ? nil : date(days: -(lastAnsweredDaysAgo ?? 1))),
+            "answeredCount": earlier?.answered ?? 0, "fullyRightCount": earlier?.right ?? 0,
+            "lastAnsweredAt": json(earlier.map { date(days: -$0.lastAnsweredDaysAgo) }),
             "questionIds": (0..<questions).map { "\(id)-q\($0)" },
         ]
     }
 
     // MARK: Practice
 
-    /// A set of the Mental Health course, its questions drawn from `FakePracticeQuestions`.
+    /// A set of either course, its questions drawn from `FakePracticeQuestions`.
     private func practiceSet(id: String) -> Reply {
-        let found = (mentalHealth()["weeks"] as? [[String: Any]] ?? []).lazy.compactMap { week -> ([String: Any], String)? in
-            guard let sets = week["sets"] as? [[String: Any]], let set = sets.first(where: { $0["id"] as? String == id }) else { return nil }
-            return (set, week["label"] as? String ?? "")
-        }.first
-        guard let (set, weekLabel) = found, let count = set["questionCount"] as? Int else {
+        guard let (courseID, set, weekLabel) = find(set: id), let count = set["questionCount"] as? Int else {
             return failure(404, "request_refused", "That set is not in the app.")
         }
         return (200, [
-            "id": id, "courseId": Self.mentalHealthID, "title": set["title"] as? String ?? "", "weekLabel": weekLabel,
+            "id": id, "courseId": courseID, "title": set["title"] as? String ?? "", "weekLabel": weekLabel,
             "kind": "practice",
             "questions": (0..<count).map { FakePracticeQuestions.question(setID: id, index: $0) },
         ])
+    }
+
+    /// A set's course, listing and week label.
+    private func find(set id: String) -> (courseID: String, set: [String: Any], weekLabel: String)? {
+        for course in [mentalHealth(), fundamentals()] {
+            for week in course["weeks"] as? [[String: Any]] ?? [] {
+                if let set = (week["sets"] as? [[String: Any]])?.first(where: { $0["id"] as? String == id }) {
+                    return (course["id"] as? String ?? "", set, week["label"] as? String ?? "")
+                }
+            }
+        }
+        return nil
     }
 
     /// Scores an answer with the server's rules and saves it. A repeated `clientAttemptId` gets the
@@ -503,8 +556,11 @@ nonisolated final class FakeQBankServer: HTTPTransport {
             return failure(400, "invalid_request", error.message)
         }
         let answeredAt = Date.now
+        // Question ids are "<set id>-q<index>".
+        let setID = submission.questionId.split(separator: "-").dropLast().joined(separator: "-")
         let saved: [String: Any] = [
-            "clientAttemptId": submission.clientAttemptId, "questionId": submission.questionId, "courseId": Self.mentalHealthID,
+            "clientAttemptId": submission.clientAttemptId, "questionId": submission.questionId,
+            "courseId": find(set: setID)?.courseID ?? Self.mentalHealthID,
             "status": score.status.rawValue, "points": score.points, "maxPoints": score.maxPoints,
             "guessed": submission.guessed, "answeredAt": QBankJSON.formatDate(answeredAt),
             "inReview": score.staysInReview(guessed: submission.guessed), "label": score.label, "replayed": false,

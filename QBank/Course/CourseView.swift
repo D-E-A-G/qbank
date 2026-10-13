@@ -25,6 +25,7 @@ struct CourseView: View {
         .qbankScreenBackground()
         .navigationTitle(model.course?.code ?? route.code ?? "Course")
         .refreshable { await model.load() }
+        .reloadsWithConnection(app) { await model.load() }
         .task {
             async let place: Void = model.rememberPlace()
             await model.load()
@@ -43,6 +44,10 @@ struct CourseView: View {
         if let course = model.course {
             VStack(alignment: .leading, spacing: QBankSpacing.space4) {
                 summary(course)
+                if model.savedAt != nil {
+                    OfflineBanner.showingSaved(phoneIsOnline: app.connection.isOnline)
+                        .accessibilityIdentifier("course.offline")
+                }
                 if let problem = model.problem {
                     ProblemText(text: problem)
                 }

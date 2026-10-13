@@ -237,26 +237,4 @@ final class PracticeUITests: XCTestCase {
             }
         }
     }
-
-    /// Scrolls until the element is on screen above the pinned footer, then taps it.
-    @MainActor
-    private func tapVisible(_ element: XCUIElement, in app: XCUIApplication) {
-        reveal(element, in: app)
-        element.tap()
-    }
-
-    @MainActor
-    private func reveal(_ element: XCUIElement, in app: XCUIApplication) {
-        XCTAssertTrue(element.waitForExistence(timeout: 5))
-        let window = app.windows.firstMatch.frame
-        for _ in 0..<8 {
-            let frame = element.frame
-            if element.isHittable, frame.minY > window.minY + 120, frame.maxY < window.maxY - 120 { return }
-            if frame.midY > window.midY {
-                app.swipeUp(velocity: .slow)
-            } else {
-                app.swipeDown(velocity: .slow)
-            }
-        }
-    }
 }

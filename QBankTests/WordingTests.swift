@@ -91,4 +91,32 @@ struct WordingTests {
         #expect(Wording.duration(24 * 60 + 10) == "24 min")
         #expect(Wording.duration(-5) == "0 sec")
     }
+
+    @Test func savedTimesAreTheTimeTodayOrTheDate() {
+        let earlier = now.addingTimeInterval(-60)
+        let today = Wording.time(earlier, now: earlier.addingTimeInterval(60))
+        #expect(today == earlier.formatted(date: .omitted, time: .shortened))
+        let old = now.addingTimeInterval(-9 * 86_400)
+        #expect(Wording.time(old, now: now) == old.formatted(.dateTime.month(.abbreviated).day()))
+        #expect(Wording.saved(old, now: now) == "Saved \(Wording.time(old, now: now))")
+    }
+
+    @Test func waitingAnswersInWords() {
+        #expect(Wording.waitingToSend(3) == "3 waiting to send")
+        let first = now.addingTimeInterval(-240)
+        #expect(Wording.answered(from: first, to: first, now: now) == "answered \(Wording.time(first, now: now))")
+        #expect(Wording.answered(from: first, to: now, now: now) == "answered \(Wording.time(first, now: now)) to \(Wording.time(now, now: now))")
+    }
+
+    @Test func savedCoursesInWords() {
+        func course(_ code: String, saved: Int, of total: Int, at date: Date) -> SavedCourse {
+            SavedCourse(id: code, code: code, title: "T", questionCount: total, savedQuestionCount: saved, isComplete: saved == total, savedAt: date)
+        }
+        let old = now.addingTimeInterval(-9 * 86_400)
+        let updated = "updated \(Wording.time(now, now: now))"
+        #expect(Wording.savedCourse(course("A", saved: 86, of: 86, at: now), now: now) == "86 questions · \(updated)")
+        #expect(Wording.savedCourse(course("A", saved: 70, of: 86, at: now), now: now) == "70 of 86 questions · \(updated)")
+        #expect(Wording.savedCourses([course("A", saved: 1, of: 1, at: old), course("B", saved: 1, of: 1, at: now)], now: now) == "2 courses · \(updated)")
+        #expect(Wording.savedCourses([], now: now) == "Nothing saved yet")
+    }
 }

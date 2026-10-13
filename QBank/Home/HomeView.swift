@@ -2,7 +2,8 @@ import QBankDesign
 import QBankKit
 import SwiftUI
 
-/// The Home tab: her courses by semester. Opens the course she used last on arrival.
+/// The Home tab: her courses by semester. Opens the course she used last on arrival. Without a
+/// connection it shows the courses saved on the phone, and how many answers wait to be sent.
 struct HomeView: View {
     let app: AppModel
     @State private var model: HomeModel
@@ -22,21 +23,51 @@ struct HomeView: View {
             }
             .qbankScreenBackground()
             .navigationTitle("Home")
-            .refreshable { await model.load() }
+            .toolbar {
+                if let waiting = app.offline?.waiting.count, waiting > 0 {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        NavigationLink(value: SavedForOfflineRoute()) {
+                            WaitingLabel(count: waiting)
+                        }
+                        .accessibilityIdentifier("home.waiting")
+                    }
+                } else if let refused = app.offline?.notSaved.count, refused > 0 {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        NavigationLink(value: SavedForOfflineRoute()) {
+                            Text("\(Image(systemName: "exclamationmark.circle")) \(refused) not saved")
+                                .foregroundStyle(.qbank(.wrong))
+                                .accessibilityLabel("\(Wording.count(refused, "answer")) not saved")
+                        }
+                        .accessibilityIdentifier("home.notSaved")
+                    }
+                }
+            }
+            .refreshable {
+                await model.load()
+                model.saveForOffline(force: true)
+            }
             .onAppear {
                 // Back from a course: its counts may have changed.
                 guard model.semesters != nil else { return }
                 Task { await model.load() }
             }
+            .reloadsWithConnection(app) {
+                await model.load()
+                model.saveForOffline()
+            }
             .navigationDestination(for: CourseRoute.self) { route in
                 CourseView(app: app, route: route)
             }
             .navigationDestination(for: ComingSoonRoute.self) { route in
-                ComingSoonView(route: route)
+                ComingSoonView(route: route, connection: app.connection)
+            }
+            .navigationDestination(for: SavedForOfflineRoute.self) { _ in
+                SavedForOfflineView(app: app)
             }
         }
         .task {
             await model.load()
+            model.saveForOffline()
             if let landing = await model.landingCourse(), path.isEmpty {
                 path.append(landing)
             }
@@ -47,7 +78,12 @@ struct HomeView: View {
     private var content: some View {
         if let semesters = model.semesters {
             LazyVStack(alignment: .leading, spacing: QBankSpacing.space4) {
-                if let problem = model.problem {
+                if model.savedAt != nil {
+                    OfflineBanner.showingSaved(phoneIsOnline: app.connection.isOnline)
+                        .padding(.top, QBankSpacing.space3)
+                        .accessibilityIdentifier("home.offline")
+                }
+                if let problem = model.problem ?? app.offline?.problem {
                     ProblemText(text: problem)
                         .padding(.top, QBankSpacing.space3)
                 }
@@ -66,7 +102,7 @@ struct HomeView: View {
                     }
                     ForEach(courses) { course in
                         NavigationLink(value: CourseRoute(id: course.id, code: course.code)) {
-                            CourseCard(course: course)
+                            CourseCard(course: course, savedAt: model.savedAt(course))
                         }
                         .buttonStyle(QBankCardButtonStyle(padding: QBankSpacing.space4))
                         .accessibilityIdentifier("home.course.\(course.code)")
@@ -84,8 +120,10 @@ struct HomeView: View {
 }
 
 /// A course on Home: code, title, size, what is waiting in Review, and how much she has answered.
+/// Shown from the phone's copy, it says how old the copy is instead of the Review count.
 struct CourseCard: View {
     let course: CourseSummary
+    var savedAt: Date?
 
     var body: some View {
         VStack(alignment: .leading, spacing: QBankSpacing.space1) {
@@ -101,7 +139,9 @@ struct CourseCard: View {
                     .qbankFont(.subheadline)
                     .foregroundStyle(.qbank(.text2))
                 Spacer(minLength: 0)
-                if course.reviewCount > 0 {
+                if let savedAt {
+                    SavedBadge(date: savedAt)
+                } else if course.reviewCount > 0 {
                     QBankTintedLabel("\(course.reviewCount) to review", systemImage: "tray", tone: .tint, size: .small)
                 }
             }

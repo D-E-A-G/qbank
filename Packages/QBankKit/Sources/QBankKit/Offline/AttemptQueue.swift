@@ -31,6 +31,13 @@ public struct FlushReport: Sendable, Equatable {
     public var remaining: Int = 0
     /// Why the pass stopped with answers still waiting, such as no connection or no session.
     public var stoppedBy: QBankError?
+
+    public init(sent: [SavedAttempt] = [], refused: [RefusedAttempt] = [], remaining: Int = 0, stoppedBy: QBankError? = nil) {
+        self.sent = sent
+        self.refused = refused
+        self.remaining = remaining
+        self.stoppedBy = stoppedBy
+    }
 }
 
 /// Answers made without signal, kept on the phone and sent in order when the connection is back.

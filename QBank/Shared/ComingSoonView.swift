@@ -25,8 +25,10 @@ enum ComingSoonRoute: Hashable {
     }
 }
 
+/// An exam starts and ends on the server, so without a connection the Exam screen says so first.
 struct ComingSoonView: View {
     let route: ComingSoonRoute
+    var connection: Connection?
 
     var body: some View {
         VStack(spacing: QBankSpacing.space4) {
@@ -42,6 +44,14 @@ struct ComingSoonView: View {
         }
         .padding(.horizontal, QBankSpacing.space7)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .overlay(alignment: .top) {
+            if route == .exam, connection?.isOnline == false {
+                OfflineBanner.examsNeedConnection
+                    .padding(.horizontal, QBankSpacing.gutterPhone)
+                    .padding(.top, QBankSpacing.space3)
+                    .accessibilityIdentifier("exam.needsConnection")
+            }
+        }
         .qbankScreenBackground()
         .navigationTitle(route.title)
         .navigationBarTitleDisplayMode(.inline)

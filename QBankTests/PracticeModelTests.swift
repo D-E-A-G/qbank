@@ -24,20 +24,20 @@ struct PracticeModelTests {
         #"{"clientAttemptId":"\#(id)","questionId":"\#(question)","courseId":"c1","status":"\#(status)","points":\#(points),"maxPoints":\#(max),"guessed":\#(guessed),"answeredAt":"2026-10-13T00:00:00.000Z","inReview":true,"label":"x","replayed":false}"#
     }
 
-    /// A model whose shuffles keep the stored order, whose ids count up, and whose clock and
-    /// retries are under the test's control.
+    /// A model whose shuffles keep the stored order, whose ids count up, and whose clock is under
+    /// the test's control.
     static func model(
         _ server: StubServer,
         account: Account = .student(),
-        now: @escaping () -> Date = { Date(timeIntervalSince1970: 1_000) },
-        sleep: @escaping (Duration) async throws -> Void = { _ in }
+        storage: PhoneStorage = .memory(),
+        connection: Connection = Connection(),
+        now: @escaping () -> Date = { Date(timeIntervalSince1970: 1_000) }
     ) -> (PracticeModel, AppModel) {
-        let (app, _) = TestApp.make(server, account: account)
+        let (app, _) = TestApp.make(server, account: account, storage: storage, connection: connection)
         var next = 0
         let model = PracticeModel(
             app: app, setID: "set1", courseID: "c1", title: "From the course",
             now: now,
-            sleep: sleep,
             makeLayout: { body in
                 switch body {
                 case .single(let options), .priority(let options), .sata(let options): .options(order: Array(options.indices).reversed())
@@ -82,11 +82,30 @@ struct PracticeModelTests {
         #expect(model.phase == .failed("That set is not in this course."))
     }
 
-    @Test func noSignalSaysSo() async {
+    @Test func noSignalAndNothingSavedSaysSo() async {
         let server = StubServer(["GET /api/practice-sets/set1": .offline])
         let (model, _) = Self.model(server)
         await model.load()
-        #expect(model.phase == .failed("No connection. Check Wi-Fi or cellular data and try again."))
+        #expect(model.phase == .failed("No connection, and this set is not saved on this phone yet. Open it once with a connection to practice it offline."))
+    }
+
+    @Test func aSavedSetOpensWithoutSignal() async throws {
+        let server = StubServer(["GET /api/practice-sets/set1": .ok(Self.practiceSet())])
+        let storage = PhoneStorage.memory()
+        let (online, _) = Self.model(server, storage: storage)
+        await online.load()
+
+        server["GET /api/practice-sets/set1"] = .offline
+        let (offline, _) = Self.model(server, storage: storage)
+        await offline.load()
+        #expect(offline.phase == .answering)
+        #expect(offline.questions.map(\.id) == ["q-sata", "q-single"])
+
+        let calls = server.calls.count
+        let (noNetwork, _) = Self.model(server, storage: storage, connection: Connection(isOnline: false))
+        await noNetwork.load()
+        #expect(noNetwork.phase == .answering)
+        #expect(server.calls.count == calls, "without a network path it does not try the server first")
     }
 
     @Test func anEndedSessionSignsOut() async {
@@ -134,37 +153,106 @@ struct PracticeModelTests {
         #expect(model.attempt?.draft == .sata([2, 0]), "a checked answer cannot change")
     }
 
-    @Test func aDroppedConnectionIsRetriedWithTheSameId() async throws {
+    @Test func anAnswerWithoutSignalIsScoredOnThePhoneAndWaits() async throws {
         let server = StubServer([
             "GET /api/practice-sets/set1": .ok(Self.practiceSet()),
             "POST /api/attempts": .offline,
         ])
-        var waits: [Duration] = []
-        var sawWaiting = false
-        var modelRef: PracticeModel?
-        let (model, _) = Self.model(server, sleep: { delay in
-            waits.append(delay)
-            sawWaiting = sawWaiting || modelRef?.isWaiting == true
-            if waits.count == 5 {
-                server["POST /api/attempts"] = StubServer.Reply(status: 201, body: Self.saved(id: "attempt-1", question: "q-sata", status: "correct", points: 2, max: 2))
-            }
-        })
-        modelRef = model
+        let (model, app) = Self.model(server)
         await model.load()
         model.update(.sata([0, 2]))
         await model.check()
 
-        let attempts = server.requests.filter { $0.url?.path() == "/api/attempts" }
-        #expect(attempts.count == 6)
-        let ids = try attempts.map { request in
-            try #require(try JSONSerialization.jsonObject(with: request.httpBody ?? Data()) as? [String: Any])["clientAttemptId"] as? String
-        }
-        #expect(Set(ids) == ["attempt-1"])
-        #expect(waits == [.seconds(1), .seconds(2), .seconds(4), .seconds(8), .seconds(15)])
-        #expect(sawWaiting)
-        #expect(!model.isWaiting)
-        #expect(model.attempt?.score?.status == .correct)
         #expect(model.problem == nil)
+        #expect(model.attempt?.score == Score(points: 2, maxPoints: 2, status: .correct, answered: true), "the phone's score, by the server's rules")
+        #expect(model.isRevealed)
+        #expect(model.isWaitingToSend)
+        #expect(model.waitingCount == 1)
+        #expect(app.offline?.waiting.map(\.id) == ["attempt-1"])
+        #expect(app.offline?.waiting.first?.courseID == "c1")
+        #expect(server.sentAttemptIDs == ["attempt-1"], "it tried once")
+
+        // The connection is back: the same id is sent, and the answer stops waiting.
+        server["POST /api/attempts"] = StubServer.Reply(status: 201, body: Self.saved(id: "attempt-1", question: "q-sata", status: "correct", points: 2, max: 2))
+        await app.offline?.send()
+        #expect(server.sentAttemptIDs == ["attempt-1", "attempt-1"])
+        #expect(!model.isWaitingToSend)
+        #expect(model.waitingCount == 0)
+        #expect(app.offline?.deliveries == 1)
+        #expect(model.attempt?.score?.status == .correct)
+    }
+
+    @Test func withoutANetworkPathTheAnswerWaitsWithoutTryingTheServer() async throws {
+        let server = StubServer(["GET /api/practice-sets/set1": .ok(Self.practiceSet())])
+        let connection = Connection()
+        let (model, app) = Self.model(server, connection: connection)
+        await model.load()
+        connection.update(isOnline: false)
+        model.update(.sata([0]))
+        await model.check()
+        #expect(model.attempt?.score == Score(points: 1, maxPoints: 2, status: .partial, answered: true))
+        #expect(model.isWaitingToSend)
+        #expect(server.sentAttemptIDs.isEmpty)
+
+        server["POST /api/attempts"] = StubServer.Reply(status: 201, body: Self.saved(id: "attempt-1", question: "q-sata", status: "partial", points: 1, max: 2))
+        connection.update(isOnline: true)
+        try await waitUntil { app.offline?.waiting.isEmpty == true }
+        #expect(server.sentAttemptIDs == ["attempt-1"])
+        #expect(!model.isWaitingToSend)
+        #expect(model.attempt?.score?.status == .partial, "the score she saw stays")
+    }
+
+    @Test func anOnlineAnswerSendsTheOlderWaitingOnesFirst() async throws {
+        let server = StubServer(["GET /api/practice-sets/set1": .ok(Self.practiceSet())])
+        let connection = Connection(isOnline: false)
+        let (model, app) = Self.model(server, connection: connection)
+        await model.load()
+        model.update(.sata([0, 2]))
+        await model.check()
+        model.next()
+        model.update(.single(0))
+        server.script("POST /api/attempts", [
+            StubServer.Reply(status: 201, body: Self.saved(id: "attempt-1", question: "q-sata", status: "correct", points: 2, max: 2)),
+            StubServer.Reply(status: 201, body: Self.saved(id: "attempt-2", question: "q-single", status: "correct", points: 1, max: 1)),
+        ])
+        connection.update(isOnline: true)
+        // The answer she checks while the first is still on its way joins the same pass, behind it.
+        await model.check()
+        try await waitUntil { app.offline?.waiting.isEmpty == true }
+        #expect(server.sentAttemptIDs == ["attempt-1", "attempt-2"])
+        #expect(model.attempt?.score == Score(points: 1, maxPoints: 1, status: .correct, answered: true))
+    }
+
+    @Test func aReplyTheAppCannotReadKeepsThePhonesScore() async throws {
+        let server = StubServer([
+            "GET /api/practice-sets/set1": .ok(Self.practiceSet()),
+            "POST /api/attempts": StubServer.Reply(status: 201, body: "{}"),
+        ])
+        let (model, _) = Self.model(server)
+        await model.load()
+        model.update(.sata([0, 2]))
+        await model.check()
+        #expect(model.problem == nil)
+        #expect(model.attempt?.score == Score(points: 2, maxPoints: 2, status: .correct, answered: true))
+        #expect(!model.isWaitingToSend)
+    }
+
+    @Test func anEndedSessionGoesToSignInAndTheAnswerWaitsForHer() async throws {
+        let server = StubServer([
+            "GET /api/practice-sets/set1": .ok(Self.practiceSet()),
+            "POST /api/attempts": .error(401, "unauthenticated", "Sign in to continue."),
+        ])
+        let storage = PhoneStorage.memory()
+        let (model, app) = Self.model(server, storage: storage)
+        await model.load()
+        model.update(.sata([0]))
+        await model.check()
+        #expect(app.route == .signedOut)
+        #expect(app.offline == nil)
+        #expect(!model.isRevealed)
+
+        let (again, _) = TestApp.make(server, account: .student(), storage: storage)
+        #expect(again.offline?.waiting.map(\.id) == ["attempt-1"], "it goes once she is signed in again")
     }
 
     @Test func aRefusalIsSaidAndTheAnswerStaysOpen() async {
@@ -172,7 +260,7 @@ struct PracticeModelTests {
             "GET /api/practice-sets/set1": .ok(Self.practiceSet()),
             "POST /api/attempts": .error(404, "request_refused", "That question is no longer in the set."),
         ])
-        let (model, _) = Self.model(server)
+        let (model, app) = Self.model(server)
         await model.load()
         model.update(.sata([0]))
         await model.check()
@@ -180,21 +268,8 @@ struct PracticeModelTests {
         #expect(!model.isRevealed)
         #expect(model.canCheck, "she can try again")
         #expect(model.attempt?.clientAttemptID == "attempt-1", "a retry keeps the same id")
-    }
-
-    @Test func leavingWhileWaitingStopsQuietly() async {
-        let server = StubServer([
-            "GET /api/practice-sets/set1": .ok(Self.practiceSet()),
-            "POST /api/attempts": .offline,
-        ])
-        let (model, _) = Self.model(server, sleep: { _ in throw CancellationError() })
-        await model.load()
-        model.update(.sata([0]))
-        await model.check()
-        #expect(model.problem == nil)
-        #expect(!model.isChecking)
-        #expect(!model.isWaiting)
-        #expect(!model.isRevealed)
+        #expect(app.offline?.waiting.isEmpty == true, "a refused answer does not wait")
+        #expect(app.offline?.notSaved.isEmpty == true, "it is said on her screen, not listed again")
     }
 
     @Test func nextWalksTheSetThenShowsTheResult() async throws {
@@ -226,18 +301,5 @@ struct PracticeModelTests {
         #expect(result.points == 2)
         #expect(result.maxPoints == 3)
         #expect(result.elapsed == 95)
-    }
-
-    @Test func onlyConnectionTroubleIsRetried() {
-        #expect(PracticeModel.isTransient(.transport(.notConnectedToInternet)))
-        #expect(PracticeModel.isTransient(.transport(.timedOut)))
-        #expect(PracticeModel.isTransient(.server(ServerError(status: 502, code: .init(rawValue: "x"), message: "", retryAfterSeconds: nil))))
-        #expect(PracticeModel.isTransient(.unexpectedResponse(status: 503, detail: "proxy")))
-        #expect(PracticeModel.isTransient(.unexpectedResponse(status: 504, detail: "proxy")))
-        #expect(!PracticeModel.isTransient(.server(ServerError(status: 503, code: .init(rawValue: "auth_unavailable"), message: "", retryAfterSeconds: nil))))
-        #expect(!PracticeModel.isTransient(.server(ServerError(status: 409, code: .init(rawValue: "attempt_conflict"), message: "", retryAfterSeconds: nil))))
-        #expect(!PracticeModel.isTransient(.unexpectedResponse(status: 500, detail: "")))
-        #expect(!PracticeModel.isTransient(.cancelled))
-        #expect(!PracticeModel.isTransient(.notSignedIn))
     }
 }

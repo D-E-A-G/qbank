@@ -3,6 +3,7 @@ import SwiftUI
 
 struct RootView: View {
     let model: AppModel
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         Group {
@@ -27,6 +28,12 @@ struct RootView: View {
         .task {
             // A session kept from an earlier launch: check the server still accepts it.
             await model.refreshSession()
+        }
+        .onChange(of: scenePhase) { _, phase in
+            // Back to the front: answers left waiting may go now.
+            if phase == .active {
+                model.offline?.sendIfWaiting()
+            }
         }
     }
 }

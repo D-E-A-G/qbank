@@ -1,22 +1,33 @@
+import Foundation
 import QBankKit
 import Testing
 @testable import QBank
 
+/// Serialized: the network notifications reach every scenario model alive in the process.
 @MainActor
+@Suite(.serialized)
 struct DebugLaunchScenarioTests {
+    /// A scenario's model with a phone folder of its own, so tests running side by side never share one.
+    static func launch(_ environment: [String: String], folder: URL = OfflineStoreTests.temporaryFolder()) -> AppModel? {
+        DebugLaunchScenario.makeModel(environment: environment, phoneFolder: folder)
+    }
+
+    static func launch(_ scenario: String) -> AppModel? {
+        launch([DebugLaunchScenario.scenarioKey: scenario])
+    }
     @Test func normalLaunchHasNoScenario() throws {
         #expect(try DebugLaunchScenario.scenario(in: [:]) == nil)
-        #expect(DebugLaunchScenario.makeModel(environment: [:]) == nil)
+        #expect(Self.launch([:]) == nil)
     }
 
     @Test func signedOutScenarioStartsOnSignIn() throws {
         let environment = [DebugLaunchScenario.scenarioKey: "signed-out"]
         #expect(try DebugLaunchScenario.scenario(in: environment) == .signedOut)
-        #expect(DebugLaunchScenario.makeModel(environment: environment)?.route == .signedOut)
+        #expect(Self.launch(environment)?.route == .signedOut)
     }
 
     @Test func signedInScenarioStartsOnHomeAndLandsOnMentalHealth() async throws {
-        let app = try #require(DebugLaunchScenario.makeModel(environment: [DebugLaunchScenario.scenarioKey: "signed-in"]))
+        let app = try #require(Self.launch("signed-in"))
         #expect(app.account?.email == FakeQBankServer.student.email)
         await app.refreshSession()
         let home = HomeModel(app: app)
@@ -26,7 +37,7 @@ struct DebugLaunchScenarioTests {
     }
 
     @Test func fakeServerSignsInAndRefusesWrongPasswords() async throws {
-        let app = try #require(DebugLaunchScenario.makeModel(environment: [DebugLaunchScenario.scenarioKey: "signed-out"]))
+        let app = try #require(Self.launch("signed-out"))
         let model = SignInModel(app: app)
         model.email = FakeQBankServer.student.email
         model.password = "wrong"
@@ -38,7 +49,7 @@ struct DebugLaunchScenarioTests {
     }
 
     @Test func fakeServerRestoresOnce() async throws {
-        let app = try #require(DebugLaunchScenario.makeModel(environment: [DebugLaunchScenario.scenarioKey: "signed-in"]))
+        let app = try #require(Self.launch("signed-in"))
         let course = CourseModel(app: app, id: FakeQBankServer.mentalHealthID)
         await course.load()
         let replaced = try #require(course.course?.weeks[1].sets.last)
@@ -49,7 +60,7 @@ struct DebugLaunchScenarioTests {
     }
 
     @Test func fakeServerEditsTheCatalogAsTheServerDoes() async throws {
-        let app = try #require(DebugLaunchScenario.makeModel(environment: [DebugLaunchScenario.scenarioKey: "signed-in"]))
+        let app = try #require(Self.launch("signed-in"))
         let catalog = CatalogModel(app: app)
         await catalog.load()
         #expect(catalog.nextSemesterNumber == 3)
@@ -83,7 +94,7 @@ struct DebugLaunchScenarioTests {
     }
 
     @Test func fakeServerRefusesPasswordsAsTheServerDoes() async throws {
-        let app = try #require(DebugLaunchScenario.makeModel(environment: [DebugLaunchScenario.scenarioKey: "signed-in"]))
+        let app = try #require(Self.launch("signed-in"))
         let wrong = await #expect(throws: QBankError.self) {
             try await app.client.changePassword(current: "not-it", new: "synthetic-pass-9")
         }
@@ -102,17 +113,17 @@ struct DebugLaunchScenarioTests {
 
     @Test func phoneSettingsStartEmptyUnlessKept() throws {
         let environment = [DebugLaunchScenario.scenarioKey: "signed-in"]
-        let first = try #require(DebugLaunchScenario.makeModel(environment: environment))
+        let first = try #require(Self.launch(environment))
         #expect(first.look.look == .matchDevice)
         first.look.look = .dark
         var keep = environment
         keep[DebugLaunchScenario.keepPhoneSettingsKey] = "1"
-        #expect(DebugLaunchScenario.makeModel(environment: keep)?.look.look == .dark)
-        #expect(DebugLaunchScenario.makeModel(environment: environment)?.look.look == .matchDevice)
+        #expect(Self.launch(keep)?.look.look == .dark)
+        #expect(Self.launch(environment)?.look.look == .matchDevice)
     }
 
     @Test func fakeServerServesEveryFormatAndScoresWithTheServersRules() async throws {
-        let app = try #require(DebugLaunchScenario.makeModel(environment: [DebugLaunchScenario.scenarioKey: "signed-in"]))
+        let app = try #require(Self.launch("signed-in"))
         let set = try await app.client.practiceSet(id: "mixed-v1")
         #expect(set.courseID == FakeQBankServer.mentalHealthID)
         #expect(set.questions.compactMap(\.type) == QuestionType.allCases)
@@ -142,5 +153,50 @@ struct DebugLaunchScenarioTests {
         #expect(throws: DebugLaunchScenario.UnknownScenario.self) {
             try DebugLaunchScenario.scenario(in: environment)
         }
+    }
+
+    @Test func phoneDataIsEmptiedUnlessKept() async throws {
+        let folder = OfflineStoreTests.temporaryFolder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let offline = [DebugLaunchScenario.scenarioKey: "signed-in", DebugLaunchScenario.networkKey: "offline"]
+        let first = try #require(Self.launch(offline, folder: folder))
+        let submission = AttemptSubmission(clientAttemptID: AttemptSubmission.newID(), questionID: "mixed-v1-q0", response: .single(choice: 0))
+        #expect(try await first.submit(submission, courseID: FakeQBankServer.mentalHealthID) == .waiting(reason: .transport(.notConnectedToInternet)))
+
+        var keep = offline
+        keep[DebugLaunchScenario.keepPhoneDataKey] = "1"
+        #expect(Self.launch(keep, folder: folder)?.offline?.waiting.map(\.id) == [submission.clientAttemptID])
+        #expect(Self.launch(offline, folder: folder)?.offline?.waiting.isEmpty == true)
+    }
+
+    @Test func theNetworkCanStartOffAndTheTestTurnsItOn() async throws {
+        let environment = [DebugLaunchScenario.scenarioKey: "signed-in", DebugLaunchScenario.networkKey: "offline"]
+        let app = try #require(Self.launch(environment))
+        #expect(!app.connection.isOnline)
+        await #expect(throws: QBankError.transport(.notConnectedToInternet)) {
+            _ = try await app.client.semesters()
+        }
+
+        // As a UI test does from its own process.
+        let center = CFNotificationCenterGetDarwinNotifyCenter()
+        CFNotificationCenterPostNotification(center, CFNotificationName(DebugLaunchScenario.networkOnlineNotification as CFString), nil, nil, true)
+        try await waitUntil { app.connection.isOnline }
+        #expect(try await app.client.semesters().count == 2)
+
+        CFNotificationCenterPostNotification(center, CFNotificationName(DebugLaunchScenario.networkOfflineNotification as CFString), nil, nil, true)
+        try await waitUntil { !app.connection.isOnline }
+    }
+
+    @Test func fakeServerServesTheSetsOfBothCourses() async throws {
+        let app = try #require(Self.launch("signed-in"))
+        let course = try await app.client.course(id: FakeQBankServer.fundamentalsID)
+        for set in course.weeks.flatMap(\.sets) {
+            let practice = try await app.client.practiceSet(id: set.id)
+            #expect(practice.courseID == FakeQBankServer.fundamentalsID)
+            #expect(practice.questions.count == set.questionCount)
+        }
+        let first = try #require(course.weeks.first?.sets.first)
+        let saved = try await app.client.recordAttempt(AttemptSubmission(questionID: first.questionIDs[0], response: .single(choice: 0)))
+        #expect(saved.courseID == FakeQBankServer.fundamentalsID)
     }
 }
