@@ -73,6 +73,8 @@ nonisolated final class FakeQBankServer: HTTPTransport {
     private let state: Mutex<State>
     private let now: Date
     private let offline = Mutex(false)
+    /// Review, Terms, exams and the course's exams.
+    private let study: FakeStudy
 
     /// Without signal, every call fails before it reaches the server, as on a phone with no network.
     var isOffline: Bool {
@@ -85,6 +87,7 @@ nonisolated final class FakeQBankServer: HTTPTransport {
     ///   - place: The course she used last, or nil for none.
     init(signedIn: Bool, place: String? = FakeQBankServer.mentalHealthID, now: Date = .now) {
         self.now = now
+        study = FakeStudy(now: now)
         state = Mutex(State(
             accounts: [
                 Account(id: "fake-student", email: Self.student.email, name: "Sam Student", password: Self.student.password, mustChangePassword: false),
@@ -117,21 +120,25 @@ nonisolated final class FakeQBankServer: HTTPTransport {
     func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
         if isOffline { throw URLError(.notConnectedToInternet) }
         let url = request.url ?? URL(string: "https://fake.invalid")!
+        let query = (URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? [])
+            .reduce(into: [String: String]()) { $0[$1.name] = $1.value ?? "" }
         let (status, body) = answer(
             method: request.httpMethod ?? "GET",
             path: url.path(),
+            query: query,
             token: request.value(forHTTPHeaderField: "Authorization")?.replacingOccurrences(of: "Bearer ", with: ""),
             body: request.httpBody.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] } ?? [:],
             rawBody: request.httpBody
         )
-        let data = try JSONSerialization.data(withJSONObject: body)
+        // A 204 has no body, as the server sends it.
+        let data = status == 204 ? Data() : try JSONSerialization.data(withJSONObject: body)
         let response = HTTPURLResponse(url: url, statusCode: status, httpVersion: "HTTP/1.1", headerFields: ["Content-Type": "application/json"])!
         return (data, response)
     }
 
     private typealias Reply = (Int, [String: Any])
 
-    private func answer(method: String, path: String, token: String?, body: [String: Any], rawBody: Data?) -> Reply {
+    private func answer(method: String, path: String, query: [String: String], token: String?, body: [String: Any], rawBody: Data?) -> Reply {
         if method == "POST", path == "/api/sign-in/password" {
             return signIn(email: body["email"] as? String ?? "", password: body["password"] as? String ?? "")
         }
@@ -170,9 +177,9 @@ nonisolated final class FakeQBankServer: HTTPTransport {
             state.withLock { $0.place = place }
             return (200, ["courseId": json(place)])
         case ("GET", "/api/courses/\(Self.mentalHealthID)"):
-            return (200, mentalHealth().merging(stored(Self.mentalHealthID)) { _, edited in edited })
+            return (200, mentalHealth().merging(stored(Self.mentalHealthID)) { _, edited in edited }.merging(studied(Self.mentalHealthID)) { _, now in now })
         case ("GET", "/api/courses/\(Self.fundamentalsID)"):
-            return (200, fundamentals().merging(stored(Self.fundamentalsID)) { _, edited in edited })
+            return (200, fundamentals().merging(stored(Self.fundamentalsID)) { _, edited in edited }.merging(studied(Self.fundamentalsID)) { _, now in now })
         case ("POST", "/api/practice-sets/psychosocial-v2/restore"):
             let restored = state.withLock { state -> Bool in
                 defer { state.psychosocialRestored = true }
@@ -187,6 +194,9 @@ nonisolated final class FakeQBankServer: HTTPTransport {
         }
         if method == "GET", path.hasPrefix("/api/practice-sets/") {
             return practiceSet(id: String(path.dropFirst("/api/practice-sets/".count)))
+        }
+        if let reply = study.answer(method: method, path: path, query: query, body: body) {
+            return reply
         }
         return failure(404, "request_refused", "That is not in the app.")
     }
@@ -261,7 +271,8 @@ nonisolated final class FakeQBankServer: HTTPTransport {
         return [
             "id": course.id, "code": course.code, "title": course.title, "sortOrder": course.sortOrder,
             "archivedAt": json(course.archivedAt),
-            "questionCount": course.questions, "weekCount": course.weeks, "reviewCount": course.review,
+            "questionCount": course.questions, "weekCount": course.weeks,
+            "reviewCount": FakeStudy.examWeeks(course.id) == nil ? course.review : study.reviewCount(course.id),
             "answeredCount": course.answered + added.answered, "fullyRightCount": course.right + added.right,
             "points": course.points, "maxPoints": course.maxPoints,
         ]
@@ -425,6 +436,11 @@ nonisolated final class FakeQBankServer: HTTPTransport {
         }
     }
 
+    /// What a course's detail says about her study: its exams, and her Review and terms counts.
+    private func studied(_ id: String) -> [String: Any] {
+        ["exams": study.courseExamsJSON(id), "reviewCount": study.reviewCount(id), "termCount": study.termCount(id)]
+    }
+
     private func mentalHealth() -> [String: Any] {
         let added = state.withLock { Self.added(courseID: Self.mentalHealthID, latest: $0.latest) }
         return [
@@ -543,6 +559,16 @@ nonisolated final class FakeQBankServer: HTTPTransport {
             saved["replayed"] = true
             return (200, saved)
         }
+        if let session = submission.studySessionId {
+            let (status, saved) = study.examAnswer(
+                sessionID: session, clientAttemptID: submission.clientAttemptId, questionID: submission.questionId,
+                response: submission.response, guessed: submission.guessed, shuffle: submission.shuffle
+            )
+            if status == 201, let record = try? JSONSerialization.data(withJSONObject: saved) {
+                state.withLock { $0.attempts[submission.clientAttemptId] = record }
+            }
+            return (status, saved)
+        }
         guard let template = FakePracticeQuestions.template(forQuestionID: submission.questionId),
               let data = try? JSONSerialization.data(withJSONObject: template.merging(
                   ["id": submission.questionId, "publicId": "Q", "position": 1], uniquingKeysWith: { $1 })),
@@ -571,7 +597,24 @@ nonisolated final class FakeQBankServer: HTTPTransport {
             state.attempts[submission.clientAttemptId] = record
             state.latest[submission.questionId] = (status, answeredAt)
         }
+        if let (weekLabel, setTitle) = placeOf(questionID: submission.questionId) {
+            study.practiced(
+                questionID: submission.questionId, courseID: Self.mentalHealthID, score: score,
+                guessed: submission.guessed, at: answeredAt, weekLabel: weekLabel, setTitle: setTitle
+            )
+        }
         return (201, saved)
+    }
+
+    /// The week and set title of a Mental Health practice question, from its set's id.
+    private func placeOf(questionID: String) -> (String, String)? {
+        let setID = questionID.split(separator: "-").dropLast().joined(separator: "-")
+        for week in mentalHealth()["weeks"] as? [[String: Any]] ?? [] {
+            for set in week["sets"] as? [[String: Any]] ?? [] where set["id"] as? String == setID {
+                return (week["label"] as? String ?? "", set["title"] as? String ?? "")
+            }
+        }
+        return nil
     }
 
     // MARK: Plumbing
@@ -596,5 +639,7 @@ private nonisolated struct FakeSubmission: Decodable {
     let questionId: String
     let response: AnswerResponse
     let guessed: Bool
+    let shuffle: Layout?
+    let studySessionId: String?
 }
 #endif

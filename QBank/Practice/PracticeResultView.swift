@@ -75,7 +75,7 @@ struct PracticeResultView: View {
 
     private var head: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Kicker("Set finished · \(result.title)")
+            Kicker("\(result.isReview ? "Review finished" : "Set finished") · \(result.title)")
             Text("\(result.fullyRight) of \(result.questionCount) fully right")
                 .qbankFont(.largeTitle)
                 .foregroundStyle(.qbank(.text1))

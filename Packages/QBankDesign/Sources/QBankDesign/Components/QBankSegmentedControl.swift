@@ -3,8 +3,9 @@ import SwiftUI
 
 /// A row of equal segments with one chosen, drawn as the web's `.segments`: a sunken
 /// track with a hairline edge, and the chosen segment raised on it in semibold primary
-/// text. Settings uses it for Look (Match device, Light, Dark). Each segment is a 44pt
-/// tap target; VoiceOver reads the chosen one as selected.
+/// text. Settings uses it for Look (Match device, Light, Dark), Review for its four
+/// filters. A label stays on one line, shrinking a little before it would wrap. Each
+/// segment is a 44pt tap target; VoiceOver reads the chosen one as selected.
 public struct QBankSegmentedControl<Value: Hashable>: View {
     public struct Option {
         public let value: Value
@@ -58,7 +59,9 @@ public struct QBankSegmentedControl<Value: Hashable>: View {
                 .qbankFont(.subheadline, weight: isSelected ? .semibold : .medium)
                 .foregroundStyle(.qbank(isSelected ? .text1 : .text2))
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, QBankSpacing.space3)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .padding(.horizontal, QBankSpacing.space2)
                 .padding(.vertical, QBankSpacing.space2)
                 .frame(maxWidth: .infinity, minHeight: QBankSpacing.rowMin)
                 .background {

@@ -36,6 +36,8 @@ nonisolated struct PracticeResult: Equatable {
     }
 
     let title: String
+    /// A run through the Review list rather than a set.
+    let isReview: Bool
     let questionCount: Int
     let fullyRight: Int
     let partial: Int
@@ -49,10 +51,11 @@ nonisolated struct PracticeResult: Equatable {
     let steps: [Step]
     let rows: [Row]
 
-    init(title: String, questions: [Question], attempts: [PracticeModel.Attempt], elapsed: TimeInterval) {
+    init(title: String, isReview: Bool = false, questions: [Question], attempts: [PracticeModel.Attempt], elapsed: TimeInterval) {
         let scores = questions.indices.map { attempts.indices.contains($0) ? attempts[$0].score : nil }
         let guesses = questions.indices.map { attempts.indices.contains($0) && attempts[$0].guessed }
         self.title = title
+        self.isReview = isReview
         self.elapsed = elapsed
         questionCount = questions.count
         fullyRight = scores.count { $0?.status == .correct }

@@ -53,11 +53,12 @@ extension XCTestCase {
         element.tap()
     }
 
+    /// Scrolls until the element is on screen, clear of the bars at the top and bottom.
     @MainActor
     func reveal(_ element: XCUIElement, in app: XCUIApplication) {
         XCTAssertTrue(element.waitForExistence(timeout: 5))
         let window = app.windows.firstMatch.frame
-        for _ in 0..<8 {
+        for _ in 0..<10 {
             let frame = element.frame
             if element.isHittable, frame.minY > window.minY + 120, frame.maxY < window.maxY - 120 { return }
             if frame.midY > window.midY {
@@ -66,5 +67,17 @@ extension XCTestCase {
                 app.swipeDown(velocity: .slow)
             }
         }
+    }
+
+    /// Shows the course by week and opens a week's folder, if it is closed.
+    @MainActor
+    func openFolder(_ app: XCUIApplication, week: String) {
+        let weeks = app.buttons["Weeks"]
+        XCTAssertTrue(weeks.waitForExistence(timeout: 5))
+        if !weeks.isSelected { weeks.tap() }
+        let folder = app.buttons["course.week.\(week)"]
+        reveal(folder, in: app)
+        if folder.value as? String == "Collapsed" { folder.tap() }
+        XCTAssertEqual(folder.value as? String, "Expanded")
     }
 }

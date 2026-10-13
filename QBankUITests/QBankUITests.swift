@@ -25,14 +25,10 @@ final class QBankUITests: XCTestCase {
         signIn(app, email: nil, password: Self.password)
         dismissSavePassword(app)
         XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 10), "lands on the course she used last")
-        XCTAssertTrue(app.staticTexts["Exam bank · 17 questions"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["No exam bank yet · exams use practice questions"].exists)
+        XCTAssertTrue(app.buttons["course.exam.Exam 1"].waitForExistence(timeout: 5))
         let summary = app.descendants(matching: .any)["course.summary"]
         XCTAssertTrue(summary.label.hasPrefix("Mental Health · 86 questions · 3 weeks"), summary.label)
         attach(app, "1a-4 course")
-        app.swipeUp()
-        attach(app, "1a-4 course, scrolled")
-        app.swipeDown()
 
         let back = app.navigationBars["NURS 310"].buttons["Home"]
         XCTAssertTrue(back.waitForExistence(timeout: 5))
@@ -84,8 +80,9 @@ final class QBankUITests: XCTestCase {
     func testRestoreAsksFirstThenBringsBackThePreviousVersion() throws {
         let app = launch("signed-in")
         XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 10))
+        openFolder(app, week: "Week 2")
         let restore = app.buttons["course.restore"]
-        XCTAssertTrue(restore.waitForExistence(timeout: 5))
+        reveal(restore, in: app)
         XCTAssertTrue(app.staticTexts["Replaced \(Self.shortDate(daysAgo: 6)) · 12 questions"].exists)
         restore.tap()
 
@@ -100,12 +97,15 @@ final class QBankUITests: XCTestCase {
     }
 
     @MainActor
-    func testTilesSayWhatIsComing() throws {
+    func testTilesOpenExamReviewAndTerms() throws {
         let app = launch("signed-in")
         XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 10))
-        app.buttons["course.tile.review"].tap()
-        XCTAssertTrue(app.navigationBars["Review"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["comingSoon.message"].exists)
+        for (tile, title) in [("exam", "Exam"), ("review", "Review"), ("terms", "Terms")] {
+            app.buttons["course.tile.\(tile)"].tap()
+            XCTAssertTrue(app.navigationBars[title].waitForExistence(timeout: 5), title)
+            app.navigationBars[title].buttons.firstMatch.tap()
+            XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 5))
+        }
     }
 
     // MARK: Settings (slice 1d)

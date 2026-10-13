@@ -36,7 +36,7 @@ struct PracticeModelTests {
         let (app, _) = TestApp.make(server, account: account, storage: storage, connection: connection)
         var next = 0
         let model = PracticeModel(
-            app: app, setID: "set1", courseID: "c1", title: "From the course",
+            app: app, source: .set(id: "set1"), courseID: "c1", title: "From the course",
             now: now,
             makeLayout: { body in
                 switch body {

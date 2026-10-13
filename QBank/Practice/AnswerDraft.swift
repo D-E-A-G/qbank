@@ -36,6 +36,22 @@ nonisolated enum AnswerDraft: Equatable, Sendable {
         }
     }
 
+    /// An answer she sent, to show again, as on an exam's result. Nil when it is not for this
+    /// question's format.
+    init?(response: AnswerResponse, body: QuestionBody) {
+        switch (response, body) {
+        case (.single(let choice), .single): self = .single(choice)
+        case (.priority(let choice), .priority): self = .priority(choice)
+        case (.sata(let picks), .sata): self = .sata(picks)
+        case (.highlight(let picks), .highlight): self = .highlight(picks)
+        case (.order(let positions), .order(let items)) where positions.sorted() == Array(items.indices): self = .order(positions)
+        case (.match(let choices), .match(let pairs, _)) where choices.count == pairs.count: self = .match(choices)
+        case (.matrix(let choices), .matrix(_, let rows)) where choices.count == rows.count: self = .matrix(choices)
+        case (.cloze(let choices), .cloze(let cloze)) where choices.count == cloze.blanks.count: self = .cloze(choices)
+        default: return nil
+        }
+    }
+
     /// The answer to send, or nil while a required part is still empty. Ordering always counts.
     var response: AnswerResponse? {
         switch self {

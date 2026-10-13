@@ -53,7 +53,8 @@ struct CourseModelTests {
         await model.restore(replacedSet)
         #expect(model.isRestoring == false)
         #expect(model.course?.weeks.first?.sets.first?.status == .restored)
-        #expect(server.calls == ["GET /api/courses/c1", "POST /api/practice-sets/v2/restore", "GET /api/courses/c1"])
+        // The by-exam view's read of her exams runs beside each course read.
+        #expect(server.calls.filter { !$0.hasSuffix("/exams") } == ["GET /api/courses/c1", "POST /api/practice-sets/v2/restore", "GET /api/courses/c1"])
     }
 
     @Test func refusedRestoreSaysWhyAndKeepsTheCourse() async throws {
@@ -67,7 +68,7 @@ struct CourseModelTests {
         await model.restore(try #require(model.course?.weeks.first?.sets.first))
         #expect(model.problem == "That set is not the current version.")
         #expect(model.course != nil)
-        #expect(server.calls.count == 2)
+        #expect(server.calls.filter { !$0.hasSuffix("/exams") }.count == 2)
     }
 
     @Test func withoutSignalTheSavedCourseShowsWithHerWaitingAnswers() async throws {
@@ -80,7 +81,7 @@ struct CourseModelTests {
         let model = CourseModel(app: app, id: "c1")
         await model.load()
         #expect(model.savedAt == nil)
-        let practice = PracticeModel(app: app, setID: "set1", courseID: "c1", title: "Invented set")
+        let practice = PracticeModel(app: app, source: .set(id: "set1"), courseID: "c1", title: "Invented set")
         await practice.load()
 
         connection.update(isOnline: false)

@@ -199,4 +199,73 @@ struct DebugLaunchScenarioTests {
         let saved = try await app.client.recordAttempt(AttemptSubmission(questionID: first.questionIDs[0], response: .single(choice: 0)))
         #expect(saved.courseID == FakeQBankServer.fundamentalsID)
     }
+
+    // MARK: Slice 1c: the fake server keeps the server's study rules
+
+    @Test func fakeServerRunsAWrongQuestionsExamAsTheServerDoes() async throws {
+        let app = try #require(Self.launch("signed-in"))
+        let course = CourseRef(id: FakeQBankServer.mentalHealthID, code: "NURS 310", title: "Mental Health")
+        let setup = ExamSetupModel(app: app, route: ExamSetupRoute(course: course))
+        await setup.load()
+        #expect(setup.weeks.map(\.label) == ["Week 1", "Week 2", "Week 3", "Weeks 1-3"])
+        #expect(setup.setup?.exams.count == 3)
+        #expect(setup.setup?.exams.map(\.courseExamID) == ["c0e00000-0000-4000-8000-000000000001", nil, "c0e00000-0000-4000-8000-000000000001"])
+        setup.wrongOnly = true
+        for week in setup.weeks.prefix(2) { setup.toggle(week) }
+        #expect(setup.summaryCount == "11 questions")
+        let exam = try #require(await setup.start())
+        #expect(exam.questions.count == 11)
+        #expect(exam.practiceWeeks == ["Week 2"])
+        #expect(exam.secondsLeftAtServerNow > 16 * 60)
+
+        // A week with nothing wrong is refused, as the server words it.
+        let wrongOnly = try await #require(throws: QBankError.self) {
+            try await app.client.startExam(courseID: course.id, weeks: ["Week 3"], pool: .wrong)
+        }
+        #expect(wrongOnly.serverCode == .noWrongQuestions)
+        #expect(Wording.problem(wrongOnly) == "Week 3 has no wrong questions. Untick it, or turn off Wrong questions only.")
+    }
+
+    @Test func fakeServerKeepsCourseExamRules() async throws {
+        let app = try #require(Self.launch("signed-in"))
+        let id = FakeQBankServer.mentalHealthID
+        let taken = try await #require(throws: QBankError.self) {
+            try await app.client.createCourseExam(courseID: id, name: "Exam 3", weekLabels: ["Week 2", "Week 3"])
+        }
+        #expect(Wording.problem(taken) == "Week 2 is in Exam 1. Week 3 is in Exam 2.")
+        let unknown = try await #require(throws: QBankError.self) {
+            try await app.client.createCourseExam(courseID: id, name: "Exam 3", weekLabels: ["Week 9"])
+        }
+        #expect(Wording.problem(unknown) == "Week 9 is not a week in this course.")
+        let created = try await app.client.createCourseExam(courseID: id, name: " Exam 3 ", weekLabels: ["Weeks 1-3"])
+        #expect(created.name == "Exam 3")
+        #expect(created.sortOrder == 3)
+        try await app.client.deleteCourseExam(id: created.id)
+        let gone = try await #require(throws: QBankError.self) { try await app.client.deleteCourseExam(id: created.id) }
+        #expect(Wording.problem(gone) == "That exam is not in the app.")
+        let course = try await app.client.course(id: id)
+        #expect(course.exams.map(\.name) == ["Exam 1", "Exam 2"])
+    }
+
+    @Test func fakeServerKeepsReviewAsTheServerDoes() async throws {
+        let app = try #require(Self.launch("signed-in"))
+        let id = FakeQBankServer.mentalHealthID
+        let list = try await app.client.review(courseID: id)
+        #expect(list.counts.all == 12)
+        #expect(list.counts.missed == 6)
+        #expect(list.counts.partial == 3)
+        #expect(list.counts.guessed == 4)
+        let times = list.questions.map(\.answeredAt)
+        #expect(times == times.sorted { $0 > $1 }, "newest first")
+        let practice = try await app.client.reviewPractice(courseID: id, filter: .missed)
+        #expect(practice.questions.count == 6)
+        #expect(practice.title == "Review")
+        let right = AttemptSubmission(questionID: "rights-v1-q0", response: .single(choice: 0))
+        _ = try await app.client.recordAttempt(right)
+        #expect(try await app.client.review(courseID: id).counts.missed == 5, "answered fully right without guessing, it leaves")
+        let unconfirmed = try await #require(throws: QBankError.self) { try await app.client.clearReview(courseID: id, confirmed: false) }
+        #expect(Wording.problem(unconfirmed) == "Clear all 11 questions from this course's Review list?")
+        #expect(try await app.client.clearReview(courseID: id) == 11)
+        #expect(try await app.client.course(id: id).reviewCount == 0)
+    }
 }

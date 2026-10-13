@@ -1,0 +1,82 @@
+import Testing
+@testable import QBank
+
+/// The server's `planExam` cases (`packages/questions/src/exam.test.ts`) and the web's week
+/// wording (`apps/web/src/exam/weeks.test.ts`), so the summary before Start matches the exam.
+struct ExamPlanTests {
+    private func plan(_ sizes: [Int]) -> ExamPlan {
+        ExamPlan(sizes.enumerated().map { ExamPlan.Week(label: "Week \($0.offset + 1)", questionCount: $0.element) })
+    }
+
+    @Test func splitsFortyInProportion() {
+        let plan = plan([22, 27, 37])
+        #expect(plan.weeks.map(\.drawn) == [10, 13, 17])
+        #expect(plan.questionCount == 40)
+        #expect(plan.timeLimitSeconds == 60 * 60)
+        #expect(plan.weeks.map(\.label) == ["Week 1", "Week 2", "Week 3"])
+    }
+
+    @Test func takesAllOfThemWhenTheWeeksHoldFewerThanForty() {
+        let plan = plan([12, 10])
+        #expect(plan.weeks.map(\.drawn) == [12, 10])
+        #expect(plan.questionCount == 22)
+        #expect(plan.timeLimitSeconds == 33 * 60)
+    }
+
+    @Test func takesExactlyFortyInAnHour() {
+        let plan = plan([25, 15])
+        #expect(plan.weeks.map(\.drawn) == [25, 15])
+        #expect(plan.timeLimitSeconds == 60 * 60)
+    }
+
+    @Test func keepsASmallWeekRepresented() {
+        #expect(plan([1, 200]).weeks.map(\.drawn) == [1, 39])
+    }
+
+    @Test func alwaysAddsUpToFortyAndNeverTakesMoreThanAWeekHolds() {
+        let sizes = [3, 41, 7, 19, 1, 88, 2]
+        let plan = plan(sizes)
+        #expect(plan.weeks.map(\.drawn).reduce(0, +) == 40)
+        for (week, size) in zip(plan.weeks, sizes) {
+            #expect(week.drawn > 0)
+            #expect(week.drawn <= size)
+        }
+    }
+
+    @Test func breaksAnEvenSplitTheSameWayEveryTime() {
+        #expect(plan([30, 30, 30]).weeks.map(\.drawn) == [14, 13, 13])
+        #expect(plan([30, 30, 30]).weeks.map(\.drawn) == [14, 13, 13])
+    }
+
+    @Test func drawsNothingFromNothing() {
+        #expect(plan([]) == ExamPlan([]))
+        #expect(plan([]).questionCount == 0)
+        #expect(plan([]).timeLimitSeconds == 0)
+        #expect(plan([0]).weeks.map(\.drawn) == [0])
+    }
+
+    // MARK: Wording
+
+    @Test func weeksJoinRunsOfPlainWeekNumbers() {
+        #expect(Wording.weeks(["Week 1", "Week 2", "Week 3"]) == "Weeks 1-3")
+        #expect(Wording.weeks(["Week 4", "Week 1", "Week 2"]) == "Weeks 1-2, 4")
+        #expect(Wording.weeks(["Week 2"]) == "Week 2")
+        #expect(Wording.weeks(["Week 1", "Weeks 3-4"]) == "Week 1, Weeks 3-4")
+        #expect(Wording.weeks([]) == "")
+    }
+
+    @Test func minutesShowWholeAndHalfMinutes() {
+        #expect(Wording.minutes(seconds: 3600) == "60 minutes")
+        #expect(Wording.minutes(seconds: 33 * 60) == "33 minutes")
+        #expect(Wording.minutes(seconds: 7 * 90) == "10.5 minutes")
+        #expect(Wording.minutes(seconds: 90) == "1.5 minutes")
+        #expect(Wording.minutes(seconds: 60) == "1 minute")
+    }
+
+    @Test func practiceWeeksAreNamedBeforeAndAfter() {
+        #expect(Wording.practiceWeeks(["Week 3"], before: true) == "Week 3 has no exam bank yet, so it uses its practice questions.")
+        #expect(Wording.practiceWeeks(["Week 1", "Week 2"], before: true) == "Weeks 1-2 have no exam bank yet, so they use their practice questions.")
+        #expect(Wording.practiceWeeks(["Week 3"], before: false) == "Week 3 had no exam bank, so its questions came from practice sets.")
+        #expect(Wording.practiceWeeks(["Week 1", "Weeks 3-4"], before: false) == "Week 1, Weeks 3-4 had no exam bank, so their questions came from practice sets.")
+    }
+}

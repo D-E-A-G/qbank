@@ -2,13 +2,24 @@ import QBankDesign
 import QBankKit
 import SwiftUI
 
-/// A practice set to open from the Course screen.
+/// What the runner practices: a set from the Course screen, or the Review list.
 struct PracticeRoute: Identifiable, Hashable {
-    let setID: String
+    enum Source: Hashable {
+        case set(id: String)
+        /// The course's Review list under a filter, or only one of its questions.
+        case review(filter: ReviewFilter, questionID: String?)
+    }
+
+    let source: Source
     let courseID: String
     let title: String
 
-    var id: String { setID }
+    var id: String {
+        switch source {
+        case .set(let id): "set:\(id)"
+        case .review(let filter, let questionID): "review:\(filter.rawValue):\(questionID ?? "")"
+        }
+    }
 }
 
 /// The practice runner, shown full screen over the tabs: one question at a time, Check answer,
@@ -21,7 +32,7 @@ struct PracticeView: View {
     @Environment(\.dismiss) private var dismiss
 
     init(app: AppModel, route: PracticeRoute) {
-        _model = State(initialValue: PracticeModel(app: app, setID: route.setID, courseID: route.courseID, title: route.title))
+        _model = State(initialValue: PracticeModel(app: app, source: route.source, courseID: route.courseID, title: route.title))
     }
 
     init(model: PracticeModel) {
@@ -54,14 +65,22 @@ struct PracticeView: View {
     }
 
     private var runner: some View {
-        RunnerShell(
-            count: model.phase == .answering ? model.countText : "",
-            title: model.title,
-            progress: model.progress,
-            waiting: model.waitingCount,
-            close: { dismiss() },
-            showWaiting: { showsWaiting = true }
-        ) {
+        RunnerShell(count: model.phase == .answering ? model.countText : "", title: model.title, progress: model.progress) {
+            RunnerCloseButton { dismiss() }
+        } trailing: {
+            if model.waitingCount > 0 {
+                Button { showsWaiting = true } label: {
+                    QBankTintedLabel("\(model.waitingCount) waiting", systemImage: "arrow.up.circle", tone: .tint, size: .small)
+                        .frame(minHeight: 44)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Wording.waitingToSend(model.waitingCount))
+                .accessibilityIdentifier("practice.waiting")
+            } else {
+                EmptyBarItem()
+            }
+        } content: {
             content
         } footer: {
             if model.phase == .answering {
@@ -74,7 +93,7 @@ struct PracticeView: View {
     private var content: some View {
         switch model.phase {
         case .loading:
-            RunnerNote(text: "Loading the set.")
+            RunnerNote(text: model.isReview ? "Loading Review." : "Loading the set.")
         case .failed(let problem):
             RunnerNote(text: problem)
         case .readOnly:
@@ -84,7 +103,7 @@ struct PracticeView: View {
                 QuestionPage(model: model, question: question, attempt: attempt)
                     .id(model.index)
             } else {
-                RunnerNote(text: "This set has no questions.")
+                RunnerNote(text: model.isReview ? "Nothing to review here right now." : "This set has no questions.")
             }
         }
     }
@@ -108,152 +127,6 @@ struct PracticeView: View {
     }
 }
 
-/// The runner's frame: ✕, the question count over the set title, answers waiting to be sent, the
-/// progress track, the scrolling question, and the pinned footer action. Content scrolls under
-/// both bars.
-private struct RunnerShell<Content: View, Footer: View>: View {
-    let count: String
-    let title: String
-    let progress: Double
-    let waiting: Int
-    let close: () -> Void
-    let showWaiting: () -> Void
-    @ViewBuilder let content: Content
-    @ViewBuilder let footer: Footer
-
-    /// Both sides of the header are as wide, so the count stays centered.
-    private var sideWidth: CGFloat { waiting > 0 ? 96 : 44 }
-
-    var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    Color.clear.frame(height: 0).id(RunnerScroll.top)
-                    content
-                }
-                .frame(maxWidth: QBankLayout.contentMax, alignment: .leading)
-                .frame(maxWidth: .infinity)
-                .padding(.horizontal, QBankSpacing.gutterPhone)
-                .padding(.top, 20)
-                .padding(.bottom, 28)
-            }
-            .scrollDismissesKeyboard(.never)
-            .environment(\.runnerScroll, RunnerScroll(proxy: proxy))
-            .safeAreaInset(edge: .top, spacing: 0) { header }
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                VStack(spacing: 0) {
-                    footer
-                }
-                .frame(maxWidth: QBankLayout.contentMax)
-                .frame(maxWidth: .infinity)
-                .padding(.horizontal, QBankSpacing.gutterPhone)
-                .padding(.vertical, QBankSpacing.space4)
-                .background { RunnerBar(edge: .top) }
-            }
-        }
-    }
-
-    private var header: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 0) {
-                Button(action: close) {
-                    Image(systemName: "xmark")
-                        .font(.body.weight(.semibold))
-                        .frame(width: 44, height: 44)
-                        .contentShape(.rect)
-                }
-                .foregroundStyle(.qbank(.text2))
-                .accessibilityLabel("Close")
-                .accessibilityIdentifier("practice.close")
-                .frame(width: sideWidth, alignment: .leading)
-                VStack(spacing: 0) {
-                    Text(count)
-                        .qbankFont(.headline)
-                        .monospacedDigit()
-                        .foregroundStyle(.qbank(.text1))
-                    Text(title)
-                        .qbankFont(.caption1)
-                        .foregroundStyle(.qbank(.text3))
-                        .lineLimit(1)
-                }
-                .frame(maxWidth: .infinity)
-                .accessibilityElement(children: .combine)
-                .accessibilityAddTraits(.isHeader)
-                .accessibilityIdentifier("practice.count")
-                Group {
-                    if waiting > 0 {
-                        Button(action: showWaiting) {
-                            QBankTintedLabel("\(waiting) waiting", systemImage: "arrow.up.circle", tone: .tint, size: .small)
-                                .frame(minHeight: 44)
-                                .contentShape(.rect)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(Wording.waitingToSend(waiting))
-                        .accessibilityIdentifier("practice.waiting")
-                    } else {
-                        Color.clear.frame(width: 44, height: 44)
-                    }
-                }
-                .frame(width: sideWidth, alignment: .trailing)
-            }
-            .padding(.horizontal, QBankSpacing.space3)
-            .frame(minHeight: 48)
-            QBankProgressBar(value: progress, height: 3, accessibilityTitle: "Progress")
-                .padding(.horizontal, QBankSpacing.gutterPhone)
-                .padding(.bottom, QBankSpacing.space3)
-        }
-        .background { RunnerBar(edge: .bottom) }
-    }
-}
-
-/// The translucent bar behind the runner's header and footer, with a hairline on the side that
-/// meets the question.
-private struct RunnerBar: View {
-    let edge: VerticalEdge
-
-    var body: some View {
-        Rectangle()
-            .fill(.qbank(.material))
-            .background(.ultraThinMaterial)
-            .overlay(alignment: edge == .top ? .top : .bottom) {
-                Rectangle()
-                    .fill(.qbank(.separator))
-                    .frame(height: QBankBorder.hairline)
-            }
-            .ignoresSafeArea()
-    }
-}
-
-/// Lets a question scroll the runner: back to the top for a new question, and to the verdict
-/// when she checks.
-struct RunnerScroll {
-    static let top = "practice.top"
-    static let feedback = "practice.feedback"
-
-    var proxy: ScrollViewProxy?
-
-    func scroll(to id: String, anchor: UnitPoint? = nil) {
-        proxy?.scrollTo(id, anchor: anchor)
-    }
-}
-
-extension EnvironmentValues {
-    @Entry var runnerScroll = RunnerScroll()
-}
-
-/// A short line in place of the question: loading, a problem, or nothing to answer.
-private struct RunnerNote: View {
-    let text: String
-
-    var body: some View {
-        Text(text)
-            .qbankFont(.body)
-            .foregroundStyle(.qbank(.text2))
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .accessibilityIdentifier("practice.note")
-    }
-}
-
 /// One question: format and topic, stem, exhibits, ask, then her answer. After Check answer, the
 /// verdict sits right under the ask, every choice carries its reason, and the rationale, key
 /// takeaway and terms follow.
@@ -270,7 +143,7 @@ private struct QuestionPage: View {
             if let problem = model.problem {
                 ProblemText(text: problem)
             }
-            meta
+            QuestionMeta(question: question)
             Text(question.stem)
                 .qbankFont(.reading)
                 .foregroundStyle(.qbank(.text1))
@@ -327,20 +200,6 @@ private struct QuestionPage: View {
             }
             AccessibilityNotification.Announcement(attempt.score?.label ?? "").post()
         }
-    }
-
-    private var meta: some View {
-        FlowLayout(spacing: 10, lineSpacing: QBankSpacing.space2, rowAlignment: .firstTextBaseline) {
-            Text(Wording.format(question.type))
-                .foregroundStyle(.qbank(.tint))
-            if !question.topic.isEmpty {
-                Text(question.topic)
-                    .foregroundStyle(.qbank(.text3))
-            }
-        }
-        .qbankFont(.footnote, weight: .semibold)
-        .accessibilityElement(children: .combine)
-        .accessibilityIdentifier("practice.meta")
     }
 }
 
@@ -416,65 +275,6 @@ private struct FeedbackBox: View {
         case .correct: .correctBorder
         case .partial: .partialBorder
         case .incorrect: .wrongBorder
-        }
-    }
-}
-
-/// "I'm guessing · Flag for review": a guess stays in Review even when it was right.
-private struct GuessToggle: View {
-    @Binding var isOn: Bool
-
-    var body: some View {
-        Toggle(isOn: $isOn) {
-            VStack(alignment: .leading, spacing: 0) {
-                Text("I'm guessing")
-                    .qbankFont(.body)
-                    .foregroundStyle(.qbank(.text1))
-                Text("Flag for review")
-                    .qbankFont(.caption1)
-                    .foregroundStyle(.qbank(.text3))
-            }
-        }
-        .toggleStyle(GuessToggleStyle())
-        .accessibilityIdentifier("practice.guess")
-    }
-}
-
-private struct GuessToggleStyle: ToggleStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        Button {
-            configuration.isOn.toggle()
-        } label: {
-            HStack(spacing: QBankSpacing.space4) {
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .fill(.qbank(configuration.isOn ? .guess : .surface))
-                    .overlay {
-                        if configuration.isOn {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundStyle(.qbank(.textOnTint))
-                        } else {
-                            RoundedRectangle(cornerRadius: 5, style: .continuous)
-                                .strokeBorder(.qbank(.separatorStrong), lineWidth: QBankBorder.emphasis)
-                        }
-                    }
-                    .frame(width: 22, height: 22)
-                configuration.label
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .padding(.vertical, 10)
-            .padding(.horizontal, 14)
-            .frame(minHeight: QBankSpacing.rowMin)
-            .background(.qbank(.guessSoft), in: .rect(cornerRadius: QBankRadius.sm, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: QBankRadius.sm, style: .continuous)
-                    .strokeBorder(.qbank(.guessBorder), lineWidth: QBankBorder.hairline)
-            }
-            .contentShape(.rect)
-        }
-        .buttonStyle(.plain)
-        .accessibilityRepresentation {
-            Toggle(isOn: configuration.$isOn) { configuration.label }
         }
     }
 }

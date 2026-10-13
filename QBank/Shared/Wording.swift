@@ -103,6 +103,50 @@ nonisolated enum Wording {
             : "No exam bank yet · exams use practice questions"
     }
 
+    /// The weeks an exam covers, as she would say them: "Weeks 1-3", "Weeks 1-2, 4", "Week 2".
+    /// Labels that are not plain "Week N" are listed as they are.
+    static func weeks(_ labels: [String]) -> String {
+        let numbers = labels.map { label in
+            label.trimmingCharacters(in: .whitespaces).wholeMatch(of: /Week (\d+)/).flatMap { Int($0.output.1) }
+        }
+        guard !labels.isEmpty, numbers.allSatisfy({ $0 != nil }) else { return labels.joined(separator: ", ") }
+        let sorted = Array(Set(numbers.compactMap(\.self))).sorted()
+        if sorted.count == 1 { return "Week \(sorted[0])" }
+        var runs: [String] = []
+        var start = sorted[0]
+        var end = start
+        for number in sorted.dropFirst() {
+            if number == end + 1 {
+                end = number
+                continue
+            }
+            runs.append(start == end ? "\(start)" : "\(start)-\(end)")
+            start = number
+            end = number
+        }
+        runs.append(start == end ? "\(start)" : "\(start)-\(end)")
+        return "Weeks \(runs.joined(separator: ", "))"
+    }
+
+    /// "33 minutes", or "10.5 minutes" for an odd number of questions at 1.5 minutes each.
+    static func minutes(seconds: Int) -> String {
+        let minutes = Double(seconds) / 60
+        let shown = minutes.rounded() == minutes ? "\(Int(minutes))" : String(format: "%.1f", minutes)
+        return "\(shown) \(minutes == 1 ? "minute" : "minutes")"
+    }
+
+    /// Which exam weeks use practice questions because they have no exam bank:
+    /// "Week 3 has no exam bank yet, so it uses its practice questions." before the exam, and
+    /// "Weeks 1-2 had no exam bank, so their questions came from practice sets." after it.
+    static func practiceWeeks(_ labels: [String], before: Bool) -> String {
+        let one = labels.count == 1
+        let weeks = weeks(labels)
+        if before {
+            return "\(weeks) \(one ? "has" : "have") no exam bank yet, so \(one ? "it uses its" : "they use their") practice questions."
+        }
+        return "\(weeks) had no exam bank, so \(one ? "its" : "their") questions came from practice sets."
+    }
+
     /// The format line above a question: "Single answer", "Select all that apply".
     static func format(_ type: QuestionType?) -> String {
         switch type {
