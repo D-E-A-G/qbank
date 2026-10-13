@@ -48,6 +48,69 @@ struct DebugLaunchScenarioTests {
         #expect(course.problem == nil)
     }
 
+    @Test func fakeServerEditsTheCatalogAsTheServerDoes() async throws {
+        let app = try #require(DebugLaunchScenario.makeModel(environment: [DebugLaunchScenario.scenarioKey: "signed-in"]))
+        let catalog = CatalogModel(app: app)
+        await catalog.load()
+        #expect(catalog.nextSemesterNumber == 3)
+        await catalog.addSemester()
+        #expect(catalog.semesters?.map(\.name) == ["Semester 1", "Semester 2", "Semester 3"])
+
+        let semester = SemesterModel(catalog: catalog, id: FakeQBankServer.semester2ID)
+        semester.newCode = "nurs 310"
+        semester.newTitle = "Pediatrics"
+        await semester.addCourse()
+        #expect(semester.addProblem == nil)
+
+        let course = CourseEditModel(catalog: catalog, id: FakeQBankServer.mentalHealthID)
+        course.semesterID = FakeQBankServer.semester2ID
+        await course.save()
+        #expect(course.problem == "This semester already has a course with the code NURS 310.")
+        course.code = "NURS 311"
+        await course.save()
+        #expect(course.problem == nil)
+        await course.toggleArchived()
+        #expect(course.isArchived)
+
+        let home = HomeModel(app: app)
+        await home.load()
+        let second = try #require(home.semesters?.first { $0.id == FakeQBankServer.semester2ID })
+        #expect(home.courses(in: second).map(\.code) == ["nurs 310"])
+        let detail = CourseModel(app: app, id: FakeQBankServer.mentalHealthID)
+        await detail.load()
+        #expect(detail.course?.code == "NURS 311")
+        #expect(detail.course?.semester.number == 2)
+    }
+
+    @Test func fakeServerRefusesPasswordsAsTheServerDoes() async throws {
+        let app = try #require(DebugLaunchScenario.makeModel(environment: [DebugLaunchScenario.scenarioKey: "signed-in"]))
+        let wrong = await #expect(throws: QBankError.self) {
+            try await app.client.changePassword(current: "not-it", new: "synthetic-pass-9")
+        }
+        #expect(wrong?.serverCode == .invalidCredentials)
+        let same = await #expect(throws: QBankError.self) {
+            try await app.client.changePassword(current: FakeQBankServer.student.password, new: FakeQBankServer.student.password)
+        }
+        #expect(same?.serverCode == .samePassword)
+        let short = await #expect(throws: QBankError.self) {
+            try await app.client.changePassword(current: FakeQBankServer.student.password, new: "short")
+        }
+        #expect(short?.serverCode == .invalidRequest)
+        let changed = try await app.client.changePassword(current: FakeQBankServer.student.password, new: "synthetic-pass-9")
+        #expect(changed.user.email == FakeQBankServer.student.email)
+    }
+
+    @Test func phoneSettingsStartEmptyUnlessKept() throws {
+        let environment = [DebugLaunchScenario.scenarioKey: "signed-in"]
+        let first = try #require(DebugLaunchScenario.makeModel(environment: environment))
+        #expect(first.look.look == .matchDevice)
+        first.look.look = .dark
+        var keep = environment
+        keep[DebugLaunchScenario.keepPhoneSettingsKey] = "1"
+        #expect(DebugLaunchScenario.makeModel(environment: keep)?.look.look == .dark)
+        #expect(DebugLaunchScenario.makeModel(environment: environment)?.look.look == .matchDevice)
+    }
+
     @Test func unknownScenarioIsRejected() {
         let environment = [DebugLaunchScenario.scenarioKey: "welcome"]
         #expect(throws: DebugLaunchScenario.UnknownScenario.self) {

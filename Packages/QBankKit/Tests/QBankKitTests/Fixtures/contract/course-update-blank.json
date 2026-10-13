@@ -1,0 +1,20 @@
+{
+  "recordedFrom": "d2acf893713f4783d4f58d4d6ed6d91b303df26c",
+  "request": {
+    "method": "PATCH",
+    "path": "/api/courses/c0000000-0000-4000-8000-000000000101",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": {
+      "title": ""
+    }
+  },
+  "response": {
+    "status": 400,
+    "headers": {},
+    "body": {
+      "error": "request_refused",
+      "message": "Course name is required."
+    }
+  }
+}

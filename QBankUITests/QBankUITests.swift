@@ -1,6 +1,6 @@
 import XCTest
 
-/// Slice 1a end to end: the real app against the in-process fake server of the Debug launch seam.
+/// Slices 1a and 1d end to end: the real app against the in-process fake server of the Debug launch seam.
 /// Invented accounts only, never a real one, never the production server.
 final class QBankUITests: XCTestCase {
     private static let email = "student@example.com"
@@ -110,14 +110,193 @@ final class QBankUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Review"].waitForExistence(timeout: 5))
     }
 
+    // MARK: Settings (slice 1d)
+
+    @MainActor
+    func testLookIsKeptOnThePhone() throws {
+        let app = launch("signed-in")
+        openSettings(app)
+        let matchDevice = app.buttons["Match device"]
+        XCTAssertTrue(matchDevice.waitForExistence(timeout: 5))
+        XCTAssertTrue(matchDevice.isSelected, "Match device is the first choice")
+        app.buttons["Dark"].tap()
+        XCTAssertTrue(app.buttons["Dark"].isSelected)
+        XCTAssertFalse(matchDevice.isSelected)
+
+        app.terminate()
+        let again = launch("signed-in", keepPhoneSettings: true)
+        openSettings(again)
+        XCTAssertTrue(again.buttons["Dark"].waitForExistence(timeout: 5))
+        XCTAssertTrue(again.buttons["Dark"].isSelected, "Dark survives a relaunch")
+        again.buttons["Match device"].tap()
+        XCTAssertTrue(again.buttons["Match device"].isSelected)
+    }
+
+    @MainActor
+    func testChangePasswordExplainsEachRefusal() throws {
+        let app = launch("signed-in")
+        openSettings(app)
+        app.buttons["settings.changePassword"].tap()
+        let current = app.secureTextFields["changePassword.current"]
+        let new = app.secureTextFields["changePassword.new"]
+        XCTAssertTrue(current.waitForExistence(timeout: 5))
+
+        app.buttons["changePassword.save"].tap()
+        XCTAssertTrue(app.staticTexts["Enter your current password and a new one."].waitForExistence(timeout: 5))
+
+        type(current, "not-it")
+        type(new, "short")
+        app.buttons["changePassword.save"].tap()
+        XCTAssertTrue(app.staticTexts["Choose a password of at least 8 characters."].waitForExistence(timeout: 5))
+
+        type(new, "-and-longer")
+        app.buttons["changePassword.save"].tap()
+        XCTAssertTrue(app.staticTexts["That password is not right."].waitForExistence(timeout: 5))
+        let left = current.value as? String ?? ""
+        XCTAssertTrue(left.isEmpty || left == current.placeholderValue, "the wrong current password is cleared, not \(left)")
+
+        type(current, Self.password)
+        app.buttons["changePassword.save"].tap()
+        dismissSavePassword(app)
+        XCTAssertTrue(app.staticTexts["Password saved."].waitForExistence(timeout: 5))
+        attach(app, "1d-2 change password, saved")
+        XCTAssertTrue(app.navigationBars["Change password"].exists, "still signed in, on the same screen")
+
+        app.navigationBars["Change password"].buttons["Settings"].tap()
+        XCTAssertTrue(app.staticTexts[Self.email].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testSemestersAndCoursesAreEditedLikeOnTheWeb() throws {
+        let app = launch("signed-in")
+        openSettings(app)
+        let semesterOne = app.buttons["settings.semester.1"]
+        XCTAssertTrue(semesterOne.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["NURS 310, NURS 220"].exists)
+
+        // Add Semester 3, then the row is gone: there are only three.
+        let add = app.buttons["settings.addSemester"]
+        XCTAssertTrue(add.waitForExistence(timeout: 5))
+        XCTAssertTrue(add.label.contains("Add Semester 3"), add.label)
+        add.tap()
+        XCTAssertTrue(app.buttons["settings.semester.3"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["settings.addSemester"].exists)
+
+        // Rename Semester 1 and give it a start date.
+        semesterOne.tap()
+        let name = app.textFields["semester.name"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        name.clearAndType("Fall 2026")
+        app.buttons["semester.starts.add"].tap()
+        XCTAssertTrue(app.buttons["semester.starts.clear"].waitForExistence(timeout: 5))
+        app.buttons["semester.save"].tap()
+        XCTAssertTrue(app.staticTexts["Saved."].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Fall 2026"].waitForExistence(timeout: 5))
+
+        // A course code the semester already has is refused with the server's words.
+        type(app.textFields["semester.newCode"], "nurs 220")
+        type(app.textFields["semester.newTitle"], "Again")
+        app.buttons["semester.addCourse"].tap()
+        XCTAssertTrue(app.staticTexts["This semester already has a course with the code nurs 220."].waitForExistence(timeout: 5))
+        app.textFields["semester.newCode"].clearAndType("NURS 406")
+        app.buttons["semester.addCourse"].tap()
+        XCTAssertTrue(app.buttons["semester.course.NURS 406"].waitForExistence(timeout: 5))
+
+        // Archive Fundamentals: it leaves Home.
+        app.buttons["semester.course.NURS 220"].tap()
+        let archive = app.buttons["course.archive"]
+        XCTAssertTrue(archive.waitForExistence(timeout: 5))
+        archive.tap()
+        XCTAssertTrue(app.staticTexts["Archived. It no longer shows on Home."].waitForExistence(timeout: 5))
+        XCTAssertTrue(archive.label.contains("Unarchive NURS 220"), archive.label)
+
+        app.tabBars.buttons["Home"].tap()
+        if app.navigationBars["NURS 310"].exists {
+            app.navigationBars["NURS 310"].buttons["Home"].tap()
+        }
+        XCTAssertTrue(app.buttons["home.course.NURS 406"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["home.course.NURS 220"].exists)
+        XCTAssertTrue(app.staticTexts["FALL 2026"].exists || app.staticTexts["Fall 2026"].exists)
+    }
+
+    /// Every Settings screen in Light and in Dark, kept as screenshots to compare with the
+    /// approved wireframes.
+    @MainActor
+    func testSettingsScreensInLightAndDark() throws {
+        let app = launch("signed-in")
+        openSettings(app)
+        for look in ["Light", "Dark"] {
+            let tag = look.lowercased()
+            app.buttons[look].tap()
+            XCTAssertTrue(app.buttons[look].isSelected)
+            app.swipeDown()
+            attach(app, "1d-1 settings, \(tag)")
+            scroll(app, until: app.staticTexts["settings.version"])
+            attach(app, "1d-1 settings scrolled, \(tag)")
+
+            app.swipeDown()
+            app.buttons["settings.changePassword"].tap()
+            XCTAssertTrue(app.secureTextFields["changePassword.current"].waitForExistence(timeout: 5))
+            attach(app, "1d-2 change password, \(tag)")
+            app.buttons["changePassword.save"].tap()
+            XCTAssertTrue(app.staticTexts["Enter your current password and a new one."].waitForExistence(timeout: 5))
+            attach(app, "1d-2 change password, problem, \(tag)")
+            app.navigationBars["Change password"].buttons["Settings"].tap()
+
+            app.buttons["settings.semester.1"].tap()
+            XCTAssertTrue(app.textFields["semester.name"].waitForExistence(timeout: 5))
+            app.buttons["semester.starts.add"].tap()
+            XCTAssertTrue(app.buttons["semester.starts.clear"].waitForExistence(timeout: 5))
+            attach(app, "1d-3 semester, \(tag)")
+            scroll(app, until: app.buttons["semester.addCourse"])
+            attach(app, "1d-3 semester scrolled, \(tag)")
+            app.swipeDown()
+
+            app.buttons["semester.course.NURS 310"].tap()
+            XCTAssertTrue(app.textFields["course.code"].waitForExistence(timeout: 5))
+            attach(app, "1d-4 course, \(tag)")
+            app.navigationBars["NURS 310"].buttons["Semester 1"].tap()
+            app.navigationBars["Semester 1"].buttons["Settings"].tap()
+            XCTAssertTrue(app.buttons[look].waitForExistence(timeout: 5))
+        }
+    }
+
     // MARK: Helpers
 
     @MainActor
-    private func launch(_ scenario: String) -> XCUIApplication {
+    private func launch(_ scenario: String, keepPhoneSettings: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchEnvironment["QB_UITEST_SCENARIO"] = scenario
+        if keepPhoneSettings {
+            app.launchEnvironment["QB_UITEST_KEEP_PHONE_SETTINGS"] = "1"
+        }
         app.launch()
         return app
+    }
+
+    /// The signed-in scenario opens her last course; Settings is one tab away.
+    @MainActor
+    private func openSettings(_ app: XCUIApplication) {
+        XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["Settings"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+    }
+
+    /// Swipes up until `element` is on screen and clear of the tab bar. A swipe made while the
+    /// previous screen is still settling can be lost, so it tries again.
+    @MainActor
+    private func scroll(_ app: XCUIApplication, until element: XCUIElement) {
+        for _ in 0..<4 {
+            app.swipeUp()
+            if element.isHittable, element.frame.maxY < app.tabBars.firstMatch.frame.minY { return }
+        }
+        XCTFail("\(element) did not scroll into view")
+    }
+
+    @MainActor
+    private func type(_ field: XCUIElement, _ text: String) {
+        field.tap()
+        field.typeText(text)
     }
 
     /// Fills the sign-in form and presses Sign in. A nil email keeps what is in the field.
@@ -166,5 +345,18 @@ final class QBankUITests: XCTestCase {
     /// The date `daysAgo` days back as the app writes it, such as "Oct 6".
     private static func shortDate(daysAgo: Int) -> String {
         Date.now.addingTimeInterval(-Double(daysAgo) * 86_400).formatted(.dateTime.month(.abbreviated).day())
+    }
+}
+
+private extension XCUIElement {
+    /// Replaces the field's text: deletes what is there, then types `text`.
+    func clearAndType(_ text: String) {
+        tap()
+        let current = value as? String ?? ""
+        let placeholder = placeholderValue ?? ""
+        if !current.isEmpty, current != placeholder {
+            typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: current.count))
+        }
+        typeText(text)
     }
 }

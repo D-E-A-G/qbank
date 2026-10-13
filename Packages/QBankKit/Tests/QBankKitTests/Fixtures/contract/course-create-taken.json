@@ -1,0 +1,22 @@
+{
+  "recordedFrom": "d2acf893713f4783d4f58d4d6ed6d91b303df26c",
+  "request": {
+    "method": "POST",
+    "path": "/api/courses",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": {
+      "semesterId": "5e000000-0000-4000-8000-000000000001",
+      "code": "nurs 101",
+      "title": "Again"
+    }
+  },
+  "response": {
+    "status": 409,
+    "headers": {},
+    "body": {
+      "error": "request_refused",
+      "message": "This semester already has a course with the code nurs 101."
+    }
+  }
+}

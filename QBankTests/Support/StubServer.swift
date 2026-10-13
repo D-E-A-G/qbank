@@ -64,7 +64,15 @@ enum TestApp {
             transport: server,
             sessionStore: store
         )
-        return (AppModel(client: client), store)
+        return (AppModel(client: client, look: LookStore(defaults: freshDefaults())), store)
+    }
+
+    /// A defaults suite of its own, empty, so a test never reads or writes the host's settings.
+    static func freshDefaults() -> UserDefaults {
+        let name = "qbank-tests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: name)!
+        defaults.removePersistentDomain(forName: name)
+        return defaults
     }
 }
 
@@ -86,6 +94,15 @@ enum Bodies {
         id: String, code: String, order: Int = 1, archived: Bool = false, review: Int = 0, answered: Int = 0
     ) -> String {
         #"{"id":"\#(id)","code":"\#(code)","title":"Invented \#(code)","sortOrder":\#(order),"archivedAt":\#(archived ? #""2026-01-01T00:00:00.000Z""# : "null"),"questionCount":10,"weekCount":2,"reviewCount":\#(review),"answeredCount":\#(answered),"fullyRightCount":0,"points":0,"maxPoints":0}"#
+    }
+
+    static func semester(id: String, number: Int, name: String? = nil, startsOn: String? = nil, endsOn: String? = nil, courses: [String] = []) -> String {
+        let date = { (day: String?) in day.map { "\"\($0)\"" } ?? "null" }
+        return #"{"id":"\#(id)","number":\#(number),"name":"\#(name ?? "Semester \(number)")","startsOn":\#(date(startsOn)),"endsOn":\#(date(endsOn)),"courses":[\#(courses.joined(separator: ","))]}"#
+    }
+
+    static func catalog(_ semesters: [String]) -> String {
+        #"{"semesters":[\#(semesters.joined(separator: ","))]}"#
     }
 
     static func semesters(_ courses: [String] = [course(id: "c1", code: "NURS 101")]) -> String {

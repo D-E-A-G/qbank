@@ -1,0 +1,24 @@
+{
+  "recordedFrom": "d2acf893713f4783d4f58d4d6ed6d91b303df26c",
+  "request": {
+    "method": "POST",
+    "path": "/api/semesters",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": {
+      "number": 1
+    }
+  },
+  "response": {
+    "status": 201,
+    "headers": {},
+    "body": {
+      "id": "5e000000-0000-4000-8000-000000000001",
+      "number": 1,
+      "name": "Semester 1",
+      "startsOn": null,
+      "endsOn": null,
+      "courses": []
+    }
+  }
+}

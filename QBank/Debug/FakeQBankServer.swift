@@ -4,8 +4,8 @@ import QBankKit
 import Synchronization
 
 /// An in-process stand-in for the QBank server, for UI tests and simulator review. It answers the
-/// slice-1a calls with invented accounts and courses, the way the real routes answer them, so the
-/// app runs end to end through `QBankClient` without a network or a real account.
+/// calls the app makes with invented accounts and courses, the way the real routes answer them,
+/// so the app runs end to end through `QBankClient` without a network or a real account.
 nonisolated final class FakeQBankServer: HTTPTransport {
     struct Credentials {
         let email: String
@@ -20,6 +20,8 @@ nonisolated final class FakeQBankServer: HTTPTransport {
 
     static let mentalHealthID = "8d7b4f0e-0000-4000-8000-000000000310"
     static let fundamentalsID = "8d7b4f0e-0000-4000-8000-000000000220"
+    static let semester1ID = "8d7b4f0e-0000-4000-8000-000000000001"
+    static let semester2ID = "8d7b4f0e-0000-4000-8000-000000000002"
 
     private struct Account {
         let id: String
@@ -33,8 +35,29 @@ nonisolated final class FakeQBankServer: HTTPTransport {
         }
     }
 
+    private struct FakeSemester {
+        let id: String
+        let number: Int
+        var name: String
+        var startsOn: String?
+        var endsOn: String?
+    }
+
+    /// A course with the counts Home shows. Courses added in Settings start at zero.
+    private struct FakeCourse {
+        let id: String
+        var semesterID: String
+        var code: String
+        var title: String
+        var sortOrder: Int
+        var archivedAt: String?
+        var questions = 0, weeks = 0, review = 0, answered = 0, right = 0, points = 0, maxPoints = 0
+    }
+
     private struct State {
         var accounts: [Account]
+        var semesters: [FakeSemester]
+        var courses: [FakeCourse]
         /// Bearer token to account email.
         var sessions: [String: String]
         var place: String?
@@ -54,6 +77,16 @@ nonisolated final class FakeQBankServer: HTTPTransport {
             accounts: [
                 Account(id: "fake-student", email: Self.student.email, name: "Sam Student", password: Self.student.password, mustChangePassword: false),
                 Account(id: "fake-reset", email: Self.resetStudent.email, name: "Robin Reset", password: Self.resetStudent.password, mustChangePassword: true),
+            ],
+            semesters: [
+                FakeSemester(id: Self.semester1ID, number: 1, name: "Semester 1"),
+                FakeSemester(id: Self.semester2ID, number: 2, name: "Semester 2"),
+            ],
+            courses: [
+                FakeCourse(id: Self.mentalHealthID, semesterID: Self.semester1ID, code: "NURS 310", title: "Mental Health", sortOrder: 1,
+                           questions: 86, weeks: 3, review: 12, answered: 35, right: 24, points: 61, maxPoints: 92),
+                FakeCourse(id: Self.fundamentalsID, semesterID: Self.semester1ID, code: "NURS 220", title: "Fundamentals", sortOrder: 2,
+                           questions: 146, weeks: 3, review: 5, answered: 92, right: 70, points: 131, maxPoints: 170),
             ],
             sessions: signedIn ? [Self.sessionToken: Self.student.email] : [:],
             place: place
@@ -108,6 +141,14 @@ nonisolated final class FakeQBankServer: HTTPTransport {
         switch (method, path) {
         case ("GET", "/api/semesters"):
             return (200, ["semesters": semesters()])
+        case ("POST", "/api/semesters"):
+            return addSemester(number: body["number"] as? Int)
+        case ("POST", "/api/courses"):
+            return addCourse(semesterID: body["semesterId"] as? String ?? "", code: body["code"] as? String ?? "", title: body["title"] as? String ?? "")
+        case ("PATCH", _) where path.hasPrefix("/api/semesters/"):
+            return updateSemester(id: String(path.dropFirst("/api/semesters/".count)), body: body)
+        case ("PATCH", _) where path.hasPrefix("/api/courses/"):
+            return updateCourse(id: String(path.dropFirst("/api/courses/".count)), body: body)
         case ("GET", "/api/me/place"):
             return (200, ["courseId": json(state.withLock { $0.place })])
         case ("PUT", "/api/me/place"):
@@ -115,9 +156,9 @@ nonisolated final class FakeQBankServer: HTTPTransport {
             state.withLock { $0.place = place }
             return (200, ["courseId": json(place)])
         case ("GET", "/api/courses/\(Self.mentalHealthID)"):
-            return (200, mentalHealth())
+            return (200, mentalHealth().merging(stored(Self.mentalHealthID)) { _, edited in edited })
         case ("GET", "/api/courses/\(Self.fundamentalsID)"):
-            return (200, fundamentals())
+            return (200, fundamentals().merging(stored(Self.fundamentalsID)) { _, edited in edited })
         case ("POST", "/api/practice-sets/psychosocial-v2/restore"):
             let restored = state.withLock { state -> Bool in
                 defer { state.psychosocialRestored = true }
@@ -154,14 +195,15 @@ nonisolated final class FakeQBankServer: HTTPTransport {
     }
 
     private func changePassword(_ account: Account, token: String, current: String, new: String) -> Reply {
-        guard current == account.password else {
-            return failure(401, "invalid_credentials", "That password is not right.")
+        // The real route's order: the fields' rules, then the same password, then the current one.
+        guard !current.isEmpty, (8...128).contains(new.utf16.count) else {
+            return failure(400, "invalid_request", "Check the fields and try again.")
         }
         guard new != current else {
-            return failure(400, "same_password", "Choose a password different from the temporary one.")
+            return failure(400, "same_password", "Choose a password that is different from the temporary one.")
         }
-        guard new.count >= 8 else {
-            return failure(400, "request_refused", "Choose a password of at least 8 characters.")
+        guard current == account.password else {
+            return failure(401, "invalid_credentials", "That password is not right.")
         }
         let (fresh, updated) = state.withLock { state -> (String, Account) in
             let index = state.accounts.firstIndex { $0.email == account.email }!
@@ -179,29 +221,152 @@ nonisolated final class FakeQBankServer: HTTPTransport {
     // MARK: Courses
 
     private func semesters() -> [[String: Any]] {
+        state.withLock { state in
+            state.semesters.sorted { $0.number < $1.number }.map { semester in
+                semesterJSON(semester, courses: state.courses)
+            }
+        }
+    }
+
+    private func semesterJSON(_ semester: FakeSemester, courses: [FakeCourse]) -> [String: Any] {
         [
-            [
-                "id": "fake-semester-1", "number": 1, "name": "Semester 1", "startsOn": NSNull(), "endsOn": NSNull(),
-                "courses": [
-                    courseSummary(id: Self.mentalHealthID, code: "NURS 310", title: "Mental Health", order: 1,
-                                  questions: 86, weeks: 3, review: 12, answered: 35, right: 24, points: 61, max: 92),
-                    courseSummary(id: Self.fundamentalsID, code: "NURS 220", title: "Fundamentals", order: 2,
-                                  questions: 146, weeks: 3, review: 5, answered: 92, right: 70, points: 131, max: 170),
-                ],
-            ],
-            ["id": "fake-semester-2", "number": 2, "name": "Semester 2", "startsOn": NSNull(), "endsOn": NSNull(), "courses": []],
+            "id": semester.id, "number": semester.number, "name": semester.name,
+            "startsOn": json(semester.startsOn), "endsOn": json(semester.endsOn),
+            "courses": courses.filter { $0.semesterID == semester.id }.sorted { $0.sortOrder < $1.sortOrder }.map(courseJSON),
         ]
     }
 
-    private func courseSummary(
-        id: String, code: String, title: String, order: Int,
-        questions: Int, weeks: Int, review: Int, answered: Int, right: Int, points: Int, max: Int
-    ) -> [String: Any] {
+    private func courseJSON(_ course: FakeCourse) -> [String: Any] {
         [
-            "id": id, "code": code, "title": title, "sortOrder": order, "archivedAt": NSNull(),
-            "questionCount": questions, "weekCount": weeks, "reviewCount": review,
-            "answeredCount": answered, "fullyRightCount": right, "points": points, "maxPoints": max,
+            "id": course.id, "code": course.code, "title": course.title, "sortOrder": course.sortOrder,
+            "archivedAt": json(course.archivedAt),
+            "questionCount": course.questions, "weekCount": course.weeks, "reviewCount": course.review,
+            "answeredCount": course.answered, "fullyRightCount": course.right, "points": course.points, "maxPoints": course.maxPoints,
         ]
+    }
+
+    // MARK: Editing semesters and courses, with the content service's rules and words
+
+    private func addSemester(number: Int?) -> Reply {
+        guard let number, (1...3).contains(number) else {
+            return failure(400, "request_refused", "A semester is 1, 2, or 3.")
+        }
+        return state.withLock { state -> Reply in
+            guard !state.semesters.contains(where: { $0.number == number }) else {
+                return failure(409, "request_refused", "Semester \(number) already exists.")
+            }
+            let semester = FakeSemester(id: "8d7b4f0e-0000-4000-8000-00000000000\(number)", number: number, name: "Semester \(number)")
+            state.semesters.append(semester)
+            return (201, semesterJSON(semester, courses: state.courses))
+        }
+    }
+
+    private func updateSemester(id: String, body: [String: Any]) -> Reply {
+        state.withLock { state -> Reply in
+            guard let index = state.semesters.firstIndex(where: { $0.id == id }) else {
+                return failure(404, "request_refused", "That semester is not in the app.")
+            }
+            var semester = state.semesters[index]
+            if let name = body["name"] as? String {
+                guard let text = requiredText(name, label: "Semester name", maxLength: 80) else {
+                    return failure(400, "request_refused", textProblem(name, label: "Semester name"))
+                }
+                semester.name = text
+            }
+            for (key, label) in [("startsOn", "Start date"), ("endsOn", "End date")] where body.keys.contains(key) {
+                let value = body[key] as? String
+                if let value, !value.isEmpty, value.wholeMatch(of: /\d{4}-\d{2}-\d{2}/) == nil {
+                    return failure(400, "request_refused", "\(label) has to be a date like 2026-09-01.")
+                }
+                let date = value?.isEmpty == false ? value : nil
+                if key == "startsOn" { semester.startsOn = date } else { semester.endsOn = date }
+            }
+            state.semesters[index] = semester
+            return (200, semesterJSON(semester, courses: state.courses))
+        }
+    }
+
+    private func addCourse(semesterID: String, code: String, title: String) -> Reply {
+        state.withLock { state -> Reply in
+            guard state.semesters.contains(where: { $0.id == semesterID }) else {
+                return failure(404, "request_refused", "That semester is not in the app.")
+            }
+            guard let code = requiredText(code, label: "Course code", maxLength: 32) else {
+                return failure(400, "request_refused", textProblem(code, label: "Course code"))
+            }
+            guard let title = requiredText(title, label: "Course name", maxLength: 160) else {
+                return failure(400, "request_refused", textProblem(title, label: "Course name"))
+            }
+            if let taken = codeTaken(code, in: semesterID, except: nil, courses: state.courses) { return taken }
+            state.tokenCount += 1
+            let order = (state.courses.filter { $0.semesterID == semesterID }.map(\.sortOrder).max() ?? 0) + 1
+            let course = FakeCourse(
+                id: String(format: "8d7b4f0e-0000-4000-8000-%012d", 900 + state.tokenCount),
+                semesterID: semesterID, code: code, title: title, sortOrder: order
+            )
+            state.courses.append(course)
+            return (201, courseJSON(course))
+        }
+    }
+
+    private func updateCourse(id: String, body: [String: Any]) -> Reply {
+        state.withLock { state -> Reply in
+            guard let index = state.courses.firstIndex(where: { $0.id == id }) else {
+                return failure(404, "request_refused", "That course is not in the app.")
+            }
+            var course = state.courses[index]
+            if let code = body["code"] as? String {
+                guard let text = requiredText(code, label: "Course code", maxLength: 32) else {
+                    return failure(400, "request_refused", textProblem(code, label: "Course code"))
+                }
+                course.code = text
+            }
+            if let title = body["title"] as? String {
+                guard let text = requiredText(title, label: "Course name", maxLength: 160) else {
+                    return failure(400, "request_refused", textProblem(title, label: "Course name"))
+                }
+                course.title = text
+            }
+            if let semesterID = body["semesterId"] as? String, semesterID != course.semesterID {
+                guard state.semesters.contains(where: { $0.id == semesterID }) else {
+                    return failure(404, "request_refused", "That semester is not in the app.")
+                }
+                course.semesterID = semesterID
+                course.sortOrder = (state.courses.filter { $0.semesterID == semesterID }.map(\.sortOrder).max() ?? 0) + 1
+            }
+            if let taken = codeTaken(course.code, in: course.semesterID, except: id, courses: state.courses) { return taken }
+            if let archived = body["archived"] as? Bool {
+                course.archivedAt = archived ? QBankJSON.formatDate(.now) : nil
+            }
+            state.courses[index] = course
+            return (200, courseJSON(course))
+        }
+    }
+
+    private func requiredText(_ value: String, label: String, maxLength: Int) -> String? {
+        let text = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return text.isEmpty || text.count > maxLength ? nil : text
+    }
+
+    private func textProblem(_ value: String, label: String) -> String {
+        value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "\(label) is required." : "\(label) is too long."
+    }
+
+    private func codeTaken(_ code: String, in semesterID: String, except id: String?, courses: [FakeCourse]) -> Reply? {
+        let taken = courses.contains { $0.semesterID == semesterID && $0.id != id && $0.code.lowercased() == code.lowercased() }
+        return taken ? failure(409, "request_refused", "This semester already has a course with the code \(code).") : nil
+    }
+
+    /// The fields a course's detail shares with Settings, which can rename and move it.
+    private func stored(_ id: String) -> [String: Any] {
+        state.withLock { state in
+            let course = state.courses.first { $0.id == id }!
+            let semester = state.semesters.first { $0.id == course.semesterID }!
+            return [
+                "id": course.id, "code": course.code, "title": course.title, "archivedAt": json(course.archivedAt),
+                "semester": ["id": semester.id, "number": semester.number, "name": semester.name],
+            ]
+        }
     }
 
     private func mentalHealth() -> [String: Any] {

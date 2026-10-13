@@ -113,6 +113,38 @@ public struct QBankClient: Sendable {
         try await send(Request(.post, "/api/practice-sets/\(id)/restore"))
     }
 
+    // MARK: Semesters and courses
+
+    /// Adds semester `number` (1, 2, or 3), named "Semester N". A number that exists is
+    /// refused with 409 `request_refused`.
+    public func addSemester(number: Int) async throws(QBankError) -> Semester {
+        try await send(Request(.post, "/api/semesters", body: AddSemesterRequest(number: number)))
+    }
+
+    /// Renames a semester and sets its dates, calendar dates such as `2026-09-01`. A nil date clears it.
+    public func updateSemester(id: String, name: String, startsOn: String?, endsOn: String?) async throws(QBankError) -> Semester {
+        let body = UpdateSemesterRequest(name: name, startsOn: startsOn, endsOn: endsOn)
+        return try await send(Request(.patch, "/api/semesters/\(id)", body: body))
+    }
+
+    /// Adds an empty course to a semester. A code the semester already has, in any case, is
+    /// refused with 409 `request_refused`.
+    public func addCourse(semesterID: String, code: String, title: String) async throws(QBankError) -> CourseSummary {
+        try await send(Request(.post, "/api/courses", body: AddCourseRequest(semesterId: semesterID, code: code, title: title)))
+    }
+
+    /// Renames a course, or moves it to another semester. Her answers stay with it.
+    public func updateCourse(id: String, code: String, title: String, semesterID: String) async throws(QBankError) -> CourseSummary {
+        let body = UpdateCourseRequest(code: code, title: title, semesterId: semesterID, archived: nil)
+        return try await send(Request(.patch, "/api/courses/\(id)", body: body))
+    }
+
+    /// Archives a course, which leaves Home, or brings it back. Her answers stay.
+    public func setCourseArchived(id: String, _ archived: Bool) async throws(QBankError) -> CourseSummary {
+        let body = UpdateCourseRequest(code: nil, title: nil, semesterId: nil, archived: archived)
+        return try await send(Request(.patch, "/api/courses/\(id)", body: body))
+    }
+
     // MARK: Answers
 
     /// Sends one answer. The server scores it and saves her progress. Sending the same
@@ -273,6 +305,7 @@ struct Request {
         case get = "GET"
         case post = "POST"
         case put = "PUT"
+        case patch = "PATCH"
         case delete = "DELETE"
     }
 
