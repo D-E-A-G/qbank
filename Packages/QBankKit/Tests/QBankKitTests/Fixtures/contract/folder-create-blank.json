@@ -1,0 +1,20 @@
+{
+  "recordedFrom": "9fa05c0b3f85764a60f8c8afaa8ca702241aded7",
+  "request": {
+    "method": "POST",
+    "path": "/api/courses/c0000000-0000-4000-8000-000000000101/folders",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": {
+      "name": "  "
+    }
+  },
+  "response": {
+    "status": 400,
+    "headers": {},
+    "body": {
+      "error": "request_refused",
+      "message": "Folder name is required."
+    }
+  }
+}

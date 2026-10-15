@@ -1,0 +1,42 @@
+{
+  "recordedFrom": "9fa05c0b3f85764a60f8c8afaa8ca702241aded7",
+  "request": {
+    "method": "POST",
+    "path": "/api/practice-sets/5e700000-0000-4000-8000-000000000004/move",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": {
+      "folderId": "f0000000-0000-4000-8000-000000000011"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "id": "f0000000-0000-4000-8000-000000000011",
+      "name": "Mixed review",
+      "examPageId": null,
+      "sortOrder": 1,
+      "sets": [
+        {
+          "id": "5e700000-0000-4000-8000-000000000004",
+          "title": "Week 3 - Set 2: Invented mixed review",
+          "description": "Invented practice questions for week 3.",
+          "questionCount": 2,
+          "importedAt": "2026-10-15T02:12:18.248Z",
+          "activeSince": "2026-10-15T02:12:18.248Z",
+          "status": "imported",
+          "canRestore": false,
+          "answeredCount": 0,
+          "fullyRightCount": 0,
+          "lastAnsweredAt": null,
+          "questionIds": [
+            "9e000000-0000-4000-8000-000000020006",
+            "9e000000-0000-4000-8000-000000020001"
+          ]
+        }
+      ],
+      "examBankCount": 0
+    }
+  }
+}

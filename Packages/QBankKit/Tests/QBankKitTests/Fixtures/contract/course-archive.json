@@ -1,5 +1,5 @@
 {
-  "recordedFrom": "d2acf893713f4783d4f58d4d6ed6d91b303df26c",
+  "recordedFrom": "9fa05c0b3f85764a60f8c8afaa8ca702241aded7",
   "request": {
     "method": "PATCH",
     "path": "/api/courses/c0000000-0000-4000-8000-000000000101",
@@ -17,9 +17,10 @@
       "code": "NURS 111",
       "title": "Invented Basics II",
       "sortOrder": 1,
-      "archivedAt": "2026-10-13T02:03:19.630Z",
+      "archivedAt": "2026-10-15T02:12:18.127Z",
       "questionCount": 0,
       "weekCount": 0,
+      "folderCount": 0,
       "reviewCount": 0,
       "answeredCount": 0,
       "fullyRightCount": 0,

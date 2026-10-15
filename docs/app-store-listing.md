@@ -55,9 +55,9 @@ Review what you missed
 - Look up every term in a course in one searchable list.
 
 Timed exams
-- Build an exam from the weeks you choose, at 1.5 minutes per question.
+- Build an exam from the folders you choose, at 1.5 minutes per question.
 - Or make it only from the questions you last got wrong.
-- See your score by week and by clinical judgment step when you finish.
+- See your score by folder and by clinical judgment step when you finish.
 
 Study without signal
 - Your courses stay on your phone. Practice offline, and your answers send by themselves when you are back online.
@@ -131,7 +131,7 @@ The list follows the approved phase-W wireframes (`qbank-ios-wireframes`, approv
 | 3 | 1a-3 Home | semesters, courses, review counts, progress | All your courses in one place |
 | 4 | 1b-10 Set result | score by clinical judgment step | See which step you miss |
 | 5 | 1c-1 Review | missed, partly right, guessed, "Practice these" | Review what you missed |
-| 6 | 1c-3 Exam setup, wrong questions only | weeks picker with wrong counts | Exams from your weak spots |
+| 6 | 1c-3 Exam setup, wrong questions only | folder picker with wrong counts | Exams from your weak spots |
 | 7 | 1c-4 Exam in progress | timer, Skip for now, Submit and continue | Timed like test day |
 | 8 | 1b-8 Matrix | a matrix question | All eight question formats |
 | 9 | 1e-1 Home, no connection | offline banner, answers waiting to send | Study without signal |

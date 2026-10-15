@@ -1,0 +1,77 @@
+{
+  "recordedFrom": "9fa05c0b3f85764a60f8c8afaa8ca702241aded7",
+  "request": {
+    "method": "PUT",
+    "path": "/api/courses/c0000000-0000-4000-8000-000000000101/folder-order",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": {
+      "examPageId": "ce000000-0000-4000-8000-000000000001",
+      "folderIds": [
+        "f0000000-0000-4000-8000-000000000001",
+        "f0000000-0000-4000-8000-000000000002"
+      ]
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "folders": [
+        {
+          "id": "f0000000-0000-4000-8000-000000000001",
+          "name": "Week 1",
+          "examPageId": "ce000000-0000-4000-8000-000000000001",
+          "sortOrder": 1,
+          "sets": [
+            {
+              "id": "5e700000-0000-4000-8000-000000000001",
+              "title": "Week 1 - Set 1: Invented week 1",
+              "description": "Invented practice questions for week 1.",
+              "questionCount": 3,
+              "importedAt": "2026-10-15T02:12:18.171Z",
+              "activeSince": "2026-10-15T02:12:18.171Z",
+              "status": "imported",
+              "canRestore": false,
+              "answeredCount": 2,
+              "fullyRightCount": 2,
+              "lastAnsweredAt": "2026-10-15T02:12:18.333Z",
+              "questionIds": [
+                "9e000000-0000-4000-8000-000000020008",
+                "9e000000-0000-4000-8000-000000020000",
+                "9e000000-0000-4000-8000-000000020002"
+              ]
+            }
+          ],
+          "examBankCount": 0
+        },
+        {
+          "id": "f0000000-0000-4000-8000-000000000002",
+          "name": "Week 2",
+          "examPageId": "ce000000-0000-4000-8000-000000000001",
+          "sortOrder": 2,
+          "sets": [
+            {
+              "id": "5e700000-0000-4000-8000-000000000002",
+              "title": "Week 2 - Set 1: Invented week 2",
+              "description": "Invented practice questions for week 2.",
+              "questionCount": 2,
+              "importedAt": "2026-10-15T02:12:18.200Z",
+              "activeSince": "2026-10-15T02:12:18.200Z",
+              "status": "imported",
+              "canRestore": false,
+              "answeredCount": 0,
+              "fullyRightCount": 0,
+              "lastAnsweredAt": null,
+              "questionIds": [
+                "9e000000-0000-4000-8000-000000020007",
+                "9e000000-0000-4000-8000-000000020005"
+              ]
+            }
+          ],
+          "examBankCount": 0
+        }
+      ]
+    }
+  }
+}

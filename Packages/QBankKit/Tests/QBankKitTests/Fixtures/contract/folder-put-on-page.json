@@ -1,0 +1,24 @@
+{
+  "recordedFrom": "9fa05c0b3f85764a60f8c8afaa8ca702241aded7",
+  "request": {
+    "method": "PATCH",
+    "path": "/api/folders/f0000000-0000-4000-8000-000000000011",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": {
+      "examPageId": "ce000000-0000-4000-8000-000000000002"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "id": "f0000000-0000-4000-8000-000000000011",
+      "name": "Mixed review",
+      "examPageId": "ce000000-0000-4000-8000-000000000002",
+      "sortOrder": 2,
+      "sets": [],
+      "examBankCount": 0
+    }
+  }
+}

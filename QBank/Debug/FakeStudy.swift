@@ -3,32 +3,32 @@ import Foundation
 import QBankKit
 import Synchronization
 
-/// The fake server's study side for slice 1c: Review, Terms, exams and the course's exams, with
-/// the real server's rules and words (`apps/api/src/progress`, `exams`, `content/service.ts`).
-/// Every question is one of `FakePracticeQuestions`' invented ones, scored with QBankKit's port of
-/// the server's scoring. Nothing here comes from a real course.
+/// The fake server's study side: her folders and exam pages, Review, Terms and exams, with the
+/// real server's rules and words (`apps/api/src/progress`, `exams`, `content/service.ts`). Every
+/// question is one of `FakePracticeQuestions`' invented ones, scored with QBankKit's port of the
+/// server's scoring. Nothing here comes from a real course.
 nonisolated final class FakeStudy: Sendable {
     typealias Reply = (Int, [String: Any])
 
-    /// A week as the exam setup counts it: the questions an exam over it draws from.
-    struct ExamWeek {
-        let label: String
-        /// `exam` when the week has an exam bank, `practice` when its exams use practice questions.
-        let source: String
-        let pool: [String]
-        /// The questions she last answered not fully right, before this run of the app.
-        let wrongAtStart: [String]
+    /// A folder of sets, on one exam page or none, in her order within its list.
+    struct Folder {
+        let id: String
+        let courseID: String
+        var name: String
+        var examPageID: String?
+        var sortOrder: Int
+        /// Its sets, by the id of the version that is current.
+        var sets: [String]
+        /// Its exam-bank questions, asked only on exams.
+        let bank: [String]
     }
 
+    /// An exam page.
     struct CourseExam {
         let id: String
+        let courseID: String
         var name: String
         let sortOrder: Int
-        var weekLabels: [String]
-
-        var json: [String: Any] {
-            ["id": id, "name": name, "sortOrder": sortOrder, "weekLabels": weekLabels]
-        }
     }
 
     struct Answer {
@@ -44,11 +44,13 @@ nonisolated final class FakeStudy: Sendable {
     struct Exam {
         let id: String
         let courseID: String
-        let weeks: [String]
+        let folderIDs: [String]
+        /// Its folders' names when it started.
+        let names: [String]
         let pool: ExamPool
         let practiceWeeks: [String]?
-        /// The questions in the order served, each with its week.
-        let questions: [(id: String, week: String)]
+        /// The questions in the order served, each with its folder and that folder's name then.
+        let questions: [(id: String, folder: String, name: String)]
         let timeLimitSeconds: Int
         let startedAt: Date
         var finishedAt: Date?
@@ -69,28 +71,38 @@ nonisolated final class FakeStudy: Sendable {
     }
 
     struct State {
-        var courseExams: [String: [CourseExam]]
+        var folders: [Folder]
+        var courseExams: [CourseExam]
         var exams: [Exam] = []
         var review: [String: [ReviewEntry]]
         /// Her latest mark on each question she answered in this run, practice or exam.
         var latest: [String: ScoreStatus] = [:]
         var examCount = 0
         var courseExamCount = 0
+        var folderCount = 0
     }
 
-    static let mentalHealthWeeks = [
-        ExamWeek(label: "Week 1", source: "exam", pool: ids("bank1", 17), wrongAtStart: ids("bank1", 4)),
-        ExamWeek(label: "Week 2", source: "practice", pool: ids("communication-v1", 14) + ids("psychosocial-v2", 12),
-                 wrongAtStart: ids("communication-v1", 5) + ids("psychosocial-v2", 2)),
-        ExamWeek(label: "Week 3", source: "exam", pool: ids("bank3", 31), wrongAtStart: []),
-        ExamWeek(label: "Weeks 1-3", source: "practice", pool: ids("mixed-v1", 8), wrongAtStart: ids("mixed-v1", 2)),
+    static let week1 = "f0000000-0000-4000-8000-000000003101"
+    static let week2 = "f0000000-0000-4000-8000-000000003102"
+    static let week3 = "f0000000-0000-4000-8000-000000003103"
+    static let weeks1to3 = "f0000000-0000-4000-8000-000000003104"
+    static let exam1 = "c0e00000-0000-4000-8000-000000000001"
+    static let exam2 = "c0e00000-0000-4000-8000-000000000002"
+
+    /// How many questions each set has, by set id.
+    static let setSizes: [String: Int] = [
+        "rights-v1": 17, "communication-v1": 14, "psychosocial-v1": 12, "psychosocial-v2": 12, "depression-v1": 18,
+        "anxiety-v1": 13, "mixed-v1": 8, "vitals-v1": 43, "safety-v1": 42, "mobility-v1": 61,
     ]
 
-    static let fundamentalsWeeks = [
-        ExamWeek(label: "Week 1", source: "practice", pool: ids("vitals-v1", 43), wrongAtStart: ids("vitals-v1", 6)),
-        ExamWeek(label: "Week 2", source: "practice", pool: ids("safety-v1", 42), wrongAtStart: ids("safety-v1", 9)),
-        ExamWeek(label: "Week 3", source: "practice", pool: ids("mobility-v1", 61), wrongAtStart: ids("mobility-v1", 2)),
-    ]
+    /// The questions she had last answered not fully right before this run of the app.
+    static let wrongAtStart = Set(
+        ids("bank1", 4) + ids("communication-v1", 5) + ids("psychosocial-v2", 2) + ids("mixed-v1", 2)
+            + ids("vitals-v1", 6) + ids("safety-v1", 9) + ids("mobility-v1", 2)
+    )
+
+    /// The courses' codes, for the refusals that name a course.
+    static let codes = [FakeQBankServer.mentalHealthID: "NURS 310", FakeQBankServer.fundamentalsID: "NURS 220"]
 
     /// Invented terms: plain nursing words with plain meanings, written for this fake.
     static let terms: [(term: String, meaning: String, week: String, set: String)] = [
@@ -114,12 +126,20 @@ nonisolated final class FakeStudy: Sendable {
     init(now: Date) {
         self.now = now
         let day: TimeInterval = 86_400
+        let mentalHealth = FakeQBankServer.mentalHealthID, fundamentals = FakeQBankServer.fundamentalsID
         state = Mutex(State(
+            folders: [
+                Folder(id: Self.week1, courseID: mentalHealth, name: "Week 1", examPageID: Self.exam1, sortOrder: 1, sets: ["rights-v1"], bank: Self.ids("bank1", 17)),
+                Folder(id: Self.week2, courseID: mentalHealth, name: "Week 2", examPageID: Self.exam1, sortOrder: 2, sets: ["communication-v1", "psychosocial-v2"], bank: []),
+                Folder(id: Self.week3, courseID: mentalHealth, name: "Week 3", examPageID: Self.exam2, sortOrder: 1, sets: ["depression-v1", "anxiety-v1"], bank: Self.ids("bank3", 31)),
+                Folder(id: Self.weeks1to3, courseID: mentalHealth, name: "Weeks 1-3", examPageID: nil, sortOrder: 1, sets: ["mixed-v1"], bank: []),
+                Folder(id: "f0000000-0000-4000-8000-000000002201", courseID: fundamentals, name: "Week 1", examPageID: nil, sortOrder: 1, sets: ["vitals-v1"], bank: []),
+                Folder(id: "f0000000-0000-4000-8000-000000002202", courseID: fundamentals, name: "Week 2", examPageID: nil, sortOrder: 2, sets: ["safety-v1"], bank: []),
+                Folder(id: "f0000000-0000-4000-8000-000000002203", courseID: fundamentals, name: "Week 3", examPageID: nil, sortOrder: 3, sets: ["mobility-v1"], bank: []),
+            ],
             courseExams: [
-                FakeQBankServer.mentalHealthID: [
-                    CourseExam(id: "c0e00000-0000-4000-8000-000000000001", name: "Exam 1", sortOrder: 1, weekLabels: ["Week 1", "Week 2"]),
-                    CourseExam(id: "c0e00000-0000-4000-8000-000000000002", name: "Exam 2", sortOrder: 2, weekLabels: ["Week 3"]),
-                ],
+                CourseExam(id: Self.exam1, courseID: mentalHealth, name: "Exam 1", sortOrder: 1),
+                CourseExam(id: Self.exam2, courseID: mentalHealth, name: "Exam 2", sortOrder: 2),
             ],
             review: [
                 FakeQBankServer.mentalHealthID: [
@@ -142,18 +162,18 @@ nonisolated final class FakeStudy: Sendable {
     }
 
     /// Her exams before this run: Weeks 1-2 three days ago (Exam 1), Week 1 when time ran out
-    /// ten days ago (Exam 1), and Weeks 1-3 across both exams a week ago (Other exams).
+    /// ten days ago (Exam 1), and Weeks 1-3 across both exam pages a week ago (on neither).
     private func seedPastExams() {
         let day: TimeInterval = 86_400
-        let pasts: [(weeks: [String], startedDaysAgo: Double, minutes: Double, reason: ExamEndReason, pattern: (Int) -> String?)] = [
-            (["Week 1", "Week 2"], 3, 52, .finished, { $0 % 5 == 4 ? "wrong" : "right" }),
-            (["Week 1"], 10, 26, .timeout, { $0 >= 15 ? nil : ($0 % 7 == 6 ? "wrong" : "right") }),
-            (["Week 1", "Week 2", "Week 3"], 7, 41, .finished, { $0 % 4 == 3 ? "partly" : "right" }),
+        let pasts: [(folders: [String], startedDaysAgo: Double, minutes: Double, reason: ExamEndReason, pattern: (Int) -> String?)] = [
+            ([Self.week1, Self.week2], 3, 52, .finished, { $0 % 5 == 4 ? "wrong" : "right" }),
+            ([Self.week1], 10, 26, .timeout, { $0 >= 15 ? nil : ($0 % 7 == 6 ? "wrong" : "right") }),
+            ([Self.week1, Self.week2, Self.week3], 7, 41, .finished, { $0 % 4 == 3 ? "partly" : "right" }),
         ]
         for past in pasts {
             let startedAt = now.addingTimeInterval(-past.startedDaysAgo * day)
             guard case .success(let id) = begin(
-                courseID: FakeQBankServer.mentalHealthID, weeks: past.weeks, pool: .all, at: startedAt, endingRunning: false
+                courseID: FakeQBankServer.mentalHealthID, folderIDs: past.folders, pool: .all, at: startedAt, endingRunning: false
             ) else { continue }
             state.withLock { state in
                 guard let index = state.exams.firstIndex(where: { $0.id == id }) else { return }
@@ -177,21 +197,24 @@ nonisolated final class FakeStudy: Sendable {
 
     // MARK: Routes
 
-    /// Answers the study routes; nil for any other route.
-    func answer(method: String, path: String, query: [String: String], body: [String: Any]) -> Reply? {
+    /// Answers the study and folder routes; nil for any other route. A folder in a reply is drawn
+    /// by `folderJSON`, which knows its sets.
+    func answer(method: String, path: String, query: [String: String], body: [String: Any], folderJSON: (Folder) -> [String: Any]) -> Reply? {
         let parts = path.split(separator: "/").map(String.init)
         // /api/courses/{id}/...
         if parts.count >= 4, parts[0] == "api", parts[1] == "courses" {
             let courseID = parts[2]
-            guard let weeks = Self.examWeeks(courseID) else { return nil }
+            guard Self.codes[courseID] != nil else { return nil }
             switch (method, parts.dropFirst(3).joined(separator: "/")) {
             case ("GET", "terms"): return (200, ["terms": termsJSON(courseID)])
             case ("GET", "review"): return review(courseID, filter: query["filter"] ?? "all")
             case ("GET", "review/practice"): return reviewPractice(courseID, filter: query["filter"] ?? "all", questionID: query["question"])
             case ("POST", "review/clear"): return clearReview(courseID, confirmed: body["confirmed"] as? Bool ?? false)
-            case ("GET", "exams"): return (200, setup(courseID, weeks: weeks))
+            case ("GET", "exams"): return (200, setup(courseID))
             case ("POST", "exams"): return start(courseID, body: body)
             case ("POST", "course-exams"): return saveCourseExam(courseID: courseID, id: nil, body: body)
+            case ("POST", "folders"): return Self.reply(createFolder(courseID: courseID, body: body), status: 201, folderJSON)
+            case ("PUT", "folder-order"): return reorder(courseID: courseID, body: body, folderJSON)
             default: return nil
             }
         }
@@ -201,6 +224,12 @@ nonisolated final class FakeStudy: Sendable {
             case "DELETE": return deleteCourseExam(id: parts[2])
             default: return nil
             }
+        }
+        if parts.count == 3, parts[0] == "api", parts[1] == "folders", method == "PATCH" {
+            return Self.reply(changeFolder(id: parts[2], body: body), status: 200, folderJSON)
+        }
+        if parts.count == 4, parts[0] == "api", parts[1] == "practice-sets", parts[3] == "move", method == "POST" {
+            return Self.reply(moveSet(id: parts[2], body: body), status: 200, folderJSON)
         }
         if parts.count >= 3, parts[0] == "api", parts[1] == "exams" {
             if parts.count == 3, method == "GET" { return examView(parts[2]) }
@@ -212,9 +241,39 @@ nonisolated final class FakeStudy: Sendable {
         return nil
     }
 
-    /// The course's exams for `GET /api/courses/{id}`.
+    /// A course's folders in its page's order: each exam page's, then those on no page.
+    func folders(_ courseID: String) -> [Folder] {
+        state.withLock { state in Self.ordered(state, courseID: courseID) }
+    }
+
+    /// The course's exam pages for `GET /api/courses/{id}`.
     func courseExamsJSON(_ courseID: String) -> [[String: Any]] {
-        state.withLock { state in (state.courseExams[courseID] ?? []).map(\.json) }
+        state.withLock { state in
+            state.courseExams.filter { $0.courseID == courseID }.map { Self.pageJSON($0, in: state) }
+        }
+    }
+
+    /// The version that is current now takes the place of the one she restored from.
+    func replace(set old: String, with new: String) {
+        state.withLock { state in
+            for index in state.folders.indices {
+                state.folders[index].sets = state.folders[index].sets.map { $0 == old ? new : $0 }
+            }
+        }
+    }
+
+    private static func ordered(_ state: State, courseID: String) -> [Folder] {
+        let pages = state.courseExams.filter { $0.courseID == courseID }.sorted { $0.sortOrder < $1.sortOrder }
+        let folders = state.folders.filter { $0.courseID == courseID }.sorted { ($0.sortOrder, $0.name) < ($1.sortOrder, $1.name) }
+        return pages.flatMap { page in folders.filter { $0.examPageID == page.id } } + folders.filter { $0.examPageID == nil }
+    }
+
+    private static func pageJSON(_ page: CourseExam, in state: State) -> [String: Any] {
+        let folders = ordered(state, courseID: page.courseID).filter { $0.examPageID == page.id }
+        return [
+            "id": page.id, "name": page.name, "sortOrder": page.sortOrder,
+            "weekLabels": folders.map(\.name), "folderIds": folders.map(\.id),
+        ]
     }
 
     func reviewCount(_ courseID: String) -> Int {
@@ -227,17 +286,31 @@ nonisolated final class FakeStudy: Sendable {
 
     // MARK: Terms
 
+    /// The set each term's set title names, by the start of its id.
+    private static let termSets = [
+        "Rights, Law, and Ethics": "rights", "Psychosocial Assessment and Safety Screening": "psychosocial",
+        "Therapeutic Communication and the Relationship": "communication", "Depression and Antidepressants": "depression",
+    ]
+
     private func termsJSON(_ courseID: String) -> [[String: Any]] {
         guard courseID == FakeQBankServer.mentalHealthID else { return [] }
+        let folders = self.folders(courseID)
         return Self.terms.map { term in
-            ["key": term.term.lowercased(), "term": term.term, "meaning": term.meaning, "weekLabel": term.week, "setTitle": term.set]
+            // A term belongs to its set's folder now, wherever she moved the set.
+            let prefix = Self.termSets[term.set].map { "\($0)-v" } ?? "-"
+            let folder = folders.first { $0.sets.contains { $0.hasPrefix(prefix) } }
+            return [
+                "key": term.term.lowercased(), "term": term.term, "meaning": term.meaning,
+                "weekLabel": folder?.name ?? term.week, "folderId": folder?.id ?? "", "folderName": folder?.name ?? term.week,
+                "setTitle": term.set,
+            ]
         }
     }
 
     // MARK: Review
 
     private func review(_ courseID: String, filter: String) -> Reply {
-        let entries = state.withLock { $0.review[courseID] ?? [] }
+        let (entries, folders) = state.withLock { ($0.review[courseID] ?? [], Self.ordered($0, courseID: courseID)) }
         let counts: [String: Any] = [
             "all": entries.count,
             "missed": entries.count { $0.status == .incorrect },
@@ -245,7 +318,7 @@ nonisolated final class FakeStudy: Sendable {
             "guessed": entries.count(where: \.guessed),
         ]
         let shown = entries.filter { Self.matches($0, filter) }
-        return (200, ["filter": filter, "counts": counts, "questions": shown.map(reviewJSON)])
+        return (200, ["filter": filter, "counts": counts, "questions": shown.map { reviewJSON($0, folders: folders) }])
     }
 
     private static func matches(_ entry: ReviewEntry, _ filter: String) -> Bool {
@@ -257,15 +330,23 @@ nonisolated final class FakeStudy: Sendable {
         }
     }
 
-    private func reviewJSON(_ entry: ReviewEntry) -> [String: Any] {
+    private func reviewJSON(_ entry: ReviewEntry, folders: [Folder]) -> [String: Any] {
         let template = FakePracticeQuestions.template(forQuestionID: entry.questionID) ?? [:]
         let type = (template["type"] as? String).flatMap(QuestionType.init(rawValue:))
+        let folder = Self.folder(of: entry.questionID, in: folders)
         return [
             "questionId": entry.questionID, "topic": template["topic"] as? String ?? "",
-            "weekLabel": entry.weekLabel, "format": Self.formatName(type),
+            "weekLabel": entry.weekLabel, "folderId": folder?.id ?? "", "folderName": folder?.name ?? entry.weekLabel,
+            "format": Self.formatName(type),
             "status": entry.status.rawValue, "guessed": entry.guessed,
             "answeredAt": QBankJSON.formatDate(entry.answeredAt), "setTitle": entry.setTitle,
         ]
+    }
+
+    /// The folder a question's set is in now. Question ids are "<set id>-q<index>".
+    static func folder(of questionID: String, in folders: [Folder]) -> Folder? {
+        let setID = questionID.split(separator: "-").dropLast().joined(separator: "-")
+        return folders.first { $0.sets.contains(setID) || $0.bank.contains(questionID) }
     }
 
     /// The server's format names on Review rows (`QUESTION_TYPE_LABELS`).
@@ -300,7 +381,7 @@ nonisolated final class FakeStudy: Sendable {
         }
         return (200, [
             "id": courseID, "courseId": courseID, "title": questionID == nil ? "Review" : "Review question",
-            "weekLabel": "", "kind": "practice", "questions": questions,
+            "weekLabel": "", "folderId": NSNull(), "kind": "practice", "questions": questions,
         ])
     }
 
@@ -329,40 +410,58 @@ nonisolated final class FakeStudy: Sendable {
 
     // MARK: Exam setup and start
 
-    static func examWeeks(_ courseID: String) -> [ExamWeek]? {
-        switch courseID {
-        case FakeQBankServer.mentalHealthID: mentalHealthWeeks
-        case FakeQBankServer.fundamentalsID: fundamentalsWeeks
-        default: nil
-        }
+    /// What an exam over a folder draws from: its exam bank, or its sets' practice questions.
+    private static func pool(_ folder: Folder) -> [String] {
+        folder.bank.isEmpty ? folder.sets.flatMap { ids($0, setSizes[$0] ?? 0) } : folder.bank
     }
 
-    private func wrongPool(_ week: ExamWeek, latest: [String: ScoreStatus]) -> [String] {
-        week.pool.filter { id in latest[id].map { $0 != .correct } ?? week.wrongAtStart.contains(id) }
+    private static func wrongPool(_ folder: Folder, latest: [String: ScoreStatus]) -> [String] {
+        pool(folder).filter { id in latest[id].map { $0 != .correct } ?? wrongAtStart.contains(id) }
     }
 
-    private func setup(_ courseID: String, weeks: [ExamWeek]) -> [String: Any] {
+    private func setup(_ courseID: String) -> [String: Any] {
         settleExpired()
         return state.withLock { state in
+            let folders = Self.ordered(state, courseID: courseID).filter { !Self.pool($0).isEmpty }
             let exams = state.exams.filter { $0.courseID == courseID }.sorted { $0.startedAt > $1.startedAt }
-            let courseExams = state.courseExams[courseID] ?? []
-            let summaries = exams.map { summaryJSON($0, courseExams: courseExams) }
+            let summaries = exams.map { summaryJSON($0, in: state) }
+            let pools = folders.map { folder -> [String: Any] in
+                [
+                    "id": folder.id, "name": folder.name, "examPageId": Self.json(folder.examPageID),
+                    "questionCount": Self.pool(folder).count, "wrongCount": Self.wrongPool(folder, latest: state.latest).count,
+                    "source": folder.bank.isEmpty ? "practice" : "exam",
+                ]
+            }
+            // An app from before folders reads the same pools by name.
+            var weeks: [[String: Any]] = []
+            for folder in folders where !weeks.contains(where: { $0["label"] as? String == folder.name }) {
+                let same = folders.filter { $0.name == folder.name }
+                weeks.append([
+                    "label": folder.name, "questionCount": same.reduce(0) { $0 + Self.pool($1).count },
+                    "wrongCount": same.reduce(0) { $0 + Self.wrongPool($1, latest: state.latest).count },
+                    "source": same.contains { !$0.bank.isEmpty } ? "exam" : "practice",
+                ])
+            }
             return [
-                "courseId": courseID,
-                "weeks": weeks.map { week in
-                    ["label": week.label, "questionCount": week.pool.count, "wrongCount": wrongPool(week, latest: state.latest).count, "source": week.source]
-                },
+                "courseId": courseID, "weeks": weeks, "folders": pools,
                 "inProgress": exams.firstIndex { $0.finishedAt == nil }.map { summaries[$0] } ?? NSNull(),
                 "exams": exams.indices.filter { exams[$0].finishedAt != nil }.map { summaries[$0] },
             ]
         }
     }
 
-    private func summaryJSON(_ exam: Exam, courseExams: [CourseExam]) -> [String: Any] {
-        let result = exam.finishedAt == nil ? nil : score(exam)
+    /// The exam page holding every folder an exam covered, as the server's `courseExamOf` rules.
+    private static func page(of exam: Exam, in state: State) -> String? {
+        state.courseExams.filter { $0.courseID == exam.courseID }.sorted { $0.sortOrder < $1.sortOrder }.first { page in
+            exam.folderIDs.allSatisfy { id in state.folders.contains { $0.id == id && $0.examPageID == page.id } }
+        }?.id
+    }
+
+    private func summaryJSON(_ exam: Exam, in state: State) -> [String: Any] {
+        let result = exam.finishedAt == nil ? nil : score(exam, in: state)
         return [
-            "id": exam.id, "courseId": exam.courseID, "weeks": exam.weeks,
-            "courseExamId": Self.json(courseExams.first { course in exam.weeks.allSatisfy(course.weekLabels.contains) }?.id),
+            "id": exam.id, "courseId": exam.courseID, "weeks": exam.names, "folderIds": exam.folderIDs,
+            "courseExamId": Self.json(Self.page(of: exam, in: state)),
             "pool": exam.pool.rawValue, "practiceWeeks": exam.practiceWeeks.map { $0 as Any } ?? NSNull(),
             "questionCount": exam.questions.count, "timeLimitSeconds": exam.timeLimitSeconds,
             "startedAt": QBankJSON.formatDate(exam.startedAt), "endsAt": QBankJSON.formatDate(exam.endsAt),
@@ -376,9 +475,9 @@ nonisolated final class FakeStudy: Sendable {
     }
 
     private func start(_ courseID: String, body: [String: Any]) -> Reply {
-        let weeks = (body["weeks"] as? [String] ?? []).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        let folderIDs = body["folderIds"] as? [String] ?? []
         let pool = (body["pool"] as? String).flatMap(ExamPool.init(rawValue:)) ?? .all
-        switch begin(courseID: courseID, weeks: weeks, pool: pool, at: .now, endingRunning: true) {
+        switch begin(courseID: courseID, folderIDs: folderIDs, pool: pool, at: .now, endingRunning: true) {
         case .success(let id): return examView(id, status: 201)
         case .failure(let refusal): return Self.failure(400, refusal.code, refusal.message)
         }
@@ -389,33 +488,31 @@ nonisolated final class FakeStudy: Sendable {
         let message: String
     }
 
-    /// Draws an exam as the server does, in week order and without shuffling, so a test knows
-    /// which question comes when.
-    private func begin(courseID: String, weeks labels: [String], pool: ExamPool, at startedAt: Date, endingRunning: Bool) -> Result<String, Refusal> {
-        guard let weeks = Self.examWeeks(courseID) else { return .failure(Refusal(code: "course_not_found", message: "That course is not in the app.")) }
-        let ticked = Array(Set(labels)).sorted(by: EditExamsModel.weekOrder)
-        guard !ticked.isEmpty else { return .failure(Refusal(code: "no_weeks", message: "Tick at least one week.")) }
-        if let unknown = ticked.first(where: { label in !weeks.contains { $0.label == label } }) {
-            return .failure(Refusal(code: "week_not_found", message: "\(unknown) has no questions in this course."))
+    /// Draws an exam as the server does, folder by folder in her order and without shuffling, so a
+    /// test knows which question comes when.
+    private func begin(courseID: String, folderIDs: [String], pool: ExamPool, at startedAt: Date, endingRunning: Bool) -> Result<String, Refusal> {
+        let (course, latest) = state.withLock { (Self.ordered($0, courseID: courseID), $0.latest) }
+        guard !folderIDs.isEmpty else { return .failure(Refusal(code: "no_folders", message: "Tick at least one folder.")) }
+        if folderIDs.contains(where: { id in !course.contains { $0.id == id } }) {
+            return .failure(Refusal(code: "folder_not_found", message: "That folder is not in this course."))
         }
-        let latest = state.withLock { $0.latest }
-        let draw = { (label: String) -> [String] in
-            guard let week = weeks.first(where: { $0.label == label }) else { return [] }
-            return pool == .wrong ? self.wrongPool(week, latest: latest) : week.pool
-        }
-        let empty = ticked.filter { draw($0).isEmpty }
+        let ticked = course.filter { folderIDs.contains($0.id) }
+        let draw = { (folder: Folder) -> [String] in pool == .wrong ? Self.wrongPool(folder, latest: latest) : Self.pool(folder) }
+        let empty = ticked.filter { draw($0).isEmpty }.map(\.name)
         if !empty.isEmpty {
             let one = empty.count == 1
             return .failure(Refusal(
-                code: "no_wrong_questions",
-                message: "\(Self.listText(empty)) \(one ? "has" : "have") no wrong questions. Untick \(one ? "it" : "them"), or turn off Wrong questions only."
+                code: pool == .wrong ? "no_wrong_questions" : "no_questions",
+                message: pool == .wrong
+                    ? "\(Self.listText(empty)) \(one ? "has" : "have") no wrong questions. Untick \(one ? "it" : "them"), or turn off Wrong questions only."
+                    : "\(Self.listText(empty)) \(one ? "has" : "have") no questions."
             ))
         }
-        let plan = ExamPlan(ticked.map { ExamPlan.Week(label: $0, questionCount: draw($0).count) })
-        let questions = plan.weeks.flatMap { week in draw(week.label).prefix(week.drawn).map { (id: $0, week: week.label) } }
-        let practiceWeeks = weeks.contains { $0.source == "exam" }
-            ? ticked.filter { label in weeks.first { $0.label == label }?.source == "practice" }
-            : nil
+        let plan = ExamPlan(ticked.map { ExamPlan.Pool(id: $0.id, name: $0.name, questionCount: draw($0).count) })
+        let questions = zip(ticked, plan.draws).flatMap { folder, row in
+            draw(folder).prefix(row.drawn).map { (id: $0, folder: folder.id, name: folder.name) }
+        }
+        let practiceWeeks = course.contains { !$0.bank.isEmpty } ? ticked.filter(\.bank.isEmpty).map(\.name) : nil
         // A running exam of hers ends first, as if she had left it.
         if endingRunning {
             for exam in state.withLock({ $0.exams.filter { $0.finishedAt == nil } }) {
@@ -426,8 +523,8 @@ nonisolated final class FakeStudy: Sendable {
             state.examCount += 1
             let id = String(format: "e0000000-0000-4000-8000-%012d", state.examCount)
             state.exams.append(Exam(
-                id: id, courseID: courseID, weeks: ticked, pool: pool, practiceWeeks: practiceWeeks,
-                questions: questions, timeLimitSeconds: plan.timeLimitSeconds, startedAt: startedAt
+                id: id, courseID: courseID, folderIDs: ticked.map(\.id), names: ticked.map(\.name), pool: pool,
+                practiceWeeks: practiceWeeks, questions: questions, timeLimitSeconds: plan.timeLimitSeconds, startedAt: startedAt
             ))
             return .success(id)
         }
@@ -441,15 +538,17 @@ nonisolated final class FakeStudy: Sendable {
             return Self.failure(404, "exam_not_found", "That exam is not in the app.")
         }
         let course = exam.courseID == FakeQBankServer.mentalHealthID ? ("NURS 310", "Mental Health") : ("NURS 220", "Fundamentals")
+        let result = exam.finishedAt == nil ? nil : state.withLock { score(exam, in: $0) }
         return (status, [
             "id": exam.id, "courseId": exam.courseID, "courseCode": course.0, "courseTitle": course.1,
-            "weeks": exam.weeks, "pool": exam.pool.rawValue, "practiceWeeks": exam.practiceWeeks.map { $0 as Any } ?? NSNull(),
+            "weeks": exam.names, "folderIds": exam.folderIDs,
+            "pool": exam.pool.rawValue, "practiceWeeks": exam.practiceWeeks.map { $0 as Any } ?? NSNull(),
             "timeLimitSeconds": exam.timeLimitSeconds, "startedAt": QBankJSON.formatDate(exam.startedAt),
             "endsAt": QBankJSON.formatDate(exam.endsAt), "finishedAt": Self.json(exam.finishedAt.map(QBankJSON.formatDate)),
             "endReason": Self.json(exam.endReason?.rawValue), "serverNow": QBankJSON.formatDate(.now),
-            "questions": exam.questions.enumerated().map { Self.questionJSON($1.id, position: $0 + 1, week: $1.week) },
+            "questions": exam.questions.enumerated().map { Self.questionJSON($1.id, position: $0 + 1, week: $1.name) },
             "answeredQuestionIds": exam.questions.map(\.id).filter { exam.answers[$0] != nil },
-            "result": exam.finishedAt == nil ? NSNull() : score(exam) as Any,
+            "result": result.map { $0 as Any } ?? NSNull(),
         ])
     }
 
@@ -510,7 +609,7 @@ nonisolated final class FakeStudy: Sendable {
                 entries.removeAll { $0.questionID == questionID }
                 inReview = score.staysInReview(guessed: guessed)
                 if inReview {
-                    entries.insert(ReviewEntry(questionID: questionID, weekLabel: served.week, setTitle: "Exam", status: score.status, guessed: guessed, answeredAt: .now), at: 0)
+                    entries.insert(ReviewEntry(questionID: questionID, weekLabel: served.name, setTitle: "Exam", status: score.status, guessed: guessed, answeredAt: .now), at: 0)
                 }
                 state.review[exam.courseID] = entries
             }
@@ -525,10 +624,14 @@ nonisolated final class FakeStudy: Sendable {
 
     private static let stepOrder = ["Recognize cues", "Analyze cues", "Prioritize hypotheses", "Generate solutions", "Take action", "Take actions", "Evaluate outcomes"]
 
-    /// The result of an ended exam, counted as the server counts it.
-    private func score(_ exam: Exam) -> [String: Any] {
+    /// The result of an ended exam, counted as the server counts it: by folder under each folder's
+    /// name now, and by the names its folders had, for an app from before folders.
+    private func score(_ exam: Exam, in state: State) -> [String: Any] {
         var items: [[String: Any]] = []
-        var weeks = exam.weeks.map { (label: $0, right: 0, total: 0) }
+        var weeks = exam.names.map { (label: $0, right: 0, total: 0) }
+        var folders = exam.folderIDs.map { id in
+            (id: id, label: state.folders.first { $0.id == id }?.name ?? exam.names[exam.folderIDs.firstIndex(of: id) ?? 0], right: 0, total: 0)
+        }
         var steps: [(label: String, right: Int, total: Int)] = []
         var counts = (fullyRight: 0, partial: 0, missed: 0, guessed: 0, answered: 0, points: 0, maxPoints: 0, review: 0, bankWrong: 0)
         for served in exam.questions {
@@ -553,9 +656,13 @@ nonisolated final class FakeStudy: Sendable {
                 }
             }
             counts.maxPoints += maxPoints
-            if let index = weeks.firstIndex(where: { $0.label == served.week }) {
+            if let index = weeks.firstIndex(where: { $0.label == served.name }) {
                 weeks[index].total += 1
                 if right { weeks[index].right += 1 }
+            }
+            if let index = folders.firstIndex(where: { $0.id == served.folder }) {
+                folders[index].total += 1
+                if right { folders[index].right += 1 }
             }
             let step = question?.clinicalJudgmentStep.flatMap { $0.isEmpty ? nil : $0 } ?? "Not labeled"
             if let index = steps.firstIndex(where: { $0.label == step }) {
@@ -585,69 +692,268 @@ nonisolated final class FakeStudy: Sendable {
             "points": counts.points, "maxPoints": counts.maxPoints, "minutesUsed": max(1, Int((used / 60).rounded())),
             "reviewCount": counts.review, "examBankWrong": counts.bankWrong,
             "byWeek": weeks.filter { $0.total > 0 }.map { ["label": $0.label, "right": $0.right, "total": $0.total] },
+            "byFolder": folders.filter { $0.total > 0 }.map { ["folderId": $0.id, "label": $0.label, "right": $0.right, "total": $0.total] },
             "byStep": steps.sorted { rank($0.label) < rank($1.label) }.map { ["label": $0.label, "right": $0.right, "total": $0.total] },
             "items": items,
         ]
     }
 
-    // MARK: Course exams
+    // MARK: Folders and exam pages, with the rules and words of `content/folders.ts`
 
+    /// A refusal, in the server's words.
+    struct Failure: Error {
+        let status: Int
+        let message: String
+
+        var reply: Reply { FakeStudy.failure(status, "request_refused", message) }
+    }
+
+    private static func reply(_ result: Result<Folder, Failure>, status: Int, _ folderJSON: (Folder) -> [String: Any]) -> Reply {
+        switch result {
+        case .success(let folder): (status, folderJSON(folder))
+        case .failure(let failure): failure.reply
+        }
+    }
+
+    /// A required name, trimmed: refused when blank or longer than 80 characters.
+    private static func requiredText(_ value: Any?, label: String) -> Result<String, Failure> {
+        let text = (value as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        if text.isEmpty { return .failure(Failure(status: 400, message: "\(label) is required.")) }
+        if text.count > 80 { return .failure(Failure(status: 400, message: "\(label) is too long.")) }
+        return .success(text)
+    }
+
+    /// A list as a refusal names it: the exam page, or the course for its Folders list.
+    private static func listLabel(_ page: String?, courseID: String, in state: State) -> String {
+        page.flatMap { page in state.courseExams.first { $0.id == page }?.name } ?? codes[courseID] ?? "This course"
+    }
+
+    /// Refuses a name another folder of the list already has, ignoring case.
+    private static func nameTaken(_ name: String, courseID: String, page: String?, except ids: Set<String>, in state: State) -> Failure? {
+        let clash = state.folders.first {
+            $0.courseID == courseID && $0.examPageID == page && !ids.contains($0.id) && $0.name.lowercased() == name.lowercased()
+        }
+        return clash.map { Failure(status: 409, message: "\(listLabel(page, courseID: courseID, in: state)) already has a folder named \($0.name).") }
+    }
+
+    /// The exam page a folder may go on: one of its course's.
+    private static func page(_ id: String, courseID: String, in state: State) -> Failure? {
+        state.courseExams.contains { $0.id == id && $0.courseID == courseID } ? nil : Failure(status: 400, message: "That exam page is not in this course.")
+    }
+
+    /// The next place at the end of a list.
+    private static func end(of page: String?, courseID: String, in state: State) -> Int {
+        (state.folders.filter { $0.courseID == courseID && $0.examPageID == page }.map(\.sortOrder).max() ?? 0) + 1
+    }
+
+    private static func newFolder(_ name: String, courseID: String, page: String?, in state: inout State) -> Folder {
+        state.folderCount += 1
+        let folder = Folder(
+            id: String(format: "f0000000-0000-4000-8000-%012d", 9000 + state.folderCount), courseID: courseID, name: name,
+            examPageID: page, sortOrder: end(of: page, courseID: courseID, in: state), sets: [], bank: []
+        )
+        state.folders.append(folder)
+        return folder
+    }
+
+    private func createFolder(courseID: String, body: [String: Any]) -> Result<Folder, Failure> {
+        state.withLock { state in
+            let name: String
+            switch Self.requiredText(body["name"], label: "Folder name") {
+            case .success(let text): name = text
+            case .failure(let failure): return .failure(failure)
+            }
+            let page = body["examPageId"] as? String
+            if let page, let failure = Self.page(page, courseID: courseID, in: state) { return .failure(failure) }
+            if let failure = Self.nameTaken(name, courseID: courseID, page: page, except: [], in: state) { return .failure(failure) }
+            return .success(Self.newFolder(name, courseID: courseID, page: page, in: &state))
+        }
+    }
+
+    /// Renames a folder, puts it on an exam page, or takes it off one. A folder that changes list
+    /// goes to the end of its new list.
+    private func changeFolder(id: String, body: [String: Any]) -> Result<Folder, Failure> {
+        state.withLock { state in
+            guard let index = state.folders.firstIndex(where: { $0.id == id }) else {
+                return .failure(Failure(status: 404, message: "That folder is not in the app."))
+            }
+            let folder = state.folders[index]
+            var name = folder.name
+            if body.keys.contains("name") {
+                switch Self.requiredText(body["name"], label: "Folder name") {
+                case .success(let text): name = text
+                case .failure(let failure): return .failure(failure)
+                }
+            }
+            let page = body.keys.contains("examPageId") ? body["examPageId"] as? String : folder.examPageID
+            if let page, let failure = Self.page(page, courseID: folder.courseID, in: state) { return .failure(failure) }
+            if let failure = Self.nameTaken(name, courseID: folder.courseID, page: page, except: [id], in: state) { return .failure(failure) }
+            if page != folder.examPageID {
+                state.folders[index].sortOrder = Self.end(of: page, courseID: folder.courseID, in: state)
+                state.folders[index].examPageID = page
+            }
+            state.folders[index].name = name
+            return .success(state.folders[index])
+        }
+    }
+
+    /// Moves a set to a folder of its course, or to a new one at the end of the Folders list.
+    private func moveSet(id: String, body: [String: Any]) -> Result<Folder, Failure> {
+        state.withLock { state in
+            guard let from = state.folders.firstIndex(where: { $0.sets.contains(id) }) else {
+                return .failure(Failure(status: 404, message: "That set is not in the app."))
+            }
+            let courseID = state.folders[from].courseID
+            let folderID = body["folderId"] as? String, newName = body["newFolderName"]
+            if folderID != nil, newName != nil { return .failure(Failure(status: 400, message: "Choose a folder or a new folder name, not both.")) }
+            let to: Int
+            if let folderID {
+                guard let index = state.folders.firstIndex(where: { $0.id == folderID && $0.courseID == courseID }) else {
+                    return .failure(Failure(status: 400, message: "That folder is not in this course."))
+                }
+                to = index
+            } else if newName != nil {
+                let name: String
+                switch Self.requiredText(newName, label: "Folder name") {
+                case .success(let text): name = text
+                case .failure(let failure): return .failure(failure)
+                }
+                if let failure = Self.nameTaken(name, courseID: courseID, page: nil, except: [], in: state) { return .failure(failure) }
+                _ = Self.newFolder(name, courseID: courseID, page: nil, in: &state)
+                to = state.folders.count - 1
+            } else {
+                return .failure(Failure(status: 400, message: "Choose a folder to move it to."))
+            }
+            if to != from {
+                state.folders[from].sets.removeAll { $0 == id }
+                state.folders[to].sets.append(id)
+            }
+            return .success(state.folders[to])
+        }
+    }
+
+    /// Saves her order of one list. A list that does not name exactly its folders is refused.
+    private func reorder(courseID: String, body: [String: Any], _ folderJSON: (Folder) -> [String: Any]) -> Reply {
+        let result = state.withLock { state -> Result<[Folder], Failure> in
+            let page = body["examPageId"] as? String
+            if let page, let failure = Self.page(page, courseID: courseID, in: state) { return .failure(failure) }
+            let ids = body["folderIds"] as? [String] ?? []
+            let list = state.folders.filter { $0.courseID == courseID && $0.examPageID == page }.map(\.id)
+            guard ids.count == list.count, Set(ids) == Set(list) else {
+                return .failure(Failure(status: 409, message: "The folders changed since this list was shown. Reload and try again."))
+            }
+            for (position, id) in ids.enumerated() {
+                if let index = state.folders.firstIndex(where: { $0.id == id }) { state.folders[index].sortOrder = position + 1 }
+            }
+            return .success(ids.compactMap { id in state.folders.first { $0.id == id } })
+        }
+        switch result {
+        case .success(let folders): return (200, ["folders": folders.map(folderJSON)])
+        case .failure(let failure): return failure.reply
+        }
+    }
+
+    /// Adds an exam page or renames one and sets its folders, in the order sent. Folders it gives
+    /// up go to the end of the Folders list.
     private func saveCourseExam(courseID givenCourse: String?, id: String?, body: [String: Any]) -> Reply {
         state.withLock { state -> Reply in
             let courseID: String
             if let id {
-                guard let course = state.courseExams.first(where: { $0.value.contains { $0.id == id } })?.key else {
+                guard let page = state.courseExams.first(where: { $0.id == id }) else {
                     return Self.failure(404, "request_refused", "That exam is not in the app.")
                 }
-                courseID = course
+                courseID = page.courseID
             } else {
                 courseID = givenCourse ?? ""
             }
-            guard let weeks = Self.examWeeks(courseID) else { return Self.failure(404, "request_refused", "That course is not in the app.") }
-            let name = (body["name"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !name.isEmpty else { return Self.failure(400, "request_refused", "Exam name is required.") }
-            guard name.count <= 80 else { return Self.failure(400, "request_refused", "Exam name is too long.") }
-            let labels = Array(Set((body["weekLabels"] as? [String] ?? []).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }))
-                .sorted(by: EditExamsModel.weekOrder)
-            var exams = state.courseExams[courseID] ?? []
-            let others = exams.filter { $0.id != id }
-            if others.contains(where: { $0.name.lowercased() == name.lowercased() }) {
+            let name: String
+            switch Self.requiredText(body["name"], label: "Exam name") {
+            case .success(let text): name = text
+            case .failure(let failure): return failure.reply
+            }
+            if state.courseExams.contains(where: { $0.courseID == courseID && $0.id != id && $0.name.lowercased() == name.lowercased() }) {
                 return Self.failure(409, "request_refused", "This course already has an exam named \(name).")
             }
-            let kept = Set(exams.first { $0.id == id }?.weekLabels ?? [])
-            let unknown = labels.filter { label in !weeks.contains { $0.label == label } && !kept.contains(label) }
-            if !unknown.isEmpty {
-                return Self.failure(400, "request_refused", "\(Self.listText(unknown)) \(unknown.count == 1 ? "is not a week" : "are not weeks") in this course.")
+            let sent = body["folderIds"] as? [String]
+            var target: [Folder] = []
+            for folderID in sent ?? [] where !target.contains(where: { $0.id == folderID }) {
+                guard let folder = state.folders.first(where: { $0.id == folderID && $0.courseID == courseID }) else {
+                    let missing = Set(sent ?? []).count { folderID in !state.folders.contains { $0.id == folderID && $0.courseID == courseID } }
+                    return Self.failure(400, "request_refused", missing == 1 ? "That folder is not in this course." : "Those folders are not in this course.")
+                }
+                target.append(folder)
             }
-            let taken = others.compactMap { exam -> String? in
-                let held = labels.filter(exam.weekLabels.contains)
-                guard !held.isEmpty else { return nil }
-                return "\(Self.listText(held)) \(held.count == 1 ? "is" : "are") in \(exam.name)."
+            // A folder of another page is refused, naming the page that has it.
+            var held: [(page: String, names: [String])] = []
+            for folder in target {
+                guard let holder = folder.examPageID, holder != id else { continue }
+                let pageName = state.courseExams.first { $0.id == holder }?.name ?? "another exam page"
+                if let index = held.firstIndex(where: { $0.page == pageName }) { held[index].names.append(folder.name) } else { held.append((pageName, [folder.name])) }
             }
-            if !taken.isEmpty { return Self.failure(409, "request_refused", taken.joined(separator: " ")) }
-            if let id, let index = exams.firstIndex(where: { $0.id == id }) {
-                exams[index].name = name
-                exams[index].weekLabels = labels
-                state.courseExams[courseID] = exams
-                return (200, exams[index].json)
+            if !held.isEmpty {
+                return Self.failure(409, "request_refused", held.map { "\(Self.listText($0.names)) \($0.names.count == 1 ? "is" : "are") in \($0.page)." }.joined(separator: " "))
             }
-            state.courseExamCount += 1
-            let exam = CourseExam(
-                id: String(format: "c0e00000-0000-4000-8000-%012d", 100 + state.courseExamCount), name: name,
-                sortOrder: (exams.map(\.sortOrder).max() ?? 0) + 1, weekLabels: labels
-            )
-            exams.append(exam)
-            state.courseExams[courseID] = exams
-            return (201, exam.json)
+            for (index, folder) in target.enumerated() {
+                if let clash = target.prefix(index).first(where: { $0.name.lowercased() == folder.name.lowercased() }) {
+                    return Self.failure(409, "request_refused", "\(name) already has a folder named \(clash.name).")
+                }
+            }
+            let keep = Set(target.map(\.id))
+            let leaving = id.map { id in Self.ordered(state, courseID: courseID).filter { $0.examPageID == id && !keep.contains($0.id) } } ?? []
+            if sent != nil {
+                for folder in leaving {
+                    if let failure = Self.nameTaken(folder.name, courseID: courseID, page: nil, except: keep.union([folder.id]), in: state) { return failure.reply }
+                }
+            }
+            let page: CourseExam
+            if let id, let index = state.courseExams.firstIndex(where: { $0.id == id }) {
+                state.courseExams[index].name = name
+                page = state.courseExams[index]
+            } else {
+                state.courseExamCount += 1
+                page = CourseExam(
+                    id: String(format: "c0e00000-0000-4000-8000-%012d", 100 + state.courseExamCount), courseID: courseID, name: name,
+                    sortOrder: (state.courseExams.filter { $0.courseID == courseID }.map(\.sortOrder).max() ?? 0) + 1
+                )
+                state.courseExams.append(page)
+            }
+            // Without folderIds a page keeps its folders.
+            if sent != nil {
+                for folder in leaving {
+                    guard let index = state.folders.firstIndex(where: { $0.id == folder.id }) else { continue }
+                    state.folders[index].sortOrder = Self.end(of: nil, courseID: courseID, in: state)
+                    state.folders[index].examPageID = nil
+                }
+                for (position, folder) in target.enumerated() {
+                    guard let index = state.folders.firstIndex(where: { $0.id == folder.id }) else { continue }
+                    state.folders[index].examPageID = page.id
+                    state.folders[index].sortOrder = position + 1
+                }
+            }
+            return (id == nil ? 201 : 200, Self.pageJSON(page, in: state))
         }
     }
 
+    /// Removes an exam page. Its folders go to the end of the Folders list, unless one has the name
+    /// of a folder already there.
     private func deleteCourseExam(id: String) -> Reply {
         state.withLock { state -> Reply in
-            guard let course = state.courseExams.first(where: { $0.value.contains { $0.id == id } })?.key else {
+            guard let page = state.courseExams.first(where: { $0.id == id }) else {
                 return Self.failure(404, "request_refused", "That exam is not in the app.")
             }
-            state.courseExams[course]?.removeAll { $0.id == id }
+            let own = Self.ordered(state, courseID: page.courseID).filter { $0.examPageID == id }
+            for folder in own {
+                if let clash = state.folders.first(where: { $0.courseID == page.courseID && $0.examPageID == nil && $0.name.lowercased() == folder.name.lowercased() }) {
+                    let code = Self.codes[page.courseID] ?? "This course"
+                    return Self.failure(409, "request_refused", "\(code) already has a folder named \(clash.name) in its Folders list. Rename one of them before removing \(page.name).")
+                }
+            }
+            for folder in own {
+                guard let index = state.folders.firstIndex(where: { $0.id == folder.id }) else { continue }
+                state.folders[index].sortOrder = Self.end(of: nil, courseID: page.courseID, in: state)
+                state.folders[index].examPageID = nil
+            }
+            state.courseExams.removeAll { $0.id == id }
             return (204, [:])
         }
     }

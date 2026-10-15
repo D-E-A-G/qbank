@@ -15,8 +15,8 @@ enum ExamExit {
     case openReview
 }
 
-/// Exam setup: Resume her running exam, Wrong questions only, the weeks to tick, the summary of
-/// what Start draws, Start exam, and her past exams.
+/// Exam setup: Resume her running exam, Wrong questions only, the folders to tick by exam page,
+/// the summary of what Start draws, Start exam, and her past exams.
 struct ExamSetupView: View {
     let app: AppModel
     @State private var model: ExamSetupModel
@@ -80,16 +80,16 @@ struct ExamSetupView: View {
     @ViewBuilder
     private var content: some View {
         if let setup = model.setup {
-            if setup.weeks.isEmpty {
-                EmptyCard(message: "This course has no questions yet. An exam draws from the weeks you import.", systemImage: "timer")
+            if setup.folders.isEmpty {
+                EmptyCard(message: "This course has no questions yet. An exam draws from the sets in the folders you tick.", systemImage: "timer")
             } else {
                 wrongOnlySwitch
-                weekPicker
+                folderPicker
                 if model.isStudent {
                     summary
                 }
             }
-            if !setup.weeks.isEmpty {
+            if !setup.folders.isEmpty {
                 pastExams(setup.exams)
             }
         } else if model.problem == nil, !model.needsConnection {
@@ -141,9 +141,9 @@ struct ExamSetupView: View {
         }
     }
 
-    private var weekPicker: some View {
+    private var folderPicker: some View {
         VStack(alignment: .leading, spacing: 6) {
-            QBankSectionHeader("Weeks this exam covers")
+            QBankSectionHeader("Folders this exam covers")
                 .padding(.horizontal, QBankSpacing.space5)
             if let line = model.preselectedLine {
                 Text(line)
@@ -153,20 +153,36 @@ struct ExamSetupView: View {
                     .padding(.bottom, QBankSpacing.space1)
                     .accessibilityIdentifier("exam.preselected")
             }
-            QBankListGroup(footer: model.footer) {
-                ForEach(model.weeks) { week in
-                    WeekPickRow(
-                        week: week,
-                        meta: model.meta(week),
-                        isTicked: model.isTicked(week),
-                        canTick: model.canTick(week),
-                        drawn: model.drawn(week),
-                        isStudent: model.isStudent
-                    ) {
-                        model.toggle(week)
+            ForEach(model.groups) { group in
+                if let title = group.title {
+                    Text(title)
+                        .qbankFont(.subheadline, weight: .semibold)
+                        .foregroundStyle(.qbank(.text2))
+                        .padding(.horizontal, QBankSpacing.space5)
+                        .padding(.top, QBankSpacing.space3)
+                        .accessibilityAddTraits(.isHeader)
+                }
+                QBankListGroup {
+                    ForEach(group.folders) { folder in
+                        FolderPickRow(
+                            name: folder.name,
+                            meta: model.meta(folder),
+                            isTicked: model.isTicked(folder),
+                            canTick: model.canTick(folder),
+                            drawn: model.drawn(folder),
+                            isStudent: model.isStudent
+                        ) {
+                            model.toggle(folder)
+                        }
+                        // With its page when another folder shares its name, so each row is found by one name.
+                        .accessibilityIdentifier("exam.folder.\(model.name(folder))")
                     }
                 }
             }
+            Text(model.footer)
+                .qbankFont(.footnote)
+                .foregroundStyle(.qbank(.text3))
+                .padding(.horizontal, QBankSpacing.space5)
         }
     }
 
@@ -262,9 +278,9 @@ struct ExamSetupView: View {
     }
 }
 
-/// A week to tick: its label, its question or wrong count, and how many the exam takes from it.
-private struct WeekPickRow: View {
-    let week: ExamSetup.Week
+/// A folder to tick: its name, its question or wrong count, and how many the exam takes from it.
+private struct FolderPickRow: View {
+    let name: String
     let meta: String
     let isTicked: Bool
     let canTick: Bool
@@ -282,10 +298,10 @@ private struct WeekPickRow: View {
                         .accessibilityHidden(true)
                 }
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(week.label)
+                    Text(name)
                         .qbankFont(.body)
                         .foregroundStyle(.qbank(.text1))
-                    Text(meta)
+                    QBankDetailText(meta)
                         .qbankFont(.footnote)
                         .foregroundStyle(.qbank(.text3))
                 }
@@ -306,18 +322,17 @@ private struct WeekPickRow: View {
         .disabled(!isStudent || !canTick)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(isTicked ? .isSelected : [])
-        .accessibilityIdentifier("exam.week.\(week.label)")
     }
 }
 
-/// A past exam: its weeks and date, its minutes and kind, and how many were fully right.
+/// A past exam: its folders and date, its minutes and kind, and how many were fully right.
 struct PastExamRow: View {
     let exam: ExamSummary
 
     var body: some View {
         HStack(spacing: QBankSpacing.space4) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(exam.finishedAt == nil ? "\(Wording.weeks(exam.weeks)) · In progress" : exam.pastTitle)
+                Text(exam.finishedAt == nil ? "\(Wording.folders(exam.weeks)) · In progress" : exam.pastTitle)
                     .qbankFont(.body)
                     .foregroundStyle(.qbank(.text1))
                 Text(exam.finishedAt == nil ? "\(exam.answeredCount) of \(exam.questionCount) answered" : exam.pastLine)

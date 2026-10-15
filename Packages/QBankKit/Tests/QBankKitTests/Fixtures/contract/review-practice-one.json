@@ -1,10 +1,10 @@
 {
-  "recordedFrom": "2b7a4291fc79877edeb8e4eb0e430209ef56fd8b",
+  "recordedFrom": "9fa05c0b3f85764a60f8c8afaa8ca702241aded7",
   "request": {
     "method": "GET",
-    "path": "/api/courses/6081c42b-988b-40d1-8068-273a13195673/review/practice",
+    "path": "/api/courses/7a7665d2-2bbe-4093-ae10-a2cf1c968283/review/practice",
     "query": {
-      "question": "0cac9fe8-9223-4442-8cf3-b930c6d6d4fa"
+      "question": "ac544ab7-34aa-4521-bc6a-6f36a1b6468a"
     },
     "authorization": "Bearer synthetic-session-token",
     "body": null
@@ -13,14 +13,15 @@
     "status": 200,
     "headers": {},
     "body": {
-      "id": "6081c42b-988b-40d1-8068-273a13195673",
-      "courseId": "6081c42b-988b-40d1-8068-273a13195673",
+      "id": "7a7665d2-2bbe-4093-ae10-a2cf1c968283",
+      "courseId": "7a7665d2-2bbe-4093-ae10-a2cf1c968283",
       "title": "Review question",
       "weekLabel": "",
+      "folderId": null,
       "kind": "practice",
       "questions": [
         {
-          "id": "0cac9fe8-9223-4442-8cf3-b930c6d6d4fa",
+          "id": "ac544ab7-34aa-4521-bc6a-6f36a1b6468a",
           "publicId": "Q1",
           "position": 1,
           "type": "single",
@@ -65,6 +66,27 @@
               }
             ]
           },
+          "table": {
+            "caption": "Invented readings",
+            "head": [
+              "Time",
+              "HR",
+              ""
+            ],
+            "rows": [
+              [
+                "0900",
+                "82",
+                ""
+              ],
+              [
+                "0915",
+                "94",
+                "extra"
+              ]
+            ]
+          },
+          "images": [],
           "terms": [
             {
               "key": "tachy",

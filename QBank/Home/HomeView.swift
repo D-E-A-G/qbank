@@ -140,7 +140,7 @@ struct CourseCard: View {
                 .foregroundStyle(.qbank(.text1))
                 .multilineTextAlignment(.leading)
             HStack(alignment: .center, spacing: QBankSpacing.space3) {
-                Text(Wording.size(questions: course.questionCount, weeks: course.weekCount))
+                Text(Wording.size(questions: course.questionCount, folders: course.folderCount))
                     .qbankFont(.subheadline)
                     .foregroundStyle(.qbank(.text2))
                 Spacer(minLength: 0)

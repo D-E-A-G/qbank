@@ -137,7 +137,7 @@ private struct ReviewRow: View {
                     .qbankFont(.body)
                     .foregroundStyle(.qbank(.text1))
                     .multilineTextAlignment(.leading)
-                Text("\(question.weekLabel) · \(question.format)")
+                Text("\(question.folderName) · \(question.format)")
                     .qbankFont(.footnote)
                     .foregroundStyle(.qbank(.text3))
                 Text("\(question.setTitle) · \(Wording.when(question.answeredAt))")

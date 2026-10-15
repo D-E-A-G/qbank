@@ -1,13 +1,13 @@
 {
-  "recordedFrom": "2b7a4291fc79877edeb8e4eb0e430209ef56fd8b",
+  "recordedFrom": "9fa05c0b3f85764a60f8c8afaa8ca702241aded7",
   "request": {
     "method": "POST",
-    "path": "/api/courses/6081c42b-988b-40d1-8068-273a13195673/exams",
+    "path": "/api/courses/7a7665d2-2bbe-4093-ae10-a2cf1c968283/exams",
     "query": {},
     "authorization": "Bearer synthetic-session-token",
     "body": {
-      "weeks": [
-        "Week 2"
+      "folderIds": [
+        "31e05eea-ece9-409f-9696-b035a99c94c4"
       ],
       "pool": "wrong"
     }

@@ -1,8 +1,8 @@
 {
-  "recordedFrom": "2b7a4291fc79877edeb8e4eb0e430209ef56fd8b",
+  "recordedFrom": "9fa05c0b3f85764a60f8c8afaa8ca702241aded7",
   "request": {
     "method": "GET",
-    "path": "/api/courses/6081c42b-988b-40d1-8068-273a13195673/review/practice",
+    "path": "/api/courses/7a7665d2-2bbe-4093-ae10-a2cf1c968283/review/practice",
     "query": {
       "filter": "missed"
     },
@@ -13,16 +13,55 @@
     "status": 200,
     "headers": {},
     "body": {
-      "id": "6081c42b-988b-40d1-8068-273a13195673",
-      "courseId": "6081c42b-988b-40d1-8068-273a13195673",
+      "id": "7a7665d2-2bbe-4093-ae10-a2cf1c968283",
+      "courseId": "7a7665d2-2bbe-4093-ae10-a2cf1c968283",
       "title": "Review",
       "weekLabel": "",
+      "folderId": null,
       "kind": "practice",
       "questions": [
         {
-          "id": "0cac9fe8-9223-4442-8cf3-b930c6d6d4fa",
-          "publicId": "Q1",
+          "id": "386c7a73-e49f-42bf-b6e1-5a5637b8cd58",
+          "publicId": "Q3",
           "position": 1,
+          "type": "sata",
+          "topic": "Invented select-all topic",
+          "cj": "Analyze cues",
+          "stem": "An invented finding.",
+          "ask": "Select all that apply.",
+          "rationale": "Three are right.",
+          "takeaway": "Count the right ones.",
+          "body": {
+            "options": [
+              {
+                "t": "Right one",
+                "ok": true,
+                "why": "Yes."
+              },
+              {
+                "t": "Right two",
+                "ok": true,
+                "why": "Yes."
+              },
+              {
+                "t": "Wrong one",
+                "why": "No."
+              },
+              {
+                "t": "Right three",
+                "ok": true,
+                "why": "Yes."
+              }
+            ]
+          },
+          "table": null,
+          "images": [],
+          "terms": []
+        },
+        {
+          "id": "ac544ab7-34aa-4521-bc6a-6f36a1b6468a",
+          "publicId": "Q1",
+          "position": 2,
           "type": "single",
           "topic": "Invented single topic",
           "cj": "Analyze cues",
@@ -65,6 +104,27 @@
               }
             ]
           },
+          "table": {
+            "caption": "Invented readings",
+            "head": [
+              "Time",
+              "HR",
+              ""
+            ],
+            "rows": [
+              [
+                "0900",
+                "82",
+                ""
+              ],
+              [
+                "0915",
+                "94",
+                "extra"
+              ]
+            ]
+          },
+          "images": [],
           "terms": [
             {
               "key": "tachy",
@@ -72,42 +132,6 @@
               "meaning": "An invented definition of a fast heart rate."
             }
           ]
-        },
-        {
-          "id": "88ee2607-d52e-4ca9-8525-2978ead685c0",
-          "publicId": "Q3",
-          "position": 2,
-          "type": "sata",
-          "topic": "Invented select-all topic",
-          "cj": "Analyze cues",
-          "stem": "An invented finding.",
-          "ask": "Select all that apply.",
-          "rationale": "Three are right.",
-          "takeaway": "Count the right ones.",
-          "body": {
-            "options": [
-              {
-                "t": "Right one",
-                "ok": true,
-                "why": "Yes."
-              },
-              {
-                "t": "Right two",
-                "ok": true,
-                "why": "Yes."
-              },
-              {
-                "t": "Wrong one",
-                "why": "No."
-              },
-              {
-                "t": "Right three",
-                "ok": true,
-                "why": "Yes."
-              }
-            ]
-          },
-          "terms": []
         }
       ]
     }

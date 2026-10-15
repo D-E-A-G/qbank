@@ -1,5 +1,5 @@
 {
-  "recordedFrom": "a1a22c1424b751417b30830ee4b96266f5519255",
+  "recordedFrom": "9fa05c0b3f85764a60f8c8afaa8ca702241aded7",
   "request": {
     "method": "POST",
     "path": "/api/courses/c0000000-0000-4000-8000-000000000101/course-exams",
@@ -7,17 +7,18 @@
     "authorization": "Bearer synthetic-session-token",
     "body": {
       "name": "Exam 2",
-      "weekLabels": [
-        "Week 9"
+      "folderIds": [
+        "f0000000-0000-4000-8000-000000000002",
+        "f0000000-0000-4000-8000-000000000003"
       ]
     }
   },
   "response": {
-    "status": 400,
+    "status": 409,
     "headers": {},
     "body": {
       "error": "request_refused",
-      "message": "Week 9 is not a week in this course."
+      "message": "Week 2 is in Exam 1."
     }
   }
 }

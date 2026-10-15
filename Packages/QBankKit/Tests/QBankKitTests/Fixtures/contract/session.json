@@ -1,5 +1,5 @@
 {
-  "recordedFrom": "2b7a4291fc79877edeb8e4eb0e430209ef56fd8b",
+  "recordedFrom": "9fa05c0b3f85764a60f8c8afaa8ca702241aded7",
   "request": {
     "method": "GET",
     "path": "/api/session",
@@ -12,13 +12,13 @@
     "headers": {},
     "body": {
       "user": {
-        "id": "GPk4e5YvG1XWCaspBsljrnmmgWFH6VFO",
+        "id": "E4ohQeEEdZukkd7rLfYsOVOdD5URq6k7",
         "email": "student@example.com",
         "name": "Sam Student",
         "role": "student",
         "mustChangePassword": false
       },
-      "expiresAt": "2027-11-17T00:02:35.383Z"
+      "expiresAt": "2027-11-19T02:12:18.605Z"
     }
   }
 }

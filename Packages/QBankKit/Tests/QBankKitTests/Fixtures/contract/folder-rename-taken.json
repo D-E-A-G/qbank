@@ -1,0 +1,20 @@
+{
+  "recordedFrom": "9fa05c0b3f85764a60f8c8afaa8ca702241aded7",
+  "request": {
+    "method": "PATCH",
+    "path": "/api/folders/f0000000-0000-4000-8000-000000000002",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": {
+      "name": "week 1"
+    }
+  },
+  "response": {
+    "status": 409,
+    "headers": {},
+    "body": {
+      "error": "request_refused",
+      "message": "Midterm already has a folder named Week 1."
+    }
+  }
+}

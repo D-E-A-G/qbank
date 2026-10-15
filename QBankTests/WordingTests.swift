@@ -9,7 +9,8 @@ struct WordingTests {
     @Test func counts() {
         #expect(Wording.count(1, "question") == "1 question")
         #expect(Wording.count(86, "question") == "86 questions")
-        #expect(Wording.size(questions: 1, weeks: 3) == "1 question · 3 weeks")
+        #expect(Wording.size(questions: 1, folders: 3) == "1 question · 3 folders")
+        #expect(Wording.size(questions: 86, folders: 1) == "86 questions · 1 folder")
     }
 
     @Test func todayOrAShortDate() {
@@ -22,17 +23,6 @@ struct WordingTests {
     @Test(arguments: [(0, "Not ready"), (4, "6 min"), (5, "7.5 min"), (39, "58.5 min"), (40, "60 min"), (134, "60 min")])
     func examLength(questions: Int, expected: String) {
         #expect(Wording.examLength(questionCount: questions) == expected)
-    }
-
-    @Test func examBankLine() throws {
-        let weeks = try QBankJSON.decoder.decode([Week].self, from: Data(#"""
-        [{"label":"Week 1","sets":[],"examBankCount":17},{"label":"Week 2","sets":[],"examBankCount":1},{"label":"Week 3","sets":[],"examBankCount":0}]
-        """#.utf8))
-        #expect(weeks.map(Wording.examBank) == [
-            "Exam bank · 17 questions",
-            "Exam bank · 1 question",
-            "No exam bank yet · exams use practice questions",
-        ])
     }
 
     @Test func setStatusLines() throws {

@@ -26,8 +26,6 @@ final class AppModel {
     let client: QBankClient
     /// Light or dark, chosen in Settings and kept on this phone.
     let look: LookStore
-    /// How she left each course page on this phone: open folders, by week or by exam.
-    let courseMemory: CourseMemory
     /// Whether the phone has a network path.
     let connection: Connection
     /// Saved courses and unsent answers for the account on this phone. Nil when signed out.
@@ -39,14 +37,12 @@ final class AppModel {
     init(
         client: QBankClient,
         look: LookStore = LookStore(),
-        courseMemory: CourseMemory = CourseMemory(),
         storage: PhoneStorage,
         connection: Connection = Connection(),
         networkWatcher: NetworkWatcher? = nil
     ) {
         self.client = client
         self.look = look
-        self.courseMemory = courseMemory
         self.storage = storage
         self.connection = connection
         self.networkWatcher = networkWatcher

@@ -1,8 +1,8 @@
 {
-  "recordedFrom": "2b7a4291fc79877edeb8e4eb0e430209ef56fd8b",
+  "recordedFrom": "9fa05c0b3f85764a60f8c8afaa8ca702241aded7",
   "request": {
     "method": "GET",
-    "path": "/api/courses/6081c42b-988b-40d1-8068-273a13195673/review",
+    "path": "/api/courses/7a7665d2-2bbe-4093-ae10-a2cf1c968283/review",
     "query": {},
     "authorization": "Bearer synthetic-session-token",
     "body": null
@@ -20,73 +20,87 @@
       },
       "questions": [
         {
-          "questionId": "9ef41f2f-f325-46c3-b718-4e58466fd1c4",
+          "questionId": "3500ac88-16e1-48ca-b46e-ceeae9edee38",
           "topic": "Invented cloze topic",
           "weekLabel": "Week 1",
+          "folderId": "de55efe2-6662-4fea-bf71-2c26199059b2",
+          "folderName": "Week 1",
           "format": "Drop-down cloze",
           "status": "partial",
           "guessed": false,
-          "answeredAt": "2026-10-13T00:02:35.480Z",
+          "answeredAt": "2026-10-15T02:12:18.746Z",
           "setTitle": "Week 1 - Set 1: Invented basics"
         },
         {
-          "questionId": "8a42afe7-8190-4732-adf8-d4fc5dd99ee0",
+          "questionId": "34793561-87b1-4dcd-a26b-b039f2b35a53",
           "topic": "Invented matrix topic",
           "weekLabel": "Week 1",
+          "folderId": "de55efe2-6662-4fea-bf71-2c26199059b2",
+          "folderName": "Week 1",
           "format": "Matrix",
           "status": "partial",
           "guessed": false,
-          "answeredAt": "2026-10-13T00:02:35.476Z",
+          "answeredAt": "2026-10-15T02:12:18.740Z",
           "setTitle": "Week 1 - Set 1: Invented basics"
         },
         {
-          "questionId": "8f5f7b74-9d6c-47d9-bd95-7e40cbe955e2",
+          "questionId": "840dbb5e-49c5-4682-b80a-b194defad93b",
           "topic": "Invented match topic",
           "weekLabel": "Week 1",
+          "folderId": "de55efe2-6662-4fea-bf71-2c26199059b2",
+          "folderName": "Week 1",
           "format": "Matching",
           "status": "partial",
           "guessed": false,
-          "answeredAt": "2026-10-13T00:02:35.472Z",
+          "answeredAt": "2026-10-15T02:12:18.736Z",
           "setTitle": "Week 1 - Set 1: Invented basics"
         },
         {
-          "questionId": "af8621ee-2e54-46d6-a671-7277fdda2d25",
+          "questionId": "2a601fef-df72-401a-9c7f-3ddcb39951d6",
           "topic": "Invented order topic",
           "weekLabel": "Week 1",
+          "folderId": "de55efe2-6662-4fea-bf71-2c26199059b2",
+          "folderName": "Week 1",
           "format": "Ordered response",
           "status": "partial",
           "guessed": false,
-          "answeredAt": "2026-10-13T00:02:35.469Z",
+          "answeredAt": "2026-10-15T02:12:18.731Z",
           "setTitle": "Week 1 - Set 1: Invented basics"
         },
         {
-          "questionId": "2889259f-bd71-4728-a70a-8f0f66859b13",
+          "questionId": "9f34ee17-2d1d-41c5-af75-f7656a0810cc",
           "topic": "Invented priority topic",
           "weekLabel": "Week 1",
+          "folderId": "de55efe2-6662-4fea-bf71-2c26199059b2",
+          "folderName": "Week 1",
           "format": "Priority / first action",
           "status": "correct",
           "guessed": true,
-          "answeredAt": "2026-10-13T00:02:35.461Z",
+          "answeredAt": "2026-10-15T02:12:18.723Z",
           "setTitle": "Week 1 - Set 1: Invented basics"
         },
         {
-          "questionId": "88ee2607-d52e-4ca9-8525-2978ead685c0",
+          "questionId": "386c7a73-e49f-42bf-b6e1-5a5637b8cd58",
           "topic": "Invented select-all topic",
           "weekLabel": "Week 1",
+          "folderId": "de55efe2-6662-4fea-bf71-2c26199059b2",
+          "folderName": "Week 1",
           "format": "Select all that apply",
           "status": "incorrect",
           "guessed": false,
-          "answeredAt": "2026-10-13T00:02:35.458Z",
+          "answeredAt": "2026-10-15T02:12:18.717Z",
           "setTitle": "Week 1 - Set 1: Invented basics"
         },
         {
-          "questionId": "0cac9fe8-9223-4442-8cf3-b930c6d6d4fa",
+          "questionId": "ac544ab7-34aa-4521-bc6a-6f36a1b6468a",
           "topic": "Invented single topic",
           "weekLabel": "Week 1",
+          "folderId": "de55efe2-6662-4fea-bf71-2c26199059b2",
+          "folderName": "Week 1",
           "format": "Single answer",
           "status": "incorrect",
           "guessed": false,
-          "answeredAt": "2026-10-13T00:02:35.438Z",
+          "answeredAt": "2026-10-15T02:12:18.695Z",
           "setTitle": "Week 1 - Set 1: Invented basics"
         }
       ]

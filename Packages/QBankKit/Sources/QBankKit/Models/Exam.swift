@@ -1,8 +1,8 @@
 import Foundation
 
-/// Which questions an exam draws from inside the ticked weeks.
+/// Which questions an exam draws from inside the ticked folders.
 public enum ExamPool: String, Codable, Sendable, CaseIterable {
-    /// Every question of the ticked weeks.
+    /// Every question of the ticked folders.
     case all
     /// Only the questions she last answered not fully right.
     case wrong
@@ -18,8 +18,35 @@ public enum ExamEndReason: String, Codable, Sendable {
     case timeout
 }
 
-/// `GET /api/courses/{id}/exams`: the week picker, her running exam, and her ended exams.
+/// `GET /api/courses/{id}/exams`: the folder picker, her running exam, and her ended exams.
 public struct ExamSetup: Codable, Sendable, Equatable {
+    /// A folder to tick, with what an exam over it draws from.
+    public struct Folder: Codable, Sendable, Equatable, Identifiable {
+        public let id: String
+        public let name: String
+        /// The exam page it is on, or nil.
+        public let examPageID: String?
+        /// How many questions an exam over this folder draws from.
+        public let questionCount: Int
+        /// Of those, the ones she last answered not fully right: what a wrong-questions exam draws from.
+        public let wrongCount: Int
+        public let source: Week.Source
+
+        public init(id: String, name: String, examPageID: String?, questionCount: Int, wrongCount: Int, source: Week.Source) {
+            self.id = id
+            self.name = name
+            self.examPageID = examPageID
+            self.questionCount = questionCount
+            self.wrongCount = wrongCount
+            self.source = source
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case id, name, questionCount, wrongCount, source
+            case examPageID = "examPageId"
+        }
+    }
+
     public struct Week: Codable, Sendable, Equatable, Identifiable {
         public enum Source: String, Codable, Sendable {
             /// The week has an exam bank.
@@ -39,14 +66,29 @@ public struct ExamSetup: Codable, Sendable, Equatable {
     }
 
     public let courseID: String
+    /// The pools by question week, for an app from before folders.
     public let weeks: [Week]
+    /// The pools by folder: every folder with a current question, in the course's order. From a
+    /// server older than folders, each week reads as a folder identified by its label.
+    public let folders: [Folder]
     public let inProgress: ExamSummary?
     /// Newest first.
     public let exams: [ExamSummary]
 
     enum CodingKeys: String, CodingKey {
-        case weeks, inProgress, exams
+        case weeks, folders, inProgress, exams
         case courseID = "courseId"
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        courseID = try container.decode(String.self, forKey: .courseID)
+        weeks = try container.decode([Week].self, forKey: .weeks)
+        folders = try container.decodeIfPresent([Folder].self, forKey: .folders) ?? weeks.map { week in
+            Folder(id: week.label, name: week.label, examPageID: nil, questionCount: week.questionCount, wrongCount: week.wrongCount, source: week.source)
+        }
+        inProgress = try container.decodeIfPresent(ExamSummary.self, forKey: .inProgress)
+        exams = try container.decode([ExamSummary].self, forKey: .exams)
     }
 }
 
@@ -54,9 +96,12 @@ public struct ExamSetup: Codable, Sendable, Equatable {
 public struct ExamSummary: Codable, Sendable, Equatable, Identifiable {
     public let id: String
     public let courseID: String
+    /// The names of the folders it covered, or of the weeks for an exam from before folders.
     public let weeks: [String]
-    /// The course exam (`CourseDetail.exams`) that holds every one of its weeks, so exams taken
-    /// before it was made belong to it too. Nil when no course exam does.
+    /// The folders it covered, in the course's order. Nil for an exam from before folders.
+    public let folderIDs: [String]?
+    /// The exam page (`CourseDetail.exams`) that holds every one of its folders, so exams taken
+    /// before it was made belong to it too. Nil when no exam page does.
     public let courseExamID: String?
     public let pool: ExamPool
     /// The weeks that had no exam bank, so the exam drew their practice questions.
@@ -79,6 +124,7 @@ public struct ExamSummary: Codable, Sendable, Equatable, Identifiable {
         case finishedAt, endReason, answeredCount, fullyRight, points, maxPoints, minutesUsed
         case courseID = "courseId"
         case courseExamID = "courseExamId"
+        case folderIDs = "folderIds"
     }
 }
 
@@ -88,7 +134,10 @@ public struct Exam: Codable, Sendable, Equatable, Identifiable {
     public let courseID: String
     public let courseCode: String
     public let courseTitle: String
+    /// The names of the folders it covers, as they were when it started.
     public let weeks: [String]
+    /// The folders it covers, in the course's order. Nil for an exam from before folders.
+    public let folderIDs: [String]?
     public let pool: ExamPool
     public let practiceWeeks: [String]?
     public let timeLimitSeconds: Int
@@ -112,19 +161,28 @@ public struct Exam: Codable, Sendable, Equatable, Identifiable {
         case id, courseCode, courseTitle, weeks, pool, practiceWeeks, timeLimitSeconds, startedAt, endsAt
         case finishedAt, endReason, serverNow, questions, result
         case courseID = "courseId"
+        case folderIDs = "folderIds"
         case answeredQuestionIDs = "answeredQuestionIds"
     }
 }
 
 /// The score of an ended exam.
 public struct ExamResult: Codable, Sendable, Equatable {
-    /// Right answers out of the total for one week or one clinical judgment step.
+    /// Right answers out of the total for one folder, week, or clinical judgment step.
     public struct Breakdown: Codable, Sendable, Equatable, Identifiable {
+        /// The folder of a By folder row, since two folders on different exam pages may share a
+        /// name. Nil for the other breakdowns.
+        public let folderID: String?
         public let label: String
         public let right: Int
         public let total: Int
 
-        public var id: String { label }
+        public var id: String { folderID ?? label }
+
+        enum CodingKeys: String, CodingKey {
+            case label, right, total
+            case folderID = "folderId"
+        }
     }
 
     /// One question's mark.
@@ -180,14 +238,17 @@ public struct ExamResult: Codable, Sendable, Equatable {
     public let reviewCount: Int
     /// Exam-bank questions she got wrong. They stay out of Review.
     public let examBankWrong: Int
+    /// By each question's own week, for an app from before folders.
     public let byWeek: [Breakdown]
+    /// By the folder each question was drawn from. Nil for an exam from before folders.
+    public let byFolder: [Breakdown]?
     public let byStep: [Breakdown]
     public let items: [Item]
 }
 
 /// The body of `POST /api/courses/{id}/exams`.
 struct StartExamRequest: Encodable {
-    let weeks: [String]
+    let folderIds: [String]
     let pool: ExamPool
 }
 

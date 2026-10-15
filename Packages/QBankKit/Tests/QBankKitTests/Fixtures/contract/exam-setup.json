@@ -1,8 +1,8 @@
 {
-  "recordedFrom": "a1a22c1424b751417b30830ee4b96266f5519255",
+  "recordedFrom": "9fa05c0b3f85764a60f8c8afaa8ca702241aded7",
   "request": {
     "method": "GET",
-    "path": "/api/courses/2fc1aa3a-1d04-46d1-89ab-4077a36647f8/exams",
+    "path": "/api/courses/7a7665d2-2bbe-4093-ae10-a2cf1c968283/exams",
     "query": {},
     "authorization": "Bearer synthetic-session-token",
     "body": null
@@ -11,7 +11,25 @@
     "status": 200,
     "headers": {},
     "body": {
-      "courseId": "2fc1aa3a-1d04-46d1-89ab-4077a36647f8",
+      "courseId": "7a7665d2-2bbe-4093-ae10-a2cf1c968283",
+      "folders": [
+        {
+          "id": "de55efe2-6662-4fea-bf71-2c26199059b2",
+          "name": "Week 1",
+          "examPageId": null,
+          "questionCount": 2,
+          "wrongCount": 1,
+          "source": "exam"
+        },
+        {
+          "id": "31e05eea-ece9-409f-9696-b035a99c94c4",
+          "name": "Week 2",
+          "examPageId": null,
+          "questionCount": 2,
+          "wrongCount": 0,
+          "source": "practice"
+        }
+      ],
       "weeks": [
         {
           "label": "Week 1",
@@ -27,7 +45,14 @@
         }
       ],
       "inProgress": null,
-      "exams": []
+      "exams": [],
+      "rules": {
+        "maxQuestions": 40,
+        "fullTimeSeconds": 3600,
+        "secondsPerQuestion": 90
+      },
+      "preview": null,
+      "courseExams": []
     }
   }
 }

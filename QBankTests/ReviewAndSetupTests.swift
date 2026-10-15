@@ -144,106 +144,131 @@ struct ExamSetupModelTests {
         return ExamSetupModel(app: app, route: route, now: { QBankJSON.parseDate("2026-10-12T00:05:00.000Z")! })
     }
 
+    private func server(pages: [StudyBodies.Page] = [], pools: [StudyBodies.Pool] = StudyBodies.threePools) -> StubServer {
+        StubServer([
+            "GET /api/courses/c1": .ok(StudyBodies.course(pages: pages)),
+            "GET /api/courses/c1/exams": .ok(StudyBodies.setup(folders: pools)),
+        ])
+    }
+
     @Test func nothingIsTickedUntilSheTicks() async throws {
-        let server = StubServer(["GET /api/courses/c1/exams": .ok(StudyBodies.setup(weeks: StudyBodies.threeWeeks))])
-        let model = model(server)
+        let model = model(server())
         await model.load()
         #expect(model.picked.isEmpty)
         #expect(model.summaryCount == nil)
-        #expect(model.summarySplit == "Tick at least one week.")
-        #expect(model.meta(model.weeks[0]) == "10 questions")
-        #expect(model.meta(model.weeks[2]) == "20 questions · exam bank")
-        #expect(model.footer == "Questions are drawn only from the weeks you tick, in proportion to each week’s size.")
+        #expect(model.summarySplit == "Tick at least one folder.")
+        #expect(model.meta(model.folders[0]) == "10 questions")
+        #expect(model.meta(model.folders[2]) == "20 questions · exam bank")
+        #expect(model.footer == "Questions are drawn only from the folders you tick, in proportion to each folder’s size.")
         #expect(model.preselectedLine == nil)
     }
 
-    @Test func tickedWeeksMakeThePlanAndItsSummary() async throws {
-        let server = StubServer(["GET /api/courses/c1/exams": .ok(StudyBodies.setup(weeks: StudyBodies.threeWeeks))])
+    @Test func foldersAreGroupedByExamPageInHerOrder() async throws {
+        let pools = StudyBodies.threePools.map { pool in
+            (pool.id, pool.name, pool.id == "f3" ? nil : "x1", pool.count, pool.wrong, pool.source) as StudyBodies.Pool
+        }
+        let model = model(server(pages: [("x1", "Exam 1", ["f2", "f1"])], pools: pools))
+        await model.load()
+        #expect(model.groups.map(\.title) == ["Exam 1", "On no exam page"])
+        #expect(model.groups.map { $0.folders.map(\.name) } == [["Week 2", "Week 1"], ["Week 3"]])
+    }
+
+    @Test func withoutTheCourseTheFoldersShowAsTheSetupListsThem() async throws {
+        let server = StubServer(["GET /api/courses/c1/exams": .ok(StudyBodies.setup(folders: StudyBodies.threePools))])
         let model = model(server)
         await model.load()
-        model.toggle(model.weeks[0])
-        model.toggle(model.weeks[2])
-        #expect(model.picked.map(\.label) == ["Week 1", "Week 3"])
-        #expect(model.drawn(model.weeks[0]) == 10)
-        #expect(model.drawn(model.weeks[1]) == nil)
+        #expect(model.groups.map(\.title) == [nil])
+        #expect(model.folders.map(\.id) == ["f1", "f2", "f3"])
+    }
+
+    @Test func sharedNamesSayTheirExamPage() async throws {
+        let pools: [StudyBodies.Pool] = [("f1", "First Pass", "x1", 10, 0, "practice"), ("f2", "First Pass", nil, 10, 0, "practice")]
+        let model = model(server(pages: [("x1", "Exam 1", ["f1"])], pools: pools))
+        await model.load()
+        model.toggle(model.folders[0])
+        model.toggle(model.folders[1])
+        #expect(model.summarySplit == "10 from First Pass (Exam 1) · 10 from First Pass (no exam page) · Fewer than 40, so it’s all of them at 1.5 minutes each.")
+    }
+
+    @Test func tickedFoldersMakeThePlanAndItsSummary() async throws {
+        let model = model(server())
+        await model.load()
+        model.toggle(model.folders[0])
+        model.toggle(model.folders[2])
+        #expect(model.picked.map(\.name) == ["Week 1", "Week 3"])
+        #expect(model.drawn(model.folders[0]) == 10)
+        #expect(model.drawn(model.folders[1]) == nil)
         #expect(model.summaryCount == "30 questions")
         #expect(model.summaryTime == "in 45 minutes")
         #expect(model.summarySplit == "10 from Week 1 · 20 from Week 3 · Fewer than 40, so it’s all of them at 1.5 minutes each.")
         #expect(model.fallbackLine == "Week 1 has no exam bank yet, so it uses its practice questions.")
-        model.toggle(model.weeks[1])
+        model.toggle(model.folders[1])
         #expect(model.summaryCount == "40 questions")
         #expect(model.summarySplit == "10 from Week 1 · 10 from Week 2 · 20 from Week 3")
         #expect(model.fallbackLine == "Weeks 1-2 have no exam bank yet, so they use their practice questions.")
-        model.toggle(model.weeks[1])
+        model.toggle(model.folders[1])
         #expect(model.picked.count == 2, "a second tap unticks")
     }
 
-    @Test func wrongQuestionsOnlyCountsHerWrongOnesAndLocksEmptyWeeks() async throws {
-        let server = StubServer(["GET /api/courses/c1/exams": .ok(StudyBodies.setup(weeks: StudyBodies.threeWeeks))])
-        let model = model(server)
+    @Test func wrongQuestionsOnlyCountsHerWrongOnesAndLocksEmptyFolders() async throws {
+        let model = model(server())
         await model.load()
-        model.toggle(model.weeks[2])
+        model.toggle(model.folders[2])
         model.wrongOnly = true
-        #expect(model.meta(model.weeks[0]) == "2 wrong of 10")
-        #expect(model.meta(model.weeks[2]) == "0 wrong of 20 · exam bank")
-        #expect(!model.canTick(model.weeks[2]))
-        #expect(!model.isTicked(model.weeks[2]), "its tick waits for the switch to go off")
-        #expect(model.summarySplit == "Tick at least one week with wrong questions.")
-        #expect(model.footer == "Questions are drawn only from the wrong ones in the weeks you tick, in proportion to how many each week has.")
-        model.toggle(model.weeks[2])
-        #expect(model.picked.isEmpty, "a locked week cannot be ticked")
-        model.toggle(model.weeks[0])
-        model.toggle(model.weeks[1])
+        #expect(model.meta(model.folders[0]) == "2 wrong of 10")
+        #expect(model.meta(model.folders[2]) == "0 wrong of 20 · exam bank")
+        #expect(!model.canTick(model.folders[2]))
+        #expect(!model.isTicked(model.folders[2]), "its tick waits for the switch to go off")
+        #expect(model.summarySplit == "Tick at least one folder with wrong questions.")
+        #expect(model.footer == "Questions are drawn only from the wrong ones in the folders you tick, in proportion to how many each folder has.")
+        model.toggle(model.folders[2])
+        #expect(model.picked.isEmpty, "a locked folder cannot be ticked")
+        model.toggle(model.folders[0])
+        model.toggle(model.folders[1])
         #expect(model.summaryCount == "5 questions")
         #expect(model.summaryTime == "in 7.5 minutes")
         model.wrongOnly = false
-        #expect(model.isTicked(model.weeks[2]), "back with the switch off")
+        #expect(model.isTicked(model.folders[2]), "back with the switch off")
     }
 
     @Test func noWrongQuestionsAnywhereSaysSo() async throws {
-        let server = StubServer(["GET /api/courses/c1/exams": .ok(StudyBodies.setup(weeks: [("Week 1", 4, 0, "practice")]))])
-        let model = model(server)
+        let model = model(server(pools: [("f1", "Week 1", nil, 4, 0, "practice")]))
         await model.load()
         model.wrongOnly = true
         #expect(model.summarySplit == "No wrong questions in this course right now.")
         #expect(model.fallbackLine == nil)
     }
 
-    @Test func anExamsStartButtonTicksItsWeeks() async throws {
-        let server = StubServer(["GET /api/courses/c1/exams": .ok(StudyBodies.setup(weeks: StudyBodies.threeWeeks))])
-        let model = model(server, route: ExamSetupRoute(course: Self.course, weeks: ["Week 1", "Week 2", "Week 9"], examName: "Exam 1"))
+    @Test func anExamPagesStartButtonTicksItsFolders() async throws {
+        let model = model(server(), route: ExamSetupRoute(course: Self.course, folderIDs: ["f1", "f2", "gone"], examName: "Exam 1"))
         await model.load()
-        #expect(model.picked.map(\.label) == ["Week 1", "Week 2"], "a week the setup does not have is left out")
-        #expect(model.preselectedLine == "Exam 1 · Weeks 1-2, 9 ticked for you")
-        model.toggle(model.weeks[0])
+        #expect(model.picked.map(\.name) == ["Week 1", "Week 2"], "a folder the setup does not have is left out")
+        #expect(model.preselectedLine == "Exam 1 · 2 folders ticked for you")
+        model.toggle(model.folders[0])
         await model.load()
-        #expect(model.picked.map(\.label) == ["Week 2"], "a reload keeps what she changed")
+        #expect(model.picked.map(\.name) == ["Week 2"], "a reload keeps what she changed")
     }
 
-    @Test func startSendsTheTickedWeeksAndThePool() async throws {
-        let server = StubServer([
-            "GET /api/courses/c1/exams": .ok(StudyBodies.setup(weeks: StudyBodies.threeWeeks)),
-            "POST /api/courses/c1/exams": StubServer.Reply(status: 201, body: StudyBodies.exam()),
-        ])
+    @Test func startSendsTheTickedFoldersAndThePool() async throws {
+        let server = server()
+        server["POST /api/courses/c1/exams"] = StubServer.Reply(status: 201, body: StudyBodies.exam())
         let model = model(server)
         await model.load()
-        model.toggle(model.weeks[1])
-        model.toggle(model.weeks[0])
+        model.toggle(model.folders[1])
+        model.toggle(model.folders[0])
         model.wrongOnly = true
         let exam = await model.start()
         #expect(exam?.id == "e1")
         let body = try #require(server.requests.last?.httpBody)
-        #expect(String(decoding: body, as: UTF8.self) == #"{"pool":"wrong","weeks":["Week 1","Week 2"]}"#)
+        #expect(String(decoding: body, as: UTF8.self) == #"{"folderIds":["f1","f2"],"pool":"wrong"}"#)
     }
 
     @Test func aRefusedStartIsSaidInTheServersWords() async throws {
-        let server = StubServer([
-            "GET /api/courses/c1/exams": .ok(StudyBodies.setup(weeks: StudyBodies.threeWeeks)),
-            "POST /api/courses/c1/exams": .error(400, "no_wrong_questions", "Week 1 has no wrong questions. Untick it, or turn off Wrong questions only."),
-        ])
+        let server = server()
+        server["POST /api/courses/c1/exams"] = .error(400, "no_wrong_questions", "Week 1 has no wrong questions. Untick it, or turn off Wrong questions only.")
         let model = model(server)
         await model.load()
-        model.toggle(model.weeks[0])
+        model.toggle(model.folders[0])
         #expect(await model.start() == nil)
         #expect(model.problem == "Week 1 has no wrong questions. Untick it, or turn off Wrong questions only.")
         #expect(!model.isStarting)
@@ -252,9 +277,12 @@ struct ExamSetupModelTests {
     @Test func theRunningExamAndPastOnesReadAsOnTheWeb() async throws {
         let running = StudyBodies.summary("run", weeks: ["Week 1", "Week 2"], pool: "wrong", finished: false, answered: 3, questions: 11, endsAt: "2026-10-12T00:17:01.000Z")
         let server = StubServer(["GET /api/courses/c1/exams": .ok(StudyBodies.setup(
-            weeks: StudyBodies.threeWeeks,
+            folders: StudyBodies.threePools,
             inProgress: running,
-            exams: [StudyBodies.summary("s1", weeks: ["Week 1"], pool: "wrong", reason: "timeout", questions: 22, right: 15)]
+            exams: [
+                StudyBodies.summary("s1", weeks: ["Week 1"], pool: "wrong", reason: "timeout", questions: 22, right: 15),
+                StudyBodies.summary("s2", weeks: ["First Pass", "Second Pass"], folders: ["f8", "f9"]),
+            ]
         ))])
         let model = model(server)
         await model.load()
@@ -264,15 +292,16 @@ struct ExamSetupModelTests {
         #expect(past.pastLine == "12 min · Wrong questions only · Time ran out")
         #expect(past.scoreText == "15 of 22")
         #expect(past.pastTitle.hasPrefix("Week 1 · "))
+        #expect(model.setup?.exams.last?.pastTitle.hasPrefix("First Pass, Second Pass · ") == true)
     }
 
     @Test func theOwnerCannotTickOrStart() async throws {
-        let server = StubServer(["GET /api/courses/c1/exams": .ok(StudyBodies.setup(weeks: StudyBodies.threeWeeks))])
+        let server = server()
         let model = model(server, account: .admin)
         await model.load()
-        model.toggle(model.weeks[0])
+        model.toggle(model.folders[0])
         #expect(model.picked.isEmpty)
         #expect(await model.start() == nil)
-        #expect(server.calls == ["GET /api/courses/c1/exams"])
+        #expect(server.calls.allSatisfy { $0.hasPrefix("GET") })
     }
 }

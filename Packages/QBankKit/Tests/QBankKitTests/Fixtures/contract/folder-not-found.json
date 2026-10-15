@@ -1,0 +1,20 @@
+{
+  "recordedFrom": "9fa05c0b3f85764a60f8c8afaa8ca702241aded7",
+  "request": {
+    "method": "PATCH",
+    "path": "/api/folders/f0000000-0000-4000-8000-000000000999",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": {
+      "name": "Anything"
+    }
+  },
+  "response": {
+    "status": 404,
+    "headers": {},
+    "body": {
+      "error": "request_refused",
+      "message": "That folder is not in the app."
+    }
+  }
+}

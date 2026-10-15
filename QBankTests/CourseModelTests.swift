@@ -11,7 +11,26 @@ struct CourseModelTests {
         await model.load()
         let course = try #require(model.course)
         #expect(course.code == "NURS 101")
-        #expect(course.weeks.first?.sets.map(\.id) == ["set1"])
+        #expect(course.folders.first?.sets.map(\.id) == ["set1"])
+    }
+
+    @Test func anOlderLoadAnsweredLateLeavesTheNewerCourse() async throws {
+        let server = StubServer()
+        server.script("GET /api/courses/c1", [
+            .ok(Bodies.courseDetail(sets: [Bodies.set(id: "before")])),
+            .ok(Bodies.courseDetail(sets: [Bodies.set(id: "after")])),
+        ])
+        server.hold("GET /api/courses/c1")
+        let (app, _) = TestApp.make(server, account: .student())
+        let model = CourseModel(app: app, id: "c1")
+        let older = Task { await model.load() }
+        while !server.calls.contains("GET /api/courses/c1") { await Task.yield() }
+        await model.load()
+        #expect(model.course?.folders.first?.sets.map(\.id) == ["after"])
+        server.release("GET /api/courses/c1")
+        await older.value
+        #expect(model.course?.folders.first?.sets.map(\.id) == ["after"])
+        #expect(!model.isLoading)
     }
 
     @Test func missingCourseSaysTheServersWords() async {
@@ -48,12 +67,12 @@ struct CourseModelTests {
         let (app, _) = TestApp.make(server, account: .student())
         let model = CourseModel(app: app, id: "c1")
         await model.load()
-        let replacedSet = try #require(model.course?.weeks.first?.sets.first)
+        let replacedSet = try #require(model.course?.folders.first?.sets.first)
         server["GET /api/courses/c1"] = .ok(Bodies.courseDetail(sets: [Bodies.set(id: "v1", status: "restored", canRestore: true)]))
         await model.restore(replacedSet)
         #expect(model.isRestoring == false)
-        #expect(model.course?.weeks.first?.sets.first?.status == .restored)
-        // The by-exam view's read of her exams runs beside each course read.
+        #expect(model.course?.folders.first?.sets.first?.status == .restored)
+        // The exam pages' read of her exams runs beside each course read.
         #expect(server.calls.filter { !$0.hasSuffix("/exams") } == ["GET /api/courses/c1", "POST /api/practice-sets/v2/restore", "GET /api/courses/c1"])
     }
 
@@ -65,7 +84,7 @@ struct CourseModelTests {
         let (app, _) = TestApp.make(server, account: .student())
         let model = CourseModel(app: app, id: "c1")
         await model.load()
-        await model.restore(try #require(model.course?.weeks.first?.sets.first))
+        await model.restore(try #require(model.course?.folders.first?.sets.first))
         #expect(model.problem == "That set is not the current version.")
         #expect(model.course != nil)
         #expect(server.calls.filter { !$0.hasSuffix("/exams") }.count == 2)
@@ -95,7 +114,7 @@ struct CourseModelTests {
         await model.load()
         #expect(model.savedAt != nil)
         #expect(model.problem == nil)
-        let set = try #require(model.course?.weeks.first?.sets.first)
+        let set = try #require(model.course?.folders.first?.sets.first)
         #expect(set.answeredCount == 2)
         #expect(set.fullyRightCount == 1)
         #expect(Wording.status(set) == "Done today · 1 of 2 fully right")

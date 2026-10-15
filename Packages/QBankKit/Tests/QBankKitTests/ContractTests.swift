@@ -140,6 +140,7 @@ struct ContentContractTests {
         #expect(course.code == "NURS 101")
         #expect(course.questionCount == 10)
         #expect(course.weekCount == 2)
+        #expect(course.folderCount == 2)
         #expect(course.archivedAt == nil)
     }
 
@@ -158,8 +159,13 @@ struct ContentContractTests {
         #expect(set.questionIDs.count == 8)
         #expect(set.status == .imported)
         #expect(set.lastAnsweredAt == nil)
-        #expect(QBankJSON.formatDate(set.importedAt) == "2026-10-13T03:38:35.224Z")
+        #expect(QBankJSON.formatDate(set.importedAt) == "2026-10-15T02:12:18.632Z")
         #expect(course.exams.isEmpty, "a course has no exams until one is made")
+        #expect(course.folders.map(\.name) == ["Week 1", "Week 2"], "day one: a folder for each week, in week order")
+        #expect(course.folders.allSatisfy { $0.examPageID == nil })
+        #expect(course.folders.map(\.examBankCount) == [2, 0])
+        #expect(course.folders.first?.sets == course.weeks.first?.sets)
+        #expect(course.folderCount == 2)
     }
 
     @Test func missingCourse() async throws {
@@ -186,6 +192,9 @@ struct ContentContractTests {
         try expectRequest(transport.requests.first, matches: fixture)
         #expect(terms.map(\.term) == ["Tachycardia"])
         #expect(terms.first?.weekLabel == "Week 1")
+        #expect(terms.first?.folderName == "Week 1")
+        #expect(terms.first?.folderID == fixture.response.body["terms"]?.arrayValue?.first?["folderId"]?.stringValue)
+        #expect(terms.first?.folderID != nil)
     }
 
     @Test func practiceSetReadsEveryFormat() async throws {
@@ -197,6 +206,7 @@ struct ContentContractTests {
         try expectRequest(transport.requests.first, matches: fixture)
         #expect(set.kind == .practice)
         #expect(set.weekLabel == "Week 1")
+        #expect(set.folderID != nil)
         #expect(set.questions.compactMap(\.type) == QuestionType.allCases)
         #expect(set.questions.map(\.publicID) == ["Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8"])
 
@@ -377,6 +387,7 @@ struct ReviewContractTests {
         #expect(list.filter == .all)
         #expect(list.counts == ReviewList.Counts(all: 7, missed: 2, partial: 4, guessed: 1))
         #expect(list.questions.count == 7)
+        #expect(list.questions.allSatisfy { $0.folderName == "Week 1" && $0.folderID != nil })
     }
 
     @Test func filteredReviewList() async throws {
@@ -467,8 +478,10 @@ struct ExamContractTests {
         let fixture = try Fixture.load("exam-start")
         let transport = try FixtureTransport([fixture])
         let (client, _) = TestClient.make(transport)
-        let exam = try await client.startExam(courseID: courseID(of: fixture), weeks: ["Week 1", "Week 2"], pool: .all)
+        let folders = folderIDs(of: fixture)
+        let exam = try await client.startExam(courseID: courseID(of: fixture), folderIDs: folders, pool: .all)
         try expectRequest(transport.requests.first, matches: fixture)
+        #expect(folders.count == 2, "Week 1 and Week 2")
         #expect(exam.isRunning)
         #expect(exam.result == nil)
         #expect(exam.questions.count == 4)
@@ -481,7 +494,7 @@ struct ExamContractTests {
         let fixture = try Fixture.load("exam-start-wrong")
         let transport = try FixtureTransport([fixture])
         let (client, _) = TestClient.make(transport)
-        let exam = try await client.startExam(courseID: courseID(of: fixture), weeks: ["Week 1"], pool: .wrong)
+        let exam = try await client.startExam(courseID: courseID(of: fixture), folderIDs: folderIDs(of: fixture), pool: .wrong)
         try expectRequest(transport.requests.first, matches: fixture)
         #expect(exam.pool == .wrong)
         #expect(exam.weeks == ["Week 1"])
@@ -492,7 +505,7 @@ struct ExamContractTests {
         let transport = try FixtureTransport([fixture])
         let (client, _) = TestClient.make(transport)
         let error = await #expect(throws: QBankError.self) {
-            try await client.startExam(courseID: courseID(of: fixture), weeks: ["Week 2"], pool: .wrong)
+            try await client.startExam(courseID: courseID(of: fixture), folderIDs: folderIDs(of: fixture), pool: .wrong)
         }
         #expect(error?.serverCode == .noWrongQuestions)
         try expectRequest(transport.requests.first, matches: fixture)
@@ -538,12 +551,19 @@ struct ExamContractTests {
         #expect(result.answered == 1)
         #expect(result.unanswered == 3)
         #expect(result.byWeek.map(\.label) == ["Week 1", "Week 2"])
+        #expect(result.byFolder?.map(\.label) == ["Week 1", "Week 2"], "by the folder each question's set is in now")
+        #expect(result.byFolder?.map(\.id) == exam.folderIDs, "a row is its folder, as two folders may share a name")
+        #expect(result.byWeek.map(\.id) == ["Week 1", "Week 2"])
+        #expect(exam.folderIDs?.count == 2)
         #expect(result.byStep.map(\.label) == ["Analyze cues"])
-        let answered = try #require(result.items.first)
+        let answered = try #require(result.items.first { $0.status != .unanswered })
+        #expect(answered.questionID == exam.answeredQuestionIDs.first)
         #expect(answered.status == .correct)
         #expect(answered.response == .single(choice: 0))
         #expect(answered.shuffle == .options(order: [0, 2, 1]))
-        #expect(result.items.dropFirst().allSatisfy { $0.status == .unanswered && $0.response == nil && $0.shuffle == nil })
+        let unanswered = result.items.filter { $0.questionID != answered.questionID }
+        #expect(unanswered.count == 3)
+        #expect(unanswered.allSatisfy { $0.status == .unanswered && $0.response == nil && $0.shuffle == nil })
     }
 }
 
@@ -675,83 +695,196 @@ struct CatalogContractTests {
     }
 }
 
-@Suite("Contract: course exams")
-struct CourseExamContractTests {
-    @Test func createSendsTheNameAndWeeks() async throws {
+@Suite("Contract: exam pages and folders")
+struct FolderContractTests {
+    static let week1 = "f0000000-0000-4000-8000-000000000001"
+    static let week2 = "f0000000-0000-4000-8000-000000000002"
+    static let week3 = "f0000000-0000-4000-8000-000000000003"
+    static let firstPass = "f0000000-0000-4000-8000-000000000011"
+    static let secondPass = "f0000000-0000-4000-8000-000000000012"
+    static let examOne = "ce000000-0000-4000-8000-000000000001"
+    static let examTwo = "ce000000-0000-4000-8000-000000000002"
+
+    @Test func createSendsTheNameAndFolders() async throws {
         let fixture = try Fixture.load("course-exam-create")
         let transport = try FixtureTransport([fixture])
         let (client, _) = TestClient.make(transport)
-        let exam = try await client.createCourseExam(courseID: courseID(of: fixture), name: "Exam 1", weekLabels: ["Week 2", "Week 1"])
+        let exam = try await client.createCourseExam(courseID: courseID(of: fixture), name: "Exam 1", folderIDs: [Self.week1, Self.week2])
         try expectRequest(transport.requests.first, matches: fixture)
-        #expect(exam.id == "ce000000-0000-4000-8000-000000000001")
+        #expect(exam.id == Self.examOne)
         #expect(exam.name == "Exam 1")
         #expect(exam.sortOrder == 1)
-        #expect(exam.weekLabels == ["Week 1", "Week 2"], "the server keeps weeks in week order")
+        #expect(exam.folderIDs == [Self.week1, Self.week2])
+        #expect(exam.weekLabels == ["Week 1", "Week 2"])
     }
 
-    @Test func updateRenamesAndReplacesTheWeeks() async throws {
+    @Test func updateRenamesAndSetsTheFoldersInHerOrder() async throws {
         let fixture = try Fixture.load("course-exam-update")
         let transport = try FixtureTransport([fixture])
         let (client, _) = TestClient.make(transport)
-        let id = String(fixture.request.path.split(separator: "/").last!)
-        let exam = try await client.updateCourseExam(id: id, name: "Midterm", weekLabels: ["Week 1", "Week 2"])
+        let exam = try await client.updateCourseExam(id: Self.examOne, name: "Midterm", folderIDs: [Self.week2, Self.week1])
         try expectRequest(transport.requests.first, matches: fixture)
-        #expect(exam.id == id)
+        #expect(exam.id == Self.examOne)
         #expect(exam.name == "Midterm")
-        #expect(exam.weekLabels == ["Week 1", "Week 2"])
+        #expect(exam.folderIDs == [Self.week2, Self.week1], "the page keeps the order sent")
     }
 
     @Test func deleteReadsTheEmptyAnswer() async throws {
         let fixture = try Fixture.load("course-exam-delete")
         let transport = try FixtureTransport([fixture])
         let (client, _) = TestClient.make(transport)
-        try await client.deleteCourseExam(id: String(fixture.request.path.split(separator: "/").last!))
+        try await client.deleteCourseExam(id: Self.examTwo)
         try expectRequest(transport.requests.first, matches: fixture)
         #expect(fixture.response.status == 204)
     }
 
-    @Test func courseListsItsExams() throws {
-        let course = try Fixture.load("course-with-exams").decodeBody(CourseDetail.self)
-        #expect(course.exams.map(\.name) == ["Midterm", "Exam 2"])
-        #expect(course.exams.map(\.weekLabels) == [["Week 1", "Week 2"], ["Week 3"]])
-        #expect(course.exams.map(\.sortOrder) == [1, 2])
-        #expect(course.weeks.map(\.label) == ["Week 1", "Week 2", "Week 3"])
+    @Test func createFolderMakesAnEmptyOneOnNoExamPage() async throws {
+        let fixture = try Fixture.load("folder-create")
+        let transport = try FixtureTransport([fixture])
+        let (client, _) = TestClient.make(transport)
+        let folder = try await client.createFolder(courseID: courseID(of: fixture), name: "First Pass")
+        try expectRequest(transport.requests.first, matches: fixture)
+        #expect(folder.id == Self.firstPass)
+        #expect(folder.name == "First Pass")
+        #expect(folder.examPageID == nil)
+        #expect(folder.sets.isEmpty)
+        #expect(folder.sortOrder == 4, "at the end of the Folders list")
     }
 
-    /// A past exam belongs to the course exam holding every week it covered; one across two exams belongs to none.
-    @Test func pastExamsNameTheirCourseExam() throws {
+    @Test func renameChangesOnlyTheName() async throws {
+        let fixture = try Fixture.load("folder-rename")
+        let transport = try FixtureTransport([fixture])
+        let (client, _) = TestClient.make(transport)
+        let folder = try await client.renameFolder(id: Self.firstPass, name: "Mixed review")
+        try expectRequest(transport.requests.first, matches: fixture)
+        #expect(folder.id == Self.firstPass)
+        #expect(folder.name == "Mixed review")
+        #expect(folder.examPageID == nil)
+    }
+
+    @Test func placeFolderPutsItOnAPageAndTakesItOff() async throws {
+        let on = try Fixture.load("folder-put-on-page")
+        let off = try Fixture.load("folder-take-off-page")
+        let transport = try FixtureTransport([on, off])
+        let (client, _) = TestClient.make(transport)
+        let placed = try await client.placeFolder(id: Self.firstPass, onExamPage: Self.examTwo)
+        try expectRequest(transport.requests.first, matches: on)
+        #expect(placed.examPageID == Self.examTwo)
+        let loose = try await client.placeFolder(id: Self.firstPass, onExamPage: nil)
+        try expectRequest(transport.requests.last, matches: off)
+        #expect(loose.examPageID == nil)
+        #expect(off.request.body?["examPageId"] == .null, "taking it off is sent as null, not left out")
+    }
+
+    @Test func moveSetToAFolderOrANewOne() async throws {
+        let toFolder = try Fixture.load("practice-set-move")
+        let toNew = try Fixture.load("practice-set-move-new-folder")
+        let transport = try FixtureTransport([toFolder, toNew])
+        let (client, _) = TestClient.make(transport)
+        let set = "5e700000-0000-4000-8000-000000000004"
+        let first = try await client.moveSet(id: set, toFolder: Self.firstPass)
+        try expectRequest(transport.requests.first, matches: toFolder)
+        #expect(first.id == Self.firstPass)
+        #expect(first.sets.map(\.id) == [set], "the folder it is in now, with its sets")
+        let second = try await client.moveSet(id: set, toNewFolder: "Second Pass")
+        try expectRequest(transport.requests.last, matches: toNew)
+        #expect(second.id == Self.secondPass)
+        #expect(second.name == "Second Pass")
+        #expect(second.examPageID == nil)
+    }
+
+    @Test func folderOrderSavesOneList() async throws {
+        let fixture = try Fixture.load("folder-order")
+        let transport = try FixtureTransport([fixture])
+        let (client, _) = TestClient.make(transport)
+        let folders = try await client.setFolderOrder(courseID: courseID(of: fixture), examPageID: Self.examOne, folderIDs: [Self.week1, Self.week2])
+        try expectRequest(transport.requests.first, matches: fixture)
+        #expect(folders.map(\.id) == [Self.week1, Self.week2])
+        #expect(folders.map(\.sortOrder) == [1, 2])
+    }
+
+    /// The course's folders come in the course's order: each page's folders, pages in order, then
+    /// the folders on no exam page, each list in her order.
+    @Test func courseListsItsPagesAndFoldersInOrder() throws {
+        let course = try Fixture.load("course-with-exams").decodeBody(CourseDetail.self)
+        #expect(course.exams.map(\.name) == ["Midterm", "Exam 2"])
+        #expect(course.exams.map(\.folderIDs) == [[Self.week1, Self.week2], [Self.week3]])
+        #expect(course.folders.map(\.name) == ["Week 1", "Week 2", "Week 3", "Second Pass", "Mixed review"])
+        #expect(course.folders.map(\.examPageID) == [Self.examOne, Self.examOne, Self.examTwo, nil, nil])
+        #expect(course.folders.map(\.sets.count) == [1, 1, 1, 1, 0], "an empty folder is listed too")
+        #expect(course.folderCount == 5)
+        #expect(course.weekCount == 4)
+    }
+
+    /// A past exam belongs to the page holding every folder it covered; one across two pages belongs to none.
+    @Test func pastExamsNameTheirExamPage() throws {
         let setup = try Fixture.load("exam-setup-course-exams").decodeBody(ExamSetup.self)
-        #expect(setup.exams.map(\.weeks) == [["Week 1", "Week 2", "Week 3"], ["Week 1", "Week 2"]])
-        #expect(setup.exams.map(\.courseExamID) == [nil, "ce000000-0000-4000-8000-000000000001"])
+        #expect(setup.exams.map(\.folderIDs) == [[Self.week1, Self.week2, Self.week3], [Self.week1, Self.week2]])
+        #expect(setup.exams.map(\.courseExamID) == [nil, Self.examOne])
+        #expect(setup.folders.map(\.name) == ["Week 1", "Week 2", "Week 3", "Second Pass"], "folders with questions, in the course's order")
+        #expect(setup.folders.map(\.examPageID) == [Self.examOne, Self.examOne, Self.examTwo, nil])
     }
 
     @Test(arguments: [
-        ("course-exam-create-week-taken", 409, "Week 2 is in Exam 1."),
+        ("course-exam-create-folder-taken", 409, "Week 2 is in Exam 1."),
         ("course-exam-create-name-taken", 409, "This course already has an exam named exam 1."),
-        ("course-exam-create-unknown-week", 400, "Week 9 is not a week in this course."),
+        ("course-exam-create-unknown-folder", 400, "That folder is not in this course."),
         ("course-exam-create-blank", 400, "Exam name is required."),
-        ("course-exam-update-week-taken", 409, "Week 1 is in Midterm."),
+        ("course-exam-update-folder-taken", 409, "Week 1 is in Midterm."),
+        ("course-exam-delete-name-taken", 409, "NURS 101 already has a folder named Week 3 in its Folders list. Rename one of them before removing Exam 2."),
         ("course-exam-not-found", 404, "That exam is not in the app."),
     ])
-    func refusalsSayWhyInHerWords(name: String, status: Int, message: String) async throws {
+    func examPageRefusalsSayWhyInHerWords(name: String, status: Int, message: String) async throws {
         let fixture = try Fixture.load(name)
         let transport = try FixtureTransport([fixture])
         let (client, _) = TestClient.make(transport)
         let body = fixture.request.body
-        let weeks = body?["weekLabels"]?.arrayValue?.compactMap(\.stringValue) ?? []
+        let folders = body?["folderIds"]?.arrayValue?.compactMap(\.stringValue) ?? []
+        let id = String(fixture.request.path.split(separator: "/").last!)
         let error = await #expect(throws: QBankError.self) {
             switch fixture.request.method {
             case "POST":
-                _ = try await client.createCourseExam(courseID: courseID(of: fixture), name: body?["name"]?.stringValue ?? "", weekLabels: weeks)
+                _ = try await client.createCourseExam(courseID: courseID(of: fixture), name: body?["name"]?.stringValue ?? "", folderIDs: folders)
             case "PUT":
-                _ = try await client.updateCourseExam(id: String(fixture.request.path.split(separator: "/").last!), name: body?["name"]?.stringValue ?? "", weekLabels: weeks)
+                _ = try await client.updateCourseExam(id: id, name: body?["name"]?.stringValue ?? "", folderIDs: folders)
             default:
-                try await client.deleteCourseExam(id: String(fixture.request.path.split(separator: "/").last!))
+                try await client.deleteCourseExam(id: id)
             }
         }
         try expectRequest(transport.requests.first, matches: fixture)
         #expect(error == .server(ServerError(status: status, code: .requestRefused, message: message)))
         #expect(error?.needsSignIn == false)
+    }
+
+    @Test(arguments: [
+        ("folder-create-taken", 409, "NURS 101 already has a folder named First Pass."),
+        ("folder-create-blank", 400, "Folder name is required."),
+        ("folder-rename-taken", 409, "Midterm already has a folder named Week 1."),
+        ("folder-not-found", 404, "That folder is not in the app."),
+        ("practice-set-move-new-folder-taken", 409, "NURS 101 already has a folder named Mixed review."),
+        ("folder-order-stale", 409, "The folders changed since this list was shown. Reload and try again."),
+    ])
+    func folderRefusalsSayWhyInHerWords(name: String, status: Int, message: String) async throws {
+        let fixture = try Fixture.load(name)
+        let transport = try FixtureTransport([fixture])
+        let (client, _) = TestClient.make(transport)
+        let body = fixture.request.body
+        let parts = fixture.request.path.split(separator: "/").map(String.init)
+        let error = await #expect(throws: QBankError.self) {
+            switch (fixture.request.method, parts.last) {
+            case ("POST", "folders"):
+                try await client.createFolder(courseID: parts[2], name: body?["name"]?.stringValue ?? "")
+            case ("PATCH", _):
+                try await client.renameFolder(id: parts[2], name: body?["name"]?.stringValue ?? "")
+            case ("POST", "move"):
+                try await client.moveSet(id: parts[2], toNewFolder: body?["newFolderName"]?.stringValue ?? "")
+            default:
+                let folders = body?["folderIds"]?.arrayValue?.compactMap(\.stringValue) ?? []
+                try await client.setFolderOrder(courseID: parts[2], examPageID: body?["examPageId"]?.stringValue, folderIDs: folders)
+            }
+        }
+        try expectRequest(transport.requests.first, matches: fixture)
+        #expect(error == .server(ServerError(status: status, code: .requestRefused, message: message)))
     }
 
     /// A server from before course exams sends neither field: the course has no exams, and no
@@ -776,6 +909,36 @@ struct CourseExamContractTests {
         let decoded = try JSONValue.object(setup).decode(ExamSetup.self)
         #expect(decoded.inProgress != nil)
         #expect(decoded.inProgress?.courseExamID == nil)
+    }
+
+    /// A server, or a copy saved on the phone, from before folders: each week reads as a folder
+    /// named and identified by its label, on the exam page listing that label.
+    @Test func olderServerReadsWeeksAsFolders() throws {
+        guard case .object(var course) = try Fixture.load("course-with-exams").response.body,
+              case .array(let exams)? = course["exams"] else {
+            Issue.record("The course fixture is not an object with exams")
+            return
+        }
+        course["folders"] = nil
+        course["folderCount"] = nil
+        course["exams"] = .array(exams.map { exam in
+            guard case .object(var page) = exam else { return exam }
+            page["folderIds"] = nil
+            return .object(page)
+        })
+        let detail = try JSONValue.object(course).decode(CourseDetail.self)
+        #expect(detail.folders.map(\.id) == ["Week 1", "Week 2", "Week 3", "Second Pass"])
+        #expect(detail.folders.map(\.examPageID) == [Self.examOne, Self.examOne, Self.examTwo, nil])
+        #expect(detail.folderCount == 4)
+        #expect(detail.exams.allSatisfy { $0.folderIDs.isEmpty })
+
+        guard case .object(var setup) = try Fixture.load("exam-setup-course-exams").response.body else {
+            Issue.record("The exam setup fixture is not an object")
+            return
+        }
+        setup["folders"] = nil
+        let pools = try JSONValue.object(setup).decode(ExamSetup.self)
+        #expect(pools.folders.map(\.id) == pools.weeks.map(\.label))
     }
 }
 
@@ -837,6 +1000,11 @@ struct FixtureTests {
 func courseID(of fixture: Fixture) -> String {
     let parts = fixture.request.path.split(separator: "/")
     return String(parts[2])
+}
+
+/// The folder ids a recorded request sent.
+func folderIDs(of fixture: Fixture) -> [String] {
+    fixture.request.body?["folderIds"]?.arrayValue?.compactMap(\.stringValue) ?? []
 }
 
 extension SavedAttempt {

@@ -1,8 +1,8 @@
 {
-  "recordedFrom": "2b7a4291fc79877edeb8e4eb0e430209ef56fd8b",
+  "recordedFrom": "9fa05c0b3f85764a60f8c8afaa8ca702241aded7",
   "request": {
     "method": "GET",
-    "path": "/api/practice-sets/30722b59-8c29-4610-b17d-001f0d99a995",
+    "path": "/api/practice-sets/f2c2a4ec-52f9-4332-a1ee-48f9e467dc4c",
     "query": {},
     "authorization": "Bearer synthetic-session-token",
     "body": null
@@ -11,14 +11,15 @@
     "status": 200,
     "headers": {},
     "body": {
-      "id": "30722b59-8c29-4610-b17d-001f0d99a995",
-      "courseId": "6081c42b-988b-40d1-8068-273a13195673",
+      "id": "f2c2a4ec-52f9-4332-a1ee-48f9e467dc4c",
+      "courseId": "7a7665d2-2bbe-4093-ae10-a2cf1c968283",
       "title": "Week 1 - Set 1: Invented basics",
       "weekLabel": "Week 1",
+      "folderId": "de55efe2-6662-4fea-bf71-2c26199059b2",
       "kind": "practice",
       "questions": [
         {
-          "id": "0cac9fe8-9223-4442-8cf3-b930c6d6d4fa",
+          "id": "ac544ab7-34aa-4521-bc6a-6f36a1b6468a",
           "publicId": "Q1",
           "position": 1,
           "type": "single",
@@ -63,6 +64,27 @@
               }
             ]
           },
+          "table": {
+            "caption": "Invented readings",
+            "head": [
+              "Time",
+              "HR",
+              ""
+            ],
+            "rows": [
+              [
+                "0900",
+                "82",
+                ""
+              ],
+              [
+                "0915",
+                "94",
+                "extra"
+              ]
+            ]
+          },
+          "images": [],
           "terms": [
             {
               "key": "tachy",
@@ -72,7 +94,7 @@
           ]
         },
         {
-          "id": "2889259f-bd71-4728-a70a-8f0f66859b13",
+          "id": "9f34ee17-2d1d-41c5-af75-f7656a0810cc",
           "publicId": "Q2",
           "position": 2,
           "type": "priority",
@@ -111,10 +133,25 @@
               }
             ]
           },
+          "table": null,
+          "images": [
+            {
+              "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+              "alt": "An invented one-pixel image",
+              "caption": "Invented caption",
+              "at": "stem"
+            },
+            {
+              "url": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2020%2010%22%3E%3Crect%20width%3D%2220%22%20height%3D%2210%22%20fill%3D%22%23ccc%22%2F%3E%3C%2Fsvg%3E",
+              "alt": "An invented grey box",
+              "caption": null,
+              "at": "rationale"
+            }
+          ],
           "terms": []
         },
         {
-          "id": "88ee2607-d52e-4ca9-8525-2978ead685c0",
+          "id": "386c7a73-e49f-42bf-b6e1-5a5637b8cd58",
           "publicId": "Q3",
           "position": 3,
           "type": "sata",
@@ -147,10 +184,12 @@
               }
             ]
           },
+          "table": null,
+          "images": [],
           "terms": []
         },
         {
-          "id": "d7cf2cde-e16a-4531-8f39-7240f11b3bce",
+          "id": "9c6443ba-3c55-4885-8262-d90898974789",
           "publicId": "Q4",
           "position": 4,
           "type": "highlight",
@@ -182,10 +221,12 @@
               }
             ]
           },
+          "table": null,
+          "images": [],
           "terms": []
         },
         {
-          "id": "af8621ee-2e54-46d6-a671-7277fdda2d25",
+          "id": "2a601fef-df72-401a-9c7f-3ddcb39951d6",
           "publicId": "Q5",
           "position": 5,
           "type": "order",
@@ -209,10 +250,12 @@
               }
             ]
           },
+          "table": null,
+          "images": [],
           "terms": []
         },
         {
-          "id": "8f5f7b74-9d6c-47d9-bd95-7e40cbe955e2",
+          "id": "840dbb5e-49c5-4682-b80a-b194defad93b",
           "publicId": "Q6",
           "position": 6,
           "type": "match",
@@ -241,10 +284,12 @@
               }
             ]
           },
+          "table": null,
+          "images": [],
           "terms": []
         },
         {
-          "id": "8a42afe7-8190-4732-adf8-d4fc5dd99ee0",
+          "id": "34793561-87b1-4dcd-a26b-b039f2b35a53",
           "publicId": "Q7",
           "position": 7,
           "type": "matrix",
@@ -271,10 +316,12 @@
               "Not indicated"
             ]
           },
+          "table": null,
+          "images": [],
           "terms": []
         },
         {
-          "id": "9ef41f2f-f325-46c3-b718-4e58466fd1c4",
+          "id": "3500ac88-16e1-48ca-b46e-ceeae9edee38",
           "publicId": "Q8",
           "position": 8,
           "type": "cloze",
@@ -307,6 +354,8 @@
               ]
             }
           },
+          "table": null,
+          "images": [],
           "terms": []
         }
       ]

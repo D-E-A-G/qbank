@@ -1,5 +1,5 @@
 {
-  "recordedFrom": "a1a22c1424b751417b30830ee4b96266f5519255",
+  "recordedFrom": "9fa05c0b3f85764a60f8c8afaa8ca702241aded7",
   "request": {
     "method": "GET",
     "path": "/api/courses/c0000000-0000-4000-8000-000000000101/exams",
@@ -12,6 +12,40 @@
     "headers": {},
     "body": {
       "courseId": "c0000000-0000-4000-8000-000000000101",
+      "folders": [
+        {
+          "id": "f0000000-0000-4000-8000-000000000001",
+          "name": "Week 1",
+          "examPageId": "ce000000-0000-4000-8000-000000000001",
+          "questionCount": 3,
+          "wrongCount": 0,
+          "source": "practice"
+        },
+        {
+          "id": "f0000000-0000-4000-8000-000000000002",
+          "name": "Week 2",
+          "examPageId": "ce000000-0000-4000-8000-000000000001",
+          "questionCount": 2,
+          "wrongCount": 0,
+          "source": "practice"
+        },
+        {
+          "id": "f0000000-0000-4000-8000-000000000003",
+          "name": "Week 3",
+          "examPageId": "ce000000-0000-4000-8000-000000000002",
+          "questionCount": 2,
+          "wrongCount": 0,
+          "source": "practice"
+        },
+        {
+          "id": "f0000000-0000-4000-8000-000000000012",
+          "name": "Second Pass",
+          "examPageId": null,
+          "questionCount": 2,
+          "wrongCount": 0,
+          "source": "practice"
+        }
+      ],
       "weeks": [
         {
           "label": "Week 1",
@@ -30,6 +64,12 @@
           "questionCount": 2,
           "wrongCount": 0,
           "source": "practice"
+        },
+        {
+          "label": "Second Pass",
+          "questionCount": 2,
+          "wrongCount": 0,
+          "source": "practice"
         }
       ],
       "inProgress": null,
@@ -42,19 +82,24 @@
             "Week 2",
             "Week 3"
           ],
+          "folderIds": [
+            "f0000000-0000-4000-8000-000000000001",
+            "f0000000-0000-4000-8000-000000000002",
+            "f0000000-0000-4000-8000-000000000003"
+          ],
           "courseExamId": null,
           "pool": "all",
           "practiceWeeks": null,
-          "questionCount": 7,
-          "timeLimitSeconds": 630,
-          "startedAt": "2026-10-13T03:38:35.054Z",
-          "endsAt": "2026-10-13T03:49:05.054Z",
-          "finishedAt": "2026-10-13T03:38:35.069Z",
+          "questionCount": 9,
+          "timeLimitSeconds": 810,
+          "startedAt": "2026-10-15T02:12:18.321Z",
+          "endsAt": "2026-10-15T02:25:48.321Z",
+          "finishedAt": "2026-10-15T02:12:18.337Z",
           "endReason": "finished",
           "answeredCount": 1,
           "fullyRight": 1,
           "points": 1,
-          "maxPoints": 7,
+          "maxPoints": 9,
           "minutesUsed": 1
         },
         {
@@ -64,20 +109,95 @@
             "Week 1",
             "Week 2"
           ],
+          "folderIds": [
+            "f0000000-0000-4000-8000-000000000001",
+            "f0000000-0000-4000-8000-000000000002"
+          ],
           "courseExamId": "ce000000-0000-4000-8000-000000000001",
           "pool": "all",
           "practiceWeeks": null,
           "questionCount": 5,
           "timeLimitSeconds": 450,
-          "startedAt": "2026-10-13T03:38:34.984Z",
-          "endsAt": "2026-10-13T03:46:04.984Z",
-          "finishedAt": "2026-10-13T03:38:35.046Z",
+          "startedAt": "2026-10-15T02:12:18.282Z",
+          "endsAt": "2026-10-15T02:19:48.282Z",
+          "finishedAt": "2026-10-15T02:12:18.304Z",
           "endReason": "finished",
           "answeredCount": 1,
           "fullyRight": 1,
           "points": 1,
           "maxPoints": 5,
           "minutesUsed": 1
+        }
+      ],
+      "rules": {
+        "maxQuestions": 40,
+        "fullTimeSeconds": 3600,
+        "secondsPerQuestion": 90
+      },
+      "preview": null,
+      "courseExams": [
+        {
+          "courseExamId": "ce000000-0000-4000-8000-000000000001",
+          "preview": {
+            "folders": [
+              {
+                "id": "f0000000-0000-4000-8000-000000000001",
+                "name": "Week 1",
+                "questionCount": 3,
+                "drawn": 3,
+                "source": "practice"
+              },
+              {
+                "id": "f0000000-0000-4000-8000-000000000002",
+                "name": "Week 2",
+                "questionCount": 2,
+                "drawn": 2,
+                "source": "practice"
+              }
+            ],
+            "weeks": [
+              {
+                "label": "Week 1",
+                "questionCount": 3,
+                "drawn": 3,
+                "source": "practice"
+              },
+              {
+                "label": "Week 2",
+                "questionCount": 2,
+                "drawn": 2,
+                "source": "practice"
+              }
+            ],
+            "questionCount": 5,
+            "timeLimitSeconds": 450,
+            "practiceWeeks": null
+          }
+        },
+        {
+          "courseExamId": "ce000000-0000-4000-8000-000000000002",
+          "preview": {
+            "folders": [
+              {
+                "id": "f0000000-0000-4000-8000-000000000003",
+                "name": "Week 3",
+                "questionCount": 2,
+                "drawn": 2,
+                "source": "practice"
+              }
+            ],
+            "weeks": [
+              {
+                "label": "Week 3",
+                "questionCount": 2,
+                "drawn": 2,
+                "source": "practice"
+              }
+            ],
+            "questionCount": 2,
+            "timeLimitSeconds": 180,
+            "practiceWeeks": null
+          }
         }
       ]
     }

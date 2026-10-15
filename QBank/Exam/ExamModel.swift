@@ -81,9 +81,9 @@ final class ExamModel {
         items.indices.contains(index) ? items[index] : nil
     }
 
-    /// "Exam · Weeks 1-2".
+    /// "Exam · Weeks 1-2", or "Exam · First Pass, Second Pass".
     var title: String {
-        exam.map { "Exam · \(Wording.weeks($0.weeks))" } ?? "Exam"
+        exam.map { "Exam · \(Wording.folders($0.weeks))" } ?? "Exam"
     }
 
     /// "5 of 11".

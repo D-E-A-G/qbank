@@ -42,7 +42,8 @@ Picked from the approved iPhone wireframes:
 | `QBankCard`, `.buttonStyle(.qbankCard)`, `.qbankCardBackground()` | Cards such as the course card |
 | `QBankTintedLabel` | Pills: "12 to review", "Exam bank · 17 questions", "No exam bank yet" |
 | `QBankStatusMark` | Icon plus word for an answer status: Correct, Partly right, Missed, Guessed, Not answered |
-| `QBankListGroup`, `QBankListRow`, `.buttonStyle(.qbankRow)`, `QBankSectionHeader` | Inset grouped lists: week sets, Review, Settings |
+| `QBankListGroup`, `QBankListRow`, `.buttonStyle(.qbankRow)`, `QBankSectionHeader` | Inset grouped lists: exam pages, folders and their sets, Review, Settings |
+| `QBankDetailText` | A row's detail line, such as "2 sets · 9 of 26 answered", that breaks at its separators |
 | `QBankProgressBar`, `QBankProgressPill` | The progress track, and the course card's track with its percentage |
 | `QBankTimerPill` | The exam countdown, with its low-time state |
 | `QBankSegmentedControl` | One choice of a few, such as Look in Settings (Match device, Light, Dark) |

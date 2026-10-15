@@ -1,9 +1,9 @@
 import Foundation
 import QBankKit
 
-/// How far she is through a week's practice sets, as the web's week folders count it
+/// How far she is through a folder's practice sets, as the web counts it
 /// (`apps/web/src/course/folders.ts`).
-nonisolated struct WeekProgress: Equatable {
+nonisolated struct FolderProgress: Equatable {
     /// Nothing answered, some, or every question.
     enum State: Equatable {
         case fresh
@@ -17,8 +17,8 @@ nonisolated struct WeekProgress: Equatable {
     let answeredCount: Int
     let fullyRightCount: Int
 
-    init(_ week: Week) {
-        self.init(sets: week.sets)
+    init(_ folder: Folder) {
+        self.init(sets: folder.sets)
     }
 
     init(sets: [PracticeSetSummary]) {
@@ -28,19 +28,17 @@ nonisolated struct WeekProgress: Equatable {
         fullyRightCount = sets.reduce(0) { $0 + min($1.fullyRightCount, $1.questionCount) }
         state = answeredCount == 0 ? .fresh : answeredCount >= questionCount ? .done : .started
     }
-
-    /// Answered share for the folder's bar, 0 to 1.
-    var fraction: Double {
-        questionCount == 0 ? 0 : Double(answeredCount) / Double(questionCount)
-    }
 }
 
-/// The lines a closed folder shows, worded as on the web.
+/// The lines the course's lists, an exam page and a folder show, worded as on the web.
 nonisolated enum FolderWording {
-    /// The line under the week name: "2 sets · 27 questions", "2 sets · 22 of 27 answered",
-    /// "2 sets · 22 of 27 fully right", or "Exam bank only · 17 questions".
-    static func weekMeta(_ week: Week, _ progress: WeekProgress) -> String {
-        if progress.setCount == 0 { return "Exam bank only · \(Wording.count(week.examBankCount, "question"))" }
+    /// A folder's line: "2 sets · 27 questions", "2 sets · 22 of 27 answered",
+    /// "2 sets · 22 of 27 fully right", "Exam bank only · 17 questions", or "Empty folder".
+    static func meta(_ folder: Folder) -> String {
+        let progress = FolderProgress(folder)
+        if progress.setCount == 0 {
+            return folder.examBankCount > 0 ? "Exam bank only · \(Wording.count(folder.examBankCount, "question"))" : "Empty folder"
+        }
         let sets = Wording.count(progress.setCount, "set")
         switch progress.state {
         case .fresh: return "\(sets) · \(Wording.count(progress.questionCount, "question"))"
@@ -49,9 +47,8 @@ nonisolated enum FolderWording {
         }
     }
 
-    /// The word at the folder's right edge: Done, how far she is, or Not started. Empty for a
-    /// folder without practice sets.
-    static func state(_ progress: WeekProgress) -> String {
+    /// The word at a row's right edge: Done, how far she is, or Not started. Empty without practice sets.
+    static func state(_ progress: FolderProgress) -> String {
         guard progress.setCount > 0 else { return "" }
         switch progress.state {
         case .done: return "Done"
@@ -60,117 +57,116 @@ nonisolated enum FolderWording {
         }
     }
 
-    /// The exam-bank line inside an open week: "Exam bank: 27 questions, exams only", or that its
-    /// exams use practice questions.
-    static func examBank(_ week: Week) -> String {
-        week.examBankCount > 0
-            ? "Exam bank: \(Wording.count(week.examBankCount, "question")), exams only"
+    /// The exam line under a folder's sets: "Exam bank: 27 questions, exams only", or that its exams
+    /// use practice questions.
+    static func examBank(_ folder: Folder) -> String {
+        folder.examBankCount > 0
+            ? "Exam bank: \(Wording.count(folder.examBankCount, "question")), exams only"
             : "No exam bank yet · exams use practice questions"
     }
 
-    /// An exam folder's line: "Weeks 1-3 · 6 sets · 83 questions · 2 exams taken".
-    static func examMeta(_ folder: ExamFolder) -> String {
-        var parts = [folder.exam.weekLabels.isEmpty ? "No weeks yet" : Wording.weeks(folder.exam.weekLabels)]
-        if folder.progress.setCount > 0 {
-            parts.append(Wording.count(folder.progress.setCount, "set"))
-            parts.append(Wording.count(folder.progress.questionCount, "question"))
-        }
-        let taken = folder.sittings.count { $0.finishedAt != nil }
-        if taken > 0 { parts.append("\(Wording.count(taken, "exam")) taken") }
-        return parts.joined(separator: " · ")
+    /// The line under the folder's name on its own screen: "On Exam 2 · 3 sets · 36 of 45 fully
+    /// right", or "On no exam page · ...".
+    static func folderNote(_ folder: Folder, page: CourseExam?) -> String {
+        "\(page.map { "On \($0.name)" } ?? "On no exam page") · \(meta(folder))"
     }
 
-    /// Under an exam's Start button: "40 questions from the 83 in its exam banks, or Wrong questions only."
-    static func examDraw(_ folder: ExamFolder) -> String? {
-        guard folder.examQuestionCount > 0 else { return nil }
-        let plan = ExamPlan(folder.weeks.map { ExamPlan.Week(label: $0.label, questionCount: $0.examQuestionCount) })
-        let total = folder.examQuestionCount
-        let source: String
-        if folder.weeks.allSatisfy({ $0.examBankCount > 0 }) {
-            source = "the \(total) in its exam banks"
-        } else if folder.weeks.allSatisfy({ $0.examBankCount == 0 }) {
-            source = "its \(Wording.count(total, "practice question"))"
-        } else {
-            source = "the \(total) in its exam banks and practice sets"
-        }
-        return "\(Wording.count(plan.questionCount, "question")) from \(source), or Wrong questions only."
+    /// An exam page's row on the course page: "5 folders · 217 questions", or "No folders yet".
+    static func pageRow(_ page: ExamPage) -> String {
+        guard !page.folders.isEmpty else { return "No folders yet" }
+        return "\(Wording.count(page.folders.count, "folder")) · \(Wording.count(page.progress.questionCount, "question"))"
+    }
+
+    /// The line under an exam page's name: "5 folders · 16 sets · 217 questions", or "No folders yet".
+    static func pageNote(_ page: ExamPage) -> String {
+        guard !page.folders.isEmpty else { return "No folders yet" }
+        return [
+            Wording.count(page.folders.count, "folder"),
+            Wording.count(page.progress.setCount, "set"),
+            Wording.count(page.progress.questionCount, "question"),
+        ].joined(separator: " · ")
+    }
+
+    /// Under an exam page's Start exam: "40 questions from the 217 in these 5 folders, or Wrong
+    /// questions only.", or "All 26 questions in this folder, ...". Nil when its folders hold none.
+    static func examDraw(_ page: ExamPage) -> String? {
+        let folders = page.folders.filter { $0.examQuestionCount > 0 }
+        guard !folders.isEmpty else { return nil }
+        let plan = ExamPlan(folders.map { ExamPlan.Pool(id: $0.id, name: $0.name, questionCount: $0.examQuestionCount) })
+        let total = page.examQuestionCount
+        let place = folders.count == 1 ? "this folder" : "these \(folders.count) folders"
+        let draw = plan.questionCount < total
+            ? "\(Wording.count(plan.questionCount, "question")) from the \(total) in \(place)"
+            : "All \(Wording.count(total, "question")) in \(place)"
+        return "\(draw), or Wrong questions only."
     }
 }
 
-extension Week {
-    /// How many questions an exam over this week draws from: its exam bank, or its practice
+extension Folder {
+    /// How many questions an exam over this folder draws from: its exam bank, or its practice
     /// questions when it has none.
     nonisolated var examQuestionCount: Int {
         examBankCount > 0 ? examBankCount : sets.reduce(0) { $0 + $1.questionCount }
     }
 }
 
-/// An exam of the course with its weeks and the exams she took over them.
-nonisolated struct ExamFolder: Equatable, Identifiable {
+/// An exam page with its folders and the exams she took over them.
+nonisolated struct ExamPage: Equatable, Identifiable {
     let exam: CourseExam
-    /// Its weeks that the course still has, in week order.
-    let weeks: [Week]
-    /// Her exams over these weeks, the running one first, then newest first.
+    /// Its folders, in her order.
+    let folders: [Folder]
+    /// Her exams over these folders, the running one first, then newest first.
     let sittings: [ExamSummary]
-    let progress: WeekProgress
+    let progress: FolderProgress
 
     var id: String { exam.id }
 
     var examQuestionCount: Int {
-        weeks.reduce(0) { $0 + $1.examQuestionCount }
+        folders.reduce(0) { $0 + $1.examQuestionCount }
     }
 }
 
-/// The course grouped by exam: each exam's folder, the weeks no exam holds yet, and the exams she
-/// took that no single exam holds, such as a final over every week.
-nonisolated struct ExamGrouping: Equatable {
-    let folders: [ExamFolder]
-    let freeWeeks: [Week]
-    let otherSittings: [ExamSummary]
+/// The course as its page lists it: the exam pages, each with its own folders, and the folders on
+/// no exam page.
+/// The course page's two lists, in the order the server sends them: exam pages in the order they
+/// were added, each with its folders in her order, then the folders on no exam page in her order.
+nonisolated struct CourseLayout: Equatable {
+    let pages: [ExamPage]
+    /// The folders on no exam page, in her order.
+    let looseFolders: [Folder]
 
     /// - Parameter sittings: Her exams, the running one first, then newest first.
     init(course: CourseDetail, sittings: [ExamSummary]) {
-        let exams = course.exams.sorted { ($0.sortOrder, $0.name) < ($1.sortOrder, $1.name) }
-        folders = exams.map { exam in
-            let weeks = course.weeks.filter { exam.weekLabels.contains($0.label) }
-            return ExamFolder(
+        let ids = Set(course.exams.map(\.id))
+        pages = course.exams.map { exam in
+            let folders = course.folders.filter { $0.examPageID == exam.id }
+            return ExamPage(
                 exam: exam,
-                weeks: weeks,
-                sittings: sittings.filter { Self.courseExam(of: $0, in: exams) == exam.id },
-                progress: WeekProgress(sets: weeks.flatMap(\.sets))
+                folders: folders,
+                sittings: sittings.filter { Self.page(of: $0, in: course) == exam.id },
+                progress: FolderProgress(sets: folders.flatMap(\.sets))
             )
         }
-        let held = Set(exams.flatMap(\.weekLabels))
-        freeWeeks = course.weeks.filter { !held.contains($0.label) }
-        otherSittings = sittings.filter { Self.courseExam(of: $0, in: exams) == nil }
+        looseFolders = course.folders.filter { $0.examPageID.map { !ids.contains($0) } ?? true }
     }
 
-    /// The exam a sitting belongs to: the one holding every week it covered, as the server rules
-    /// (`courseExamOf`). The server's answer is kept while that exam still holds the weeks; the rule
-    /// itself covers a sitting read before the exams changed.
-    static func courseExam(of sitting: ExamSummary, in exams: [CourseExam]) -> String? {
-        guard !sitting.weeks.isEmpty else { return nil }
-        let holds = { (exam: CourseExam) in sitting.weeks.allSatisfy(exam.weekLabels.contains) }
-        if let id = sitting.courseExamID, let exam = exams.first(where: { $0.id == id }), holds(exam) { return id }
-        return exams.first(where: holds)?.id
-    }
-}
-
-/// Which folders open on a first visit, and remembering what she opens or closes.
-nonisolated enum FolderDefaults {
-    /// The weeks open on a first visit: every week she has started but not finished. When there is
-    /// none, the newest week opens, so the page never arrives fully folded.
-    static func openWeeks(_ weeks: [Week]) -> Set<String> {
-        let started = weeks.filter { WeekProgress($0).state == .started }.map(\.label)
-        if !started.isEmpty { return Set(started) }
-        return weeks.last.map { [$0.label] } ?? []
+    func page(_ id: String) -> ExamPage? {
+        pages.first { $0.id == id }
     }
 
-    /// The exams open on a first visit: those with a week she has started but not finished. When
-    /// there is none, the first exam not yet done opens.
-    static func openExams(_ folders: [ExamFolder]) -> Set<String> {
-        let started = folders.filter { folder in folder.weeks.contains { WeekProgress($0).state == .started } }.map(\.id)
-        if !started.isEmpty { return Set(started) }
-        return (folders.first { $0.progress.state != .done } ?? folders.first).map { [$0.id] } ?? []
+    /// The exam page a sitting belongs to: the one holding every folder it covered, as the server
+    /// rules (`courseExamOf`). The server's answer is kept while that page still holds them; the rule
+    /// itself covers a sitting read before the pages changed. A sitting from before folders is
+    /// matched by its folder names.
+    static func page(of sitting: ExamSummary, in course: CourseDetail) -> String? {
+        let holds = { (exam: CourseExam) -> Bool in
+            let folders = course.folders.filter { $0.examPageID == exam.id }
+            if let ids = sitting.folderIDs {
+                return !ids.isEmpty && ids.allSatisfy { id in folders.contains { $0.id == id } }
+            }
+            return !sitting.weeks.isEmpty && sitting.weeks.allSatisfy { name in folders.contains { $0.name == name } }
+        }
+        if let id = sitting.courseExamID, let exam = course.exams.first(where: { $0.id == id }), holds(exam) { return id }
+        return course.exams.first(where: holds)?.id
     }
 }

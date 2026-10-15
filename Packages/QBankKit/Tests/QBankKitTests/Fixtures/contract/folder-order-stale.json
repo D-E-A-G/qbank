@@ -1,0 +1,23 @@
+{
+  "recordedFrom": "9fa05c0b3f85764a60f8c8afaa8ca702241aded7",
+  "request": {
+    "method": "PUT",
+    "path": "/api/courses/c0000000-0000-4000-8000-000000000101/folder-order",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": {
+      "examPageId": "ce000000-0000-4000-8000-000000000001",
+      "folderIds": [
+        "f0000000-0000-4000-8000-000000000001"
+      ]
+    }
+  },
+  "response": {
+    "status": 409,
+    "headers": {},
+    "body": {
+      "error": "request_refused",
+      "message": "The folders changed since this list was shown. Reload and try again."
+    }
+  }
+}

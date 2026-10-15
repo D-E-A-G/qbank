@@ -98,7 +98,7 @@ struct OfflineStoreTests {
         #expect(report.sent.first?.replayed == true)
         #expect(store.waiting.isEmpty)
         let course = try await Self.client(server, session: session).course(id: FakeQBankServer.mentalHealthID)
-        let mixed = try #require(course.weeks.flatMap(\.sets).first { $0.id == "mixed-v1" })
+        let mixed = try #require(course.folders.flatMap(\.sets).first { $0.id == "mixed-v1" })
         #expect(mixed.answeredCount == 1, "sent twice, counted once")
     }
 

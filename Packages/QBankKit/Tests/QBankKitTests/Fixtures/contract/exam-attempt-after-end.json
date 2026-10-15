@@ -1,5 +1,5 @@
 {
-  "recordedFrom": "2b7a4291fc79877edeb8e4eb0e430209ef56fd8b",
+  "recordedFrom": "9fa05c0b3f85764a60f8c8afaa8ca702241aded7",
   "request": {
     "method": "POST",
     "path": "/api/attempts",
@@ -7,13 +7,13 @@
     "authorization": "Bearer synthetic-session-token",
     "body": {
       "clientAttemptId": "99999999-9999-4999-8999-999999999999",
-      "questionId": "c975d26a-b6ed-4ecb-af35-cf2008f8a5e0",
+      "questionId": "c0ead1ca-7414-4a2a-b3ec-9f510ba5b2de",
       "response": {
         "type": "single",
         "choice": 0
       },
       "guessed": false,
-      "studySessionId": "a03e90aa-6bd5-4811-b832-61188300940b"
+      "studySessionId": "30724e62-e3f2-425a-9f78-c336f8e4b5ca"
     }
   },
   "response": {

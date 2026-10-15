@@ -40,17 +40,17 @@ This is what the app is for. For your account the server keeps:
 
 - every answer you submit: which question, your response, whether you marked it as a guess, its score, and when you answered;
 - your progress per question (how many tries, how many fully right, the latest result) and which questions are on your Review list, including ones you cleared by hand;
-- your study sessions: practice sets, Review runs, and exams, with when they started and ended, the weeks and question pool you picked for an exam, the time limit, and the score;
+- your study sessions: practice sets, Review runs, and exams, with when they started and ended, the folders and question pool you picked for an exam, the time limit, and the score;
 - the course you opened most recently, so the app and the web app open where you left off.
 
-Your answers and progress are yours alone among students: other students cannot see them. The question bank itself (semesters, courses, weeks, sets, questions, and terms) is shared by everyone on the server and is not personal data.
+Your answers and progress are yours alone among students: other students cannot see them. The question bank itself (semesters, courses, their exam pages and folders, sets, questions, and terms) is shared by everyone on the server and is not personal data.
 
 **The owner can see your progress.** The server's admin account can look at a student's answers and progress (to help with studying) and can set a temporary password for a student who forgot theirs. No email is sent; the owner gives you the temporary password himself.
 
 ### 4. What stays on your iPhone
 
 - **Saved for offline.** So you can practice without a signal, the app keeps a copy of the courses on your Home screen, with their sets and questions, and your recent progress, plus the Review list and terms of each course you open, in its own storage on the phone. It saves them by itself while it is online. Answers you give without a connection are scored on the phone and wait there until they can be sent. The server ignores an answer it already has, so nothing is counted twice. Exams need a connection and are not kept for offline use.
-- **Settings on the phone.** Your light or dark look choice, and on each course page the folders you opened or closed and whether you view it by week or by exam, are stored on the phone.
+- **Settings on the phone.** Your light or dark look choice is stored on the phone.
 - **Signing out** removes the session token, the offline copy, and any answers still waiting to send. The app warns you before it removes answers that have not been sent.
 - Deleting the app removes everything it stored on that phone.
 

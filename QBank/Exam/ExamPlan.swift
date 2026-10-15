@@ -1,25 +1,27 @@
 import Foundation
 
-/// How many questions an exam over the ticked weeks takes from each, and its time: the server's
-/// `planExam` (`packages/questions/src/exam.ts`), so the summary she reads before Start is the
-/// exam she gets.
+/// How many questions an exam over the ticked folders takes from each, and its time: the
+/// server's `planExam` (`packages/questions/src/exam.ts`), so the summary she reads before Start
+/// is the exam she gets.
 ///
-/// Up to 40 questions in 60 minutes. When the weeks hold fewer than 40, the exam is all of them
-/// at 1.5 minutes each. A larger pool is split in proportion to each week's size by largest
-/// remainder, so Weeks 1 to 3 holding 22, 27, and 37 give 10 + 13 + 17. A week with questions
-/// always gives at least one, so every ticked week stays represented.
+/// Up to 40 questions in 60 minutes. When the folders hold fewer than 40, the exam is all of them
+/// at 1.5 minutes each. A larger pool is split in proportion to each folder's size by largest
+/// remainder, so folders holding 22, 27, and 37 give 10 + 13 + 17. A folder with questions always
+/// gives at least one, so every ticked folder stays represented.
 nonisolated struct ExamPlan: Equatable {
-    /// A ticked week with the questions it holds.
-    struct Week: Equatable {
-        let label: String
+    /// A ticked folder with the questions it holds.
+    struct Pool: Equatable {
+        let id: String
+        let name: String
         let questionCount: Int
     }
 
-    /// One row per ticked week, in the order given.
+    /// One row per ticked folder, in the order given.
     struct Draw: Equatable {
-        let label: String
+        let id: String
+        let name: String
         let questionCount: Int
-        /// How many of the week's questions the exam takes.
+        /// How many of the folder's questions the exam takes.
         let drawn: Int
     }
 
@@ -29,15 +31,15 @@ nonisolated struct ExamPlan: Equatable {
 
     let questionCount: Int
     let timeLimitSeconds: Int
-    let weeks: [Draw]
+    let draws: [Draw]
 
-    init(_ weeks: [Week]) {
-        let sizes = weeks.map { max(0, $0.questionCount) }
+    init(_ pools: [Pool]) {
+        let sizes = pools.map { max(0, $0.questionCount) }
         let pool = sizes.reduce(0, +)
         guard pool > Self.maxQuestions else {
             questionCount = pool
             timeLimitSeconds = pool * Self.secondsPerQuestion
-            self.weeks = zip(weeks, sizes).map { Draw(label: $0.label, questionCount: $1, drawn: $1) }
+            draws = zip(pools, sizes).map { Draw(id: $0.id, name: $0.name, questionCount: $1, drawn: $1) }
             return
         }
 
@@ -55,7 +57,7 @@ nonisolated struct ExamPlan: Equatable {
             left -= 1
         }
 
-        // A small week next to large ones can round to 0. It borrows one from the week that is
+        // A small folder next to large ones can round to 0. It borrows one from the folder that is
         // furthest over its share, so the total stays 40.
         let surplus = { (index: Int) in Double(drawn[index]) - quotas[index] }
         for index in drawn.indices where sizes[index] > 0 && drawn[index] == 0 {
@@ -71,6 +73,6 @@ nonisolated struct ExamPlan: Equatable {
 
         questionCount = Self.maxQuestions
         timeLimitSeconds = Self.fullSeconds
-        self.weeks = weeks.indices.map { Draw(label: weeks[$0].label, questionCount: sizes[$0], drawn: drawn[$0]) }
+        draws = pools.indices.map { Draw(id: pools[$0].id, name: pools[$0].name, questionCount: sizes[$0], drawn: drawn[$0]) }
     }
 }

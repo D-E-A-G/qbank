@@ -119,7 +119,7 @@ private struct TermRow: View {
             Text(term.meaning)
                 .qbankFont(.subheadline)
                 .foregroundStyle(.qbank(.text2))
-            Text("\(term.weekLabel) · \(term.setTitle)")
+            Text("\(term.folderName) · \(term.setTitle)")
                 .qbankFont(.subheadline)
                 .foregroundStyle(.qbank(.text2))
         }

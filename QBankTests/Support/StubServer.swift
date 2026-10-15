@@ -22,6 +22,8 @@ final class StubServer: HTTPTransport {
 
     private let routes: Mutex<[String: Reply]>
     private let scripts = Mutex<[String: [Reply]]>([:])
+    private let gates = Mutex<[String: AsyncStream<Void>]>([:])
+    private let releases = Mutex<[String: AsyncStream<Void>.Continuation]>([:])
     private let log = Mutex<[URLRequest]>([])
 
     /// - Parameter routes: Replies keyed by "METHOD /path". A route not in the table answers 404.
@@ -37,6 +39,19 @@ final class StubServer: HTTPTransport {
     /// Answers the next requests to a route with these replies, in order, then with the table again.
     func script(_ route: String, _ replies: [Reply]) {
         scripts.withLock { $0[route, default: []].append(contentsOf: replies) }
+    }
+
+    /// Holds the answer to the next request to a route until `release(_:)`, as a slow connection
+    /// does, so a later request can be answered first.
+    func hold(_ route: String) {
+        let (gate, release) = AsyncStream<Void>.makeStream()
+        gates.withLock { $0[route] = gate }
+        releases.withLock { $0[route] = release }
+    }
+
+    /// Lets the held request to a route have its answer.
+    func release(_ route: String) {
+        releases.withLock { $0.removeValue(forKey: route) }?.finish()
     }
 
     var requests: [URLRequest] {
@@ -65,6 +80,9 @@ final class StubServer: HTTPTransport {
             return reply
         }
         let reply = scripted ?? routes.withLock { $0[key] } ?? .error(404, "request_refused", "Not stubbed: \(key)")
+        if let gate = gates.withLock({ $0.removeValue(forKey: key) }) {
+            for await _ in gate {}
+        }
         if reply.status < 0 { throw URLError(.notConnectedToInternet) }
         let response = HTTPURLResponse(url: request.url!, statusCode: reply.status, httpVersion: nil, headerFields: nil)!
         return (Data(reply.body.utf8), response)
@@ -96,7 +114,6 @@ enum TestApp {
         let app = AppModel(
             client: client,
             look: LookStore(defaults: defaults),
-            courseMemory: CourseMemory(defaults: defaults),
             storage: storage,
             connection: connection
         )

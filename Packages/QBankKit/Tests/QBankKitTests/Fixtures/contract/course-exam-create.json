@@ -1,5 +1,5 @@
 {
-  "recordedFrom": "a1a22c1424b751417b30830ee4b96266f5519255",
+  "recordedFrom": "9fa05c0b3f85764a60f8c8afaa8ca702241aded7",
   "request": {
     "method": "POST",
     "path": "/api/courses/c0000000-0000-4000-8000-000000000101/course-exams",
@@ -7,9 +7,9 @@
     "authorization": "Bearer synthetic-session-token",
     "body": {
       "name": "Exam 1",
-      "weekLabels": [
-        "Week 2",
-        "Week 1"
+      "folderIds": [
+        "f0000000-0000-4000-8000-000000000001",
+        "f0000000-0000-4000-8000-000000000002"
       ]
     }
   },
@@ -23,6 +23,10 @@
       "weekLabels": [
         "Week 1",
         "Week 2"
+      ],
+      "folderIds": [
+        "f0000000-0000-4000-8000-000000000001",
+        "f0000000-0000-4000-8000-000000000002"
       ]
     }
   }
