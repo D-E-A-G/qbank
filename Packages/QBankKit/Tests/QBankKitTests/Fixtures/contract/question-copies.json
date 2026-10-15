@@ -1,0 +1,266 @@
+{
+  "recordedFrom": "fe9f73e7ea2e798593f98c2d269999405105c662",
+  "request": {
+    "method": "GET",
+    "path": "/api/question-jobs/a0b00000-0000-4000-8000-000000000403/copies",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token"
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "title": "Invented quiz",
+      "photoCount": 2,
+      "questions": [
+        {
+          "id": "P01",
+          "photo": 1,
+          "answerFrom": "photo",
+          "explanationsFrom": "photo",
+          "question": {
+            "id": "P01",
+            "type": "single",
+            "topic": "Invented topic 1",
+            "cj": "Analyze cues",
+            "need": "Physiological Adaptation",
+            "difficulty": 3,
+            "stem": "An invented patient in Invented topic 1 reports cool hands since this morning.",
+            "ask": "Which action should the nurse take first?",
+            "rationale": "Invented rationale for Invented topic 1: a baseline comes before any other step.",
+            "takeaway": "Assess first.",
+            "body": {
+              "options": [
+                {
+                  "t": "Check the vital signs",
+                  "ok": true,
+                  "why": "Invented: the finding in Invented topic 1 needs a baseline first."
+                },
+                {
+                  "t": "Call the provider now",
+                  "why": "Invented: assess before calling."
+                },
+                {
+                  "t": "Give the next dose early",
+                  "why": "Invented: not ordered."
+                },
+                {
+                  "t": "Teach about the finding",
+                  "why": "Invented: teaching is not first."
+                }
+              ]
+            },
+            "table": null,
+            "images": [],
+            "terms": [],
+            "source": "Invented slide 1",
+            "twinOf": null
+          },
+          "file": {
+            "cj": "Analyze cues",
+            "id": "P01",
+            "ask": "Which action should the nurse take first?",
+            "src": "Invented slide 1",
+            "diff": 3,
+            "need": "Physiological Adaptation",
+            "stem": "An invented patient in Invented topic 1 reports cool hands since this morning.",
+            "type": "single",
+            "terms": [],
+            "topic": "Invented topic 1",
+            "options": [
+              {
+                "t": "Check the vital signs",
+                "ok": true,
+                "why": "Invented: the finding in Invented topic 1 needs a baseline first."
+              },
+              {
+                "t": "Call the provider now",
+                "why": "Invented: assess before calling."
+              },
+              {
+                "t": "Give the next dose early",
+                "why": "Invented: not ordered."
+              },
+              {
+                "t": "Teach about the finding",
+                "why": "Invented: teaching is not first."
+              }
+            ],
+            "takeaway": "Assess first.",
+            "rationale": "Invented rationale for Invented topic 1: a baseline comes before any other step."
+          }
+        },
+        {
+          "id": "P02",
+          "photo": 1,
+          "answerFrom": "photo",
+          "explanationsFrom": "qbank",
+          "question": {
+            "id": "P02",
+            "type": "sata",
+            "topic": "Invented topic 2",
+            "cj": "Recognize cues",
+            "need": "Physiological Adaptation",
+            "difficulty": 4,
+            "stem": "On a later shift a different invented person shows signs linked to Invented topic 2.",
+            "ask": "Which findings need a report? Select all that apply.",
+            "rationale": "Invented twin rationale for Invented topic 2.",
+            "takeaway": "Report changes.",
+            "body": {
+              "options": [
+                {
+                  "t": "Heart rate of 124",
+                  "ok": true,
+                  "why": "Invented: fast."
+                },
+                {
+                  "t": "New confusion",
+                  "ok": true,
+                  "why": "Invented: a change."
+                },
+                {
+                  "t": "Mild thirst",
+                  "why": "Invented: expected."
+                },
+                {
+                  "t": "Soreness at the site",
+                  "why": "Invented: expected."
+                },
+                {
+                  "t": "Tired after walking",
+                  "why": "Invented: expected."
+                }
+              ]
+            },
+            "table": null,
+            "images": [],
+            "terms": [],
+            "source": "Invented slide 2",
+            "twinOf": null
+          },
+          "file": {
+            "cj": "Recognize cues",
+            "id": "P02",
+            "ask": "Which findings need a report? Select all that apply.",
+            "src": "Invented slide 2",
+            "diff": 4,
+            "need": "Physiological Adaptation",
+            "stem": "On a later shift a different invented person shows signs linked to Invented topic 2.",
+            "type": "sata",
+            "terms": [],
+            "topic": "Invented topic 2",
+            "options": [
+              {
+                "t": "Heart rate of 124",
+                "ok": true,
+                "why": "Invented: fast."
+              },
+              {
+                "t": "New confusion",
+                "ok": true,
+                "why": "Invented: a change."
+              },
+              {
+                "t": "Mild thirst",
+                "why": "Invented: expected."
+              },
+              {
+                "t": "Soreness at the site",
+                "why": "Invented: expected."
+              },
+              {
+                "t": "Tired after walking",
+                "why": "Invented: expected."
+              }
+            ],
+            "takeaway": "Report changes.",
+            "rationale": "Invented twin rationale for Invented topic 2."
+          }
+        },
+        {
+          "id": "P03",
+          "photo": 2,
+          "answerFrom": "suggested",
+          "explanationsFrom": "qbank",
+          "question": {
+            "id": "P03",
+            "type": "single",
+            "topic": "Invented topic 3",
+            "cj": "Analyze cues",
+            "need": "Physiological Adaptation",
+            "difficulty": 3,
+            "stem": "An invented adult in Invented topic 3 reports slurred words since this morning.",
+            "ask": "Which action should the nurse take first?",
+            "rationale": "Invented rationale for Invented topic 3: a baseline comes before any other step.",
+            "takeaway": "Assess first.",
+            "body": {
+              "options": [
+                {
+                  "t": "Check the vital signs",
+                  "ok": true,
+                  "why": "Invented: the finding in Invented topic 3 needs a baseline first."
+                },
+                {
+                  "t": "Call the provider now",
+                  "why": "Invented: assess before calling."
+                },
+                {
+                  "t": "Give the next dose early",
+                  "why": "Invented: not ordered."
+                },
+                {
+                  "t": "Teach about the finding",
+                  "why": "Invented: teaching is not first."
+                }
+              ]
+            },
+            "table": null,
+            "images": [],
+            "terms": [],
+            "source": "Invented slide 1",
+            "twinOf": null
+          },
+          "file": {
+            "cj": "Analyze cues",
+            "id": "P03",
+            "ask": "Which action should the nurse take first?",
+            "src": "Invented slide 1",
+            "diff": 3,
+            "need": "Physiological Adaptation",
+            "stem": "An invented adult in Invented topic 3 reports slurred words since this morning.",
+            "type": "single",
+            "terms": [],
+            "topic": "Invented topic 3",
+            "options": [
+              {
+                "t": "Check the vital signs",
+                "ok": true,
+                "why": "Invented: the finding in Invented topic 3 needs a baseline first."
+              },
+              {
+                "t": "Call the provider now",
+                "why": "Invented: assess before calling."
+              },
+              {
+                "t": "Give the next dose early",
+                "why": "Invented: not ordered."
+              },
+              {
+                "t": "Teach about the finding",
+                "why": "Invented: teaching is not first."
+              }
+            ],
+            "takeaway": "Assess first.",
+            "rationale": "Invented rationale for Invented topic 3: a baseline comes before any other step."
+          }
+        }
+      ],
+      "unreadable": [
+        {
+          "photo": 2,
+          "reason": "The bottom of photo 2 is blurry."
+        }
+      ]
+    }
+  }
+}

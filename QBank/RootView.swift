@@ -38,18 +38,23 @@ struct RootView: View {
     }
 }
 
-/// The two tabs of phase 1: Home and Settings.
+/// The three tabs: Home, Add (make or import questions), and Settings.
 struct SignedInView: View {
     let app: AppModel
+    @State private var tabs = TabNavigator()
 
     var body: some View {
-        TabView {
-            Tab("Home", systemImage: "house") {
-                HomeView(app: app)
+        TabView(selection: $tabs.tab) {
+            Tab("Home", systemImage: "house", value: AppTab.home) {
+                HomeView(app: app, navigator: tabs.home)
             }
-            Tab("Settings", systemImage: "gearshape") {
+            Tab("Add", systemImage: "plus.circle", value: AppTab.add) {
+                AddView(app: app)
+            }
+            Tab("Settings", systemImage: "gearshape", value: AppTab.settings) {
                 SettingsView(app: app)
             }
         }
+        .environment(tabs)
     }
 }

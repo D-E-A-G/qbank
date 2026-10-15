@@ -5,7 +5,7 @@ Two Apple declarations say what data QBank handles. They must agree with each ot
 - the **privacy manifest**, `PrivacyInfo.xcprivacy`, a file inside the app target that ships in every build;
 - the **App Privacy answers** (the "nutrition labels") the owner fills in once in App Store Connect, under the app's App Privacy page.
 
-This file is the source for both. It describes the app at TestFlight parity (phases 1a to 1e of the plan). Any change that sends a new kind of data to the server, adds a third-party SDK, or uses a new required-reason API updates this file, the manifest, and the policy in the same pull request.
+This file is the source for both. It describes the app at TestFlight parity (phases 1a to 1e of the plan), with Import (phase 3) and Make questions (phase Q). Any change that sends a new kind of data to the server, adds a third-party SDK, or uses a new required-reason API updates this file, the manifest, and the policy in the same pull request.
 
 ## Why these answers
 
@@ -19,10 +19,11 @@ Everything collected is **linked** to you, because it is stored under your accou
 |---|---|---|---|---|---|---|
 | Contact Info | Email Address | `NSPrivacyCollectedDataTypeEmailAddress` | the account's sign-in email | yes | no | App Functionality |
 | Identifiers | User ID | `NSPrivacyCollectedDataTypeUserID` | the server's account id that every answer is stored under | yes | no | App Functionality |
-| User Content | Other User Content | `NSPrivacyCollectedDataTypeOtherUserContent` | answers, guesses, per-question progress, the Review list, exam picks and scores | yes | no | App Functionality |
+| User Content | Photos or Videos | `NSPrivacyCollectedDataTypePhotosorVideos` | Make questions: the photos she takes or picks of her notes, slides, or practice questions, sent on to Anthropic's Claude API to read them and deleted from the server once read; the text read from them stays in the set's record | yes | no | App Functionality |
+| User Content | Other User Content | `NSPrivacyCollectedDataTypeOtherUserContent` | answers, guesses, per-question progress, the Review list, exam picks and scores; for Make questions, the notes she pastes and the file she picks, sent on like the photos; their text stays in the set's record | yes | no | App Functionality |
 | Usage Data | Product Interaction | `NSPrivacyCollectedDataTypeProductInteraction` | study-session start and end times and the last-opened course (Apple lists "saved place" under this type) | yes | no | App Functionality |
 
-Answer these in App Store Connect exactly this way: "Yes, we collect data from this app", then the four types above, each "linked to the user", "not used for tracking", purpose "App Functionality" only.
+Answer these in App Store Connect exactly this way: "Yes, we collect data from this app", then the five types above, each "linked to the user", "not used for tracking", purpose "App Functionality" only.
 
 ### Considered and not declared
 
@@ -32,7 +33,8 @@ Answer these in App Store Connect exactly this way: "Yes, we collect data from t
 | Name | The account name is set by the owner on the server, not collected by the app. Declare **Name** if a later version lets you type or change it in the app. |
 | IP address and user agent of a session | The server's sign-in library records them with each session; QBank reads them for nothing. Apple says to declare an IP address by how it is used (location, device ID, diagnostics), and QBank uses it for none of these. Cleaner still: a server task turns that recording off (see [release.md](release.md)), and this row then goes away. |
 | Crash data, performance data, other diagnostics | The app has no crash or analytics SDK and sends no diagnostics. TestFlight crash reports and feedback are collected by Apple, and Apple says developers are not responsible for disclosing data Apple collects. |
-| Photos, files, audio | Not read in phases 1 and 2. The export file goes where you send it; QBank never receives it. |
+| Audio | Not read. |
+| An imported question file | It becomes shared course content, not personal data. The export file goes where you send it; QBank never receives it. |
 | Purchases, financial info, health, location, contacts, browsing, search history, sensitive info | Not handled. |
 
 ### When later phases change the answers
@@ -40,8 +42,8 @@ Answer these in App Store Connect exactly this way: "Yes, we collect data from t
 | Phase | Change |
 |---|---|
 | 3 Passkeys and Face ID | nothing new is collected that Apple's labels count (a passkey's public key is a credential). Face ID is handled by iOS and never reaches the app. |
-| 3 Import | an imported question file becomes shared course content; it is not personal data, so no new type. Re-check if the file can carry personal notes. |
-| Q Make questions (Khine's account only) | **Photos or Videos** and **Other User Content** (notes, files) sent to the server and on to the AI provider for App Functionality, linked, not tracking. Name the AI provider in the policy. |
+| 3 Import | shipped: an imported question file becomes shared course content; it is not personal data, so no new type. Re-check if the file can carry personal notes. |
+| Q Make questions (the accounts the server allows) | shipped: **Photos or Videos** and **Other User Content** (notes, files) declared above; the policy names Anthropic. |
 | 4 Free on this phone | data in on-phone mode is never sent anywhere and is not collected; the signed-in mode keeps the answers above. |
 
 ## Draft `PrivacyInfo.xcprivacy`
@@ -74,6 +76,18 @@ The app target (owned by the phase-0 Xcode project) should carry this file, adde
 		<dict>
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypeUserID</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypePhotosorVideos</string>
 			<key>NSPrivacyCollectedDataTypeLinked</key>
 			<true/>
 			<key>NSPrivacyCollectedDataTypeTracking</key>
@@ -141,4 +155,4 @@ The exam timer is ruled by the server's clock (`serverNow`), so it should not ne
 
 - **Export compliance:** the app uses only Apple's HTTPS, which is exempt. Set `ITSAppUsesNonExemptEncryption` to `NO` in the app's Info.plist so App Store Connect stops asking on every build.
 - **No tracking prompt:** the app never shows the App Tracking Transparency prompt and has no `NSUserTrackingUsageDescription`.
-- **Usage descriptions** (`NS...UsageDescription`) are added only with the feature that needs them: photo library or camera for phase Q, and none for phases 1 and 2.
+- **Usage descriptions** (`NS...UsageDescription`) are added only with the feature that needs them. Make questions' Take photo uses the camera, so the app carries `NSCameraUsageDescription`. Its photo picker (`PhotosPicker`) runs outside the app and hands over only the photos she picks, so there is no photo library usage description.

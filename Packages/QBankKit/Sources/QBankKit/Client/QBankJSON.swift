@@ -26,10 +26,21 @@ public enum QBankJSON {
         return encoder
     }
 
-    /// Reads `2026-10-13T00:02:35.395Z`, with or without the fraction.
+    /// Reads `2026-10-13T00:02:35.395Z`, with or without the fraction, and Postgres's own text for
+    /// a timestamp, `2026-10-13 00:02:35.395+00`, which the make-questions job routes send as it is.
     public static func parseDate(_ text: String) -> Date? {
         if let date = try? Date(text, strategy: withFraction) { return date }
-        return try? Date(text, strategy: withoutFraction)
+        if let date = try? Date(text, strategy: withoutFraction) { return date }
+        guard let iso = isoText(ofPostgres: text) else { return nil }
+        if let date = try? Date(iso, strategy: withFraction) { return date }
+        return try? Date(iso, strategy: withoutFraction)
+    }
+
+    /// `2026-10-13 00:02:35.395+00` as `2026-10-13T00:02:35.395+00:00`: Postgres writes the offset
+    /// as hours alone unless it has minutes.
+    private static func isoText(ofPostgres text: String) -> String? {
+        guard let match = text.wholeMatch(of: /(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2}(?:\.\d+)?)([+-]\d{2})(?::(\d{2}))?/) else { return nil }
+        return "\(match.1)T\(match.2)\(match.3):\(match.4 ?? "00")"
     }
 
     /// Writes `2026-10-13T00:02:35.395Z`. Rounds to the millisecond, so a timestamp read from the

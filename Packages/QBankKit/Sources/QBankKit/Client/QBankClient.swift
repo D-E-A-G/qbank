@@ -113,6 +113,89 @@ public struct QBankClient: Sendable {
         try await send(Request(.post, "/api/practice-sets/\(id)/restore"))
     }
 
+    // MARK: Import
+
+    /// Checks a question file without importing it: its counts and formats, or the errors that
+    /// block it, in the importer's words. Nothing is written.
+    public func checkImport(source: String) async throws(QBankError) -> ImportReport {
+        try await send(Request(.post, "/api/imports/check", body: ImportSourceRequest(source: source)))
+    }
+
+    /// Imports a question file into a course and folder. When the course already has a set of this
+    /// name, nothing is written and the answer is `.conflict`: she chooses, and the same request goes
+    /// again with `.replace` or `.separate`. A file the importer refuses is a 400 `invalid_import`
+    /// whose message is its first error.
+    public func importSet(_ request: ImportRequest) async throws(QBankError) -> ImportOutcome {
+        let call = Request(.post, "/api/imports", body: ImportSetRequest(request: request))
+        let (data, status) = try await exchange(call, accepting: [409])
+        if status == 409 {
+            return .conflict(try decode(ImportConflict.self, from: data, status: status, for: call))
+        }
+        return .imported(try decode(ImportedSet.self, from: data, status: status, for: call))
+    }
+
+    // MARK: Making questions
+
+    /// Whether she may start a set now, why not in the server's words, and the choices: the levels
+    /// and their counts, and how much material one set takes.
+    public func questionMakerStatus() async throws(QBankError) -> QuestionMakerStatus {
+        try await send(Request(.get, "/api/question-maker"))
+    }
+
+    /// Her recent sets, newest first: those still going and the last few finished. An account the
+    /// server does not allow is refused with `not_allowed`, and a server without its Claude key
+    /// with `not_set_up`, each with a sentence to show as it is.
+    public func questionJobs() async throws(QBankError) -> [QuestionJob] {
+        let list: QuestionJobList = try await send(Request(.get, "/api/question-jobs"))
+        return list.jobs
+    }
+
+    /// Starts a set from her material and answers at once; QBank works on it in the background.
+    /// Past the daily limit it is refused with `daily_limit`, in the server's words.
+    public func startQuestionJob(_ job: NewQuestionJob) async throws(QBankError) -> QuestionJob {
+        try await send(Request(.post, "/api/question-jobs", body: NewQuestionJobBody(job: job)))
+    }
+
+    /// A set being made, as far as it got.
+    public func questionJob(id: String) async throws(QBankError) -> QuestionJob {
+        try await send(Request(.get, "/api/question-jobs/\(id)"))
+    }
+
+    /// The samples she checks, while the set waits for her.
+    public func questionSamples(jobID: String) async throws(QBankError) -> QuestionSamples {
+        try await send(Request(.get, "/api/question-jobs/\(jobID)/samples"))
+    }
+
+    /// The samples look right: QBank writes the rest the same way, with what she said about them.
+    public func acceptSamples(jobID: String, words: String?) async throws(QBankError) -> QuestionJob {
+        try await send(Request(.post, "/api/question-jobs/\(jobID)/samples/accept", body: AcceptSamplesBody(words: words)))
+    }
+
+    /// Writes the samples again from her notes on single samples, on all of them, or both.
+    public func reviseSamples(jobID: String, changes: [SampleChange], note: String? = nil) async throws(QBankError) -> QuestionJob {
+        try await send(Request(.post, "/api/question-jobs/\(jobID)/samples/revise", body: ReviseSamplesBody(changes: changes, note: note)))
+    }
+
+    /// The questions copied from her photos, while the set waits for her check.
+    public func questionCopies(jobID: String) async throws(QBankError) -> QuestionCopies {
+        try await send(Request(.get, "/api/question-jobs/\(jobID)/copies"))
+    }
+
+    /// Keeps the copies she checked, in her order, with her fixes; the rest are left out.
+    public func acceptCopies(jobID: String, keep: [KeptCopy]) async throws(QBankError) -> QuestionJob {
+        try await send(Request(.post, "/api/question-jobs/\(jobID)/copies/accept", body: AcceptCopiesBody(keep)))
+    }
+
+    /// The finished set, its exam twins, and the blind check.
+    public func questionResult(jobID: String) async throws(QBankError) -> QuestionResult {
+        try await send(Request(.get, "/api/question-jobs/\(jobID)/result"))
+    }
+
+    /// Stops a set that is still going. Nothing more is written or filed, and her material is deleted.
+    public func cancelQuestionJob(id: String) async throws(QBankError) -> QuestionJob {
+        try await send(Request(.post, "/api/question-jobs/\(id)/cancel"))
+    }
+
     // MARK: Folders
 
     /// Adds an empty folder to the course, on no exam page, at the end of that list. A name the
@@ -322,6 +405,10 @@ public struct QBankClient: Sendable {
 
     private func send<Response: Decodable>(_ request: Request) async throws(QBankError) -> Response {
         let (data, status) = try await exchange(request)
+        return try decode(Response.self, from: data, status: status, for: request)
+    }
+
+    private func decode<Response: Decodable>(_ type: Response.Type, from data: Data, status: Int, for request: Request) throws(QBankError) -> Response {
         do {
             return try QBankJSON.decoder.decode(Response.self, from: data)
         } catch {
@@ -333,7 +420,9 @@ public struct QBankClient: Sendable {
         try await exchange(request).data
     }
 
-    private func exchange(_ request: Request) async throws(QBankError) -> (data: Data, status: Int) {
+    /// Sends the request and returns the answer's body and status. A status outside 2xx is thrown as
+    /// the server's error, unless the route answers it with its own body (`accepting`).
+    private func exchange(_ request: Request, accepting: Set<Int> = []) async throws(QBankError) -> (data: Data, status: Int) {
         var token: String?
         if request.authenticated {
             guard let session = try loadSession() else { throw .notSignedIn }
@@ -352,7 +441,7 @@ public struct QBankClient: Sendable {
             throw .transport(.unknown)
         }
         let status = response.statusCode
-        guard (200..<300).contains(status) else {
+        guard (200..<300).contains(status) || accepting.contains(status) else {
             throw Self.failure(status: status, data: data, response: response)
         }
         return (data, status)

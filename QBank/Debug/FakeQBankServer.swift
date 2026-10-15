@@ -7,7 +7,7 @@ import Synchronization
 /// app's calls with invented accounts, courses and questions, the way the real routes answer them,
 /// and scores answers with the server's rules, so the app runs end to end through `QBankClient`
 /// without a network or a real account.
-nonisolated final class FakeQBankServer: HTTPTransport {
+nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary {
     struct Credentials {
         let email: String
         let password: String
@@ -17,6 +17,8 @@ nonisolated final class FakeQBankServer: HTTPTransport {
     static let student = Credentials(email: "student@example.com", password: "synthetic-pass-1")
     /// A student whose password the owner reset: she must choose a new one.
     static let resetStudent = Credentials(email: "reset@example.com", password: "synthetic-temp-1")
+    /// The one student the server lets make questions, with a set being written and copies to check.
+    static let maker = Credentials(email: "maker@example.com", password: "synthetic-pass-2")
     static let sessionToken = "synthetic-session-token"
 
     static let mentalHealthID = "8d7b4f0e-0000-4000-8000-000000000310"
@@ -55,6 +57,22 @@ nonisolated final class FakeQBankServer: HTTPTransport {
         var questions = 0, folders = 0, review = 0, answered = 0, right = 0, points = 0, maxPoints = 0
     }
 
+    /// A set an import wrote while the app ran.
+    private struct ImportedEntry {
+        let courseID: String
+        let title: String
+        let kind: String
+        let questionCount: Int
+        let termCount: Int
+        let importedAt: Date
+        /// "imported", or "replaced" for a new version of a set.
+        let status: String
+        /// The version this one replaced, which Restore brings back.
+        let previous: String?
+        /// False once a newer version replaced it.
+        var isCurrent = true
+    }
+
     private struct State {
         var accounts: [Account]
         var semesters: [FakeSemester]
@@ -68,6 +86,9 @@ nonisolated final class FakeQBankServer: HTTPTransport {
         var attempts: [String: Data] = [:]
         /// Her latest answer to each question: (status, answered at).
         var latest: [String: (status: String, at: Date)] = [:]
+        /// Sets imported while the app ran, by id.
+        var imported: [String: ImportedEntry] = [:]
+        var importCount = 0
     }
 
     private let state: Mutex<State>
@@ -75,6 +96,8 @@ nonisolated final class FakeQBankServer: HTTPTransport {
     private let offline = Mutex(false)
     /// Review, Terms, exams and the course's exams.
     private let study: FakeStudy
+    /// Make questions, for `maker` only.
+    private let questionMaker: FakeQuestionMaker
 
     /// Without signal, every call fails before it reaches the server, as on a phone with no network.
     var isOffline: Bool {
@@ -83,15 +106,22 @@ nonisolated final class FakeQBankServer: HTTPTransport {
     }
 
     /// - Parameters:
-    ///   - signedIn: Starts with `student`'s session, as `sessionToken`.
+    ///   - signedIn: Starts with the session of `account`, as `sessionToken`.
+    ///   - account: Who is signed in: `student`, or `maker` to make questions.
+    ///   - makerIsSetUp: False: the server has no Claude key, so making questions is not set up yet.
     ///   - place: The course she used last, or nil for none.
-    init(signedIn: Bool, place: String? = FakeQBankServer.mentalHealthID, now: Date = .now) {
+    init(
+        signedIn: Bool, as account: Credentials = FakeQBankServer.student, makerIsSetUp: Bool = true,
+        place: String? = FakeQBankServer.mentalHealthID, now: Date = .now
+    ) {
         self.now = now
         study = FakeStudy(now: now)
+        questionMaker = FakeQuestionMaker(allowed: [Self.maker.email], isSetUp: makerIsSetUp, seededFor: Self.maker.email, now: now)
         state = Mutex(State(
             accounts: [
                 Account(id: "fake-student", email: Self.student.email, name: "Sam Student", password: Self.student.password, mustChangePassword: false),
                 Account(id: "fake-reset", email: Self.resetStudent.email, name: "Robin Reset", password: Self.resetStudent.password, mustChangePassword: true),
+                Account(id: "fake-maker", email: Self.maker.email, name: "Max Maker", password: Self.maker.password, mustChangePassword: false),
             ],
             semesters: [
                 FakeSemester(id: Self.semester1ID, number: 1, name: "Semester 1"),
@@ -103,7 +133,7 @@ nonisolated final class FakeQBankServer: HTTPTransport {
                 FakeCourse(id: Self.fundamentalsID, semesterID: Self.semester1ID, code: "NURS 220", title: "Fundamentals", sortOrder: 2,
                            questions: 146, folders: 3, review: 5, answered: 92, right: 70, points: 131, maxPoints: 170),
             ],
-            sessions: signedIn ? [Self.sessionToken: Self.student.email] : [:],
+            sessions: signedIn ? [Self.sessionToken: account.email] : [:],
             place: place
         ))
     }
@@ -114,6 +144,15 @@ nonisolated final class FakeQBankServer: HTTPTransport {
             token: sessionToken,
             expiresAt: expiresAt,
             account: QBankKit.Account(id: "fake-student", email: student.email, name: "Sam Student", role: .student, mustChangePassword: false)
+        )
+    }
+
+    /// The session the app keeps for `maker` when a scenario starts signed in as her.
+    static func storedMakerSession(expiresAt: Date = .now.addingTimeInterval(30 * 86_400)) -> StoredSession {
+        StoredSession(
+            token: sessionToken,
+            expiresAt: expiresAt,
+            account: QBankKit.Account(id: "fake-maker", email: maker.email, name: "Max Maker", role: .student, mustChangePassword: false)
         )
     }
 
@@ -159,6 +198,9 @@ nonisolated final class FakeQBankServer: HTTPTransport {
         if account.mustChangePassword {
             return failure(403, "must_change_password", "Choose a new password to continue.")
         }
+        if let reply = questionMaker.answer(method: method, path: path, body: body, email: account.email, library: self) {
+            return reply
+        }
         switch (method, path) {
         case ("GET", "/api/semesters"):
             return (200, ["semesters": semesters()])
@@ -180,6 +222,12 @@ nonisolated final class FakeQBankServer: HTTPTransport {
             return (200, mentalHealth().merging(stored(Self.mentalHealthID)) { _, edited in edited }.merging(studied(Self.mentalHealthID)) { _, now in now })
         case ("GET", "/api/courses/\(Self.fundamentalsID)"):
             return (200, fundamentals().merging(stored(Self.fundamentalsID)) { _, edited in edited }.merging(studied(Self.fundamentalsID)) { _, now in now })
+        case ("GET", _) where path.hasPrefix("/api/courses/") && path.split(separator: "/").count == 3:
+            return plainCourse(String(path.dropFirst("/api/courses/".count)))
+        case ("POST", "/api/imports/check"):
+            return (200, FakeImportCheck(source: body["source"] as? String ?? "").json)
+        case ("POST", "/api/imports"):
+            return importSet(body)
         case ("POST", "/api/practice-sets/psychosocial-v2/restore"):
             let restored = state.withLock { state -> Bool in
                 defer { state.psychosocialRestored = true }
@@ -192,6 +240,9 @@ nonisolated final class FakeQBankServer: HTTPTransport {
             return recordAttempt(rawBody)
         default:
             break
+        }
+        if method == "POST", path.hasPrefix("/api/practice-sets/"), path.hasSuffix("/restore") {
+            return restoreImported(String(path.dropFirst("/api/practice-sets/".count).dropLast("/restore".count)))
         }
         if method == "GET", path.hasPrefix("/api/practice-sets/") {
             return practiceSet(id: String(path.dropFirst("/api/practice-sets/".count)))
@@ -254,27 +305,27 @@ nonisolated final class FakeQBankServer: HTTPTransport {
     private func semesters() -> [[String: Any]] {
         state.withLock { state in
             state.semesters.sorted { $0.number < $1.number }.map { semester in
-                semesterJSON(semester, courses: state.courses, latest: state.latest)
+                semesterJSON(semester, in: state)
             }
         }
     }
 
-    private func semesterJSON(_ semester: FakeSemester, courses: [FakeCourse], latest: [String: (status: String, at: Date)]) -> [String: Any] {
+    private func semesterJSON(_ semester: FakeSemester, in state: State) -> [String: Any] {
         [
             "id": semester.id, "number": semester.number, "name": semester.name,
             "startsOn": json(semester.startsOn), "endsOn": json(semester.endsOn),
-            "courses": courses.filter { $0.semesterID == semester.id }.sorted { $0.sortOrder < $1.sortOrder }.map { courseJSON($0, latest: latest) },
+            "courses": state.courses.filter { $0.semesterID == semester.id }.sorted { $0.sortOrder < $1.sortOrder }.map { courseJSON($0, in: state) },
         ]
     }
 
-    private func courseJSON(_ course: FakeCourse, latest: [String: (status: String, at: Date)]) -> [String: Any] {
-        let added = Self.added(courseID: course.id, latest: latest)
+    private func courseJSON(_ course: FakeCourse, in state: State) -> [String: Any] {
+        let added = Self.added(courseID: course.id, latest: state.latest)
         // The two studied courses count the folders she has now; the others, their invented count.
-        let folders = FakeStudy.codes[course.id] == nil ? nil : study.folders(course.id)
+        let folders = study.knows(course.id) ? study.folders(course.id) : nil
         return [
             "id": course.id, "code": course.code, "title": course.title, "sortOrder": course.sortOrder,
             "archivedAt": json(course.archivedAt),
-            "questionCount": course.questions,
+            "questionCount": course.questions + importedQuestions(course.id, in: state),
             "weekCount": folders.map { Set($0.filter { !$0.sets.isEmpty }.map(\.name)).count } ?? course.folders,
             "folderCount": folders?.count ?? course.folders,
             "reviewCount": FakeStudy.codes[course.id] == nil ? course.review : study.reviewCount(course.id),
@@ -329,7 +380,7 @@ nonisolated final class FakeQBankServer: HTTPTransport {
             }
             let semester = FakeSemester(id: "8d7b4f0e-0000-4000-8000-00000000000\(number)", number: number, name: "Semester \(number)")
             state.semesters.append(semester)
-            return (201, semesterJSON(semester, courses: state.courses, latest: state.latest))
+            return (201, semesterJSON(semester, in: state))
         }
     }
 
@@ -354,7 +405,7 @@ nonisolated final class FakeQBankServer: HTTPTransport {
                 if key == "startsOn" { semester.startsOn = date } else { semester.endsOn = date }
             }
             state.semesters[index] = semester
-            return (200, semesterJSON(semester, courses: state.courses, latest: state.latest))
+            return (200, semesterJSON(semester, in: state))
         }
     }
 
@@ -377,7 +428,7 @@ nonisolated final class FakeQBankServer: HTTPTransport {
                 semesterID: semesterID, code: code, title: title, sortOrder: order
             )
             state.courses.append(course)
-            return (201, courseJSON(course, latest: state.latest))
+            return (201, courseJSON(course, in: state))
         }
     }
 
@@ -411,7 +462,7 @@ nonisolated final class FakeQBankServer: HTTPTransport {
                 course.archivedAt = archived ? QBankJSON.formatDate(.now) : nil
             }
             state.courses[index] = course
-            return (200, courseJSON(course, latest: state.latest))
+            return (200, courseJSON(course, in: state))
         }
     }
 
@@ -447,21 +498,21 @@ nonisolated final class FakeQBankServer: HTTPTransport {
     }
 
     private func mentalHealth() -> [String: Any] {
-        let added = state.withLock { Self.added(courseID: Self.mentalHealthID, latest: $0.latest) }
+        let (added, imported) = state.withLock { (Self.added(courseID: Self.mentalHealthID, latest: $0.latest), importedQuestions(Self.mentalHealthID, in: $0)) }
         return [
             "id": Self.mentalHealthID, "code": "NURS 310", "title": "Mental Health", "archivedAt": NSNull(),
             "semester": ["id": "fake-semester-1", "number": 1, "name": "Semester 1"],
-            "questionCount": 86, "examQuestionCount": 134, "termCount": 180, "reviewCount": 12,
+            "questionCount": 86 + imported, "examQuestionCount": 134 + imported, "termCount": 180, "reviewCount": 12,
             "answeredCount": 35 + added.answered, "fullyRightCount": 24 + added.right, "points": 61, "maxPoints": 92,
         ].merging(folders(Self.mentalHealthID)) { _, folders in folders }
     }
 
     private func fundamentals() -> [String: Any] {
-        let added = state.withLock { Self.added(courseID: Self.fundamentalsID, latest: $0.latest) }
+        let (added, imported) = state.withLock { (Self.added(courseID: Self.fundamentalsID, latest: $0.latest), importedQuestions(Self.fundamentalsID, in: $0)) }
         return [
             "id": Self.fundamentalsID, "code": "NURS 220", "title": "Fundamentals", "archivedAt": NSNull(),
             "semester": ["id": "fake-semester-1", "number": 1, "name": "Semester 1"],
-            "questionCount": 146, "examQuestionCount": 146, "termCount": 212, "reviewCount": 5,
+            "questionCount": 146 + imported, "examQuestionCount": 146 + imported, "termCount": 212, "reviewCount": 5,
             "answeredCount": 92 + added.answered, "fullyRightCount": 70 + added.right, "points": 131, "maxPoints": 170,
         ].merging(folders(Self.fundamentalsID)) { _, folders in folders }
     }
@@ -517,15 +568,25 @@ nonisolated final class FakeQBankServer: HTTPTransport {
         "mobility-v1": ("Mobility and Skin Integrity", 61, 8, "imported", false),
     ]
 
+    /// A set's title, size, when it arrived and how, from the invented catalog or an import.
+    private func summary(of id: String) -> (title: String, questions: Int, importedAt: Date, status: String, canRestore: Bool)? {
+        if let entry = Self.catalog[id] {
+            return (entry.title, entry.questions, now.addingTimeInterval(TimeInterval(-entry.daysAgo) * 86_400), entry.status, entry.canRestore)
+        }
+        return state.withLock { state in
+            state.imported[id].map { ($0.title, $0.questionCount, $0.importedAt, $0.status, $0.previous != nil) }
+        }
+    }
+
     private func set(_ id: String) -> [String: Any] {
-        let entry = Self.catalog[id] ?? ("Invented set", 0, 0, "imported", false)
+        let entry = summary(of: id) ?? ("Invented set", 0, now, "imported", false)
         let earlier = Self.earlierProgress[id]
         let questionIDs = (0..<entry.questions).map { "\(id)-q\($0)" }
         // Once she answers here, the set's line counts her answers, as the server's does.
         let latest = state.withLock { state in questionIDs.compactMap { state.latest[$0] } }
         var json: [String: Any] = [
             "id": id, "title": entry.title, "description": "", "questionCount": entry.questions,
-            "importedAt": date(days: -entry.daysAgo), "activeSince": date(days: -entry.daysAgo),
+            "importedAt": QBankJSON.formatDate(entry.importedAt), "activeSince": QBankJSON.formatDate(entry.importedAt),
             "status": entry.status, "canRestore": entry.canRestore, "questionIds": questionIDs,
         ]
         if latest.isEmpty {
@@ -540,11 +601,166 @@ nonisolated final class FakeQBankServer: HTTPTransport {
         return json
     }
 
+    // MARK: Import, with the rules and words of `content/service.ts` `commitImport`
+
+    /// A course that is not one of the two studied ones, such as one Settings or an import added.
+    private func plainCourse(_ id: String) -> Reply {
+        let imported = state.withLock { state -> Int? in
+            state.courses.contains { $0.id == id } ? importedQuestions(id, in: state) : nil
+        }
+        guard let imported else { return failure(404, "request_refused", "That course is not in the app.") }
+        let counts: [String: Any] = [
+            "questionCount": imported, "examQuestionCount": imported, "answeredCount": 0, "fullyRightCount": 0, "points": 0, "maxPoints": 0,
+        ]
+        return (200, counts.merging(folders(id)) { _, folders in folders }.merging(stored(id)) { _, stored in stored }.merging(studied(id)) { _, now in now })
+    }
+
+    /// The questions of a course's current imported practice sets.
+    private func importedQuestions(_ courseID: String, in state: State) -> Int {
+        state.imported.values.filter { $0.courseID == courseID && $0.isCurrent && $0.kind == "practice" }.reduce(0) { $0 + $1.questionCount }
+    }
+
+    private func importSet(_ body: [String: Any]) -> Reply {
+        let source = body["source"] as? String ?? ""
+        let check = FakeImportCheck(source: source)
+        guard check.ok, let fileTitle = check.title else {
+            return (400, [
+                "error": "invalid_import", "message": check.errors.first ?? "This file can't be imported.",
+                "errors": check.errors, "warnings": check.warnings,
+            ])
+        }
+        var title = fileTitle
+        if let given = body["title"] as? String {
+            title = given.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !title.isEmpty else { return failure(400, "request_refused", "Set name is required.") }
+        }
+        let courseID = body["courseId"] as? String, newCourse = body["newCourse"] as? [String: Any]
+        let folderID = body["folderId"] as? String
+        let folderName = ((body["folderName"] ?? body["weekLabel"]) as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if courseID != nil, newCourse != nil { return failure(400, "request_refused", "Choose a course or a new course, not both.") }
+        if courseID == nil, newCourse == nil { return failure(400, "request_refused", "Choose a course.") }
+        if folderID != nil, folderName != nil { return failure(400, "request_refused", "Choose a folder or a folder name, not both.") }
+        if folderID != nil, newCourse != nil {
+            return failure(400, "request_refused", "A new course has no folders yet. Name a folder, or leave it for Unsorted.")
+        }
+        if let folderName, folderName.isEmpty { return failure(400, "request_refused", "Folder name is required.") }
+        let course: FakeCourse
+        if let newCourse {
+            switch makeCourse(newCourse) {
+            case .success(let made): course = made
+            case .failure(let refusal): return refusal.reply
+            }
+        } else if let known = state.withLock({ state in state.courses.first { $0.id == courseID } }) {
+            course = known
+        } else {
+            return failure(404, "request_refused", "That course is not in the app.")
+        }
+        let decision = body["decision"] as? String ?? "import"
+        let existing = currentSet(in: course.id, kind: check.kind, title: title)
+        if let existing, decision == "import", let folder = existingFolder(of: existing) {
+            return (409, [
+                "conflict": true, "title": title, "courseId": course.id, "courseCode": course.code, "courseTitle": course.title,
+                "weekLabel": folder.name, "folderId": folder.id, "folderName": folder.name,
+                "existingQuestionCount": summary(of: existing)?.questions ?? 0, "incomingQuestionCount": check.questionCount, "setId": existing,
+            ])
+        }
+        let replace = decision == "replace" ? existing : nil
+        let folder: FakeStudy.Folder
+        if let replace, let current = existingFolder(of: replace) {
+            folder = current
+        } else {
+            switch study.importFolder(courseID: course.id, folderID: folderID, folderName: folderName) {
+            case .success(let found): folder = found
+            case .failure(let refusal): return refusal.reply
+            }
+        }
+        let id = state.withLock { state -> String in
+            state.importCount += 1
+            let id = String(format: "5e700000-0000-4000-8000-%012d", 9000 + state.importCount)
+            if let replace { state.imported[replace]?.isCurrent = false }
+            state.imported[id] = ImportedEntry(
+                courseID: course.id, title: title, kind: check.kind, questionCount: check.questionCount, termCount: check.termCount,
+                importedAt: .now, status: replace == nil ? "imported" : "replaced", previous: replace
+            )
+            return id
+        }
+        if check.kind == "exam" {
+            study.file(bank: FakeStudy.ids("bank-\(id)", check.questionCount), in: folder.id)
+        } else {
+            study.file(set: id, in: folder.id, replacing: replace)
+        }
+        let page = study.folders(course.id).first { $0.id == folder.id }?.examPageID
+        return (201, [
+            "kind": replace == nil ? "imported" : "replaced", "setKind": check.kind, "setId": id, "courseId": course.id,
+            "courseCode": course.code, "title": title, "weekLabel": folder.name, "folderId": folder.id, "folderName": folder.name,
+            "examPageId": json(page), "questionCount": check.questionCount, "termCount": check.termCount, "warnings": check.warnings,
+        ])
+    }
+
+    /// A course an import makes, in the semester of that number, made too when it is missing.
+    private func makeCourse(_ body: [String: Any]) -> Result<FakeCourse, FakeStudy.Failure> {
+        state.withLock { state in
+            guard let code = requiredText(body["code"] as? String ?? "", label: "Course code", maxLength: 32) else {
+                return .failure(FakeStudy.Failure(status: 400, message: textProblem(body["code"] as? String ?? "", label: "Course code")))
+            }
+            guard let title = requiredText(body["title"] as? String ?? "", label: "Course name", maxLength: 160) else {
+                return .failure(FakeStudy.Failure(status: 400, message: textProblem(body["title"] as? String ?? "", label: "Course name")))
+            }
+            guard let number = body["semesterNumber"] as? Int, (1...3).contains(number) else {
+                return .failure(FakeStudy.Failure(status: 400, message: "A semester is 1, 2, or 3."))
+            }
+            if !state.semesters.contains(where: { $0.number == number }) {
+                state.semesters.append(FakeSemester(id: "8d7b4f0e-0000-4000-8000-00000000000\(number)", number: number, name: "Semester \(number)"))
+            }
+            let semesterID = state.semesters.first { $0.number == number }!.id
+            if let taken = codeTaken(code, in: semesterID, except: nil, courses: state.courses) {
+                return .failure(FakeStudy.Failure(status: taken.0, message: taken.1["message"] as? String ?? ""))
+            }
+            state.tokenCount += 1
+            let course = FakeCourse(
+                id: String(format: "8d7b4f0e-0000-4000-8000-%012d", 900 + state.tokenCount), semesterID: semesterID, code: code, title: title,
+                sortOrder: (state.courses.filter { $0.semesterID == semesterID }.map(\.sortOrder).max() ?? 0) + 1
+            )
+            state.courses.append(course)
+            return .success(course)
+        }
+    }
+
+    /// The course's current set of this kind and name, ignoring case.
+    private func currentSet(in courseID: String, kind: String, title: String) -> String? {
+        let practice = study.folders(courseID).flatMap(\.sets)
+        let exams = state.withLock { state in
+            state.imported.filter { $0.value.courseID == courseID && $0.value.kind == "exam" && $0.value.isCurrent }.map(\.key)
+        }
+        let candidates = kind == "exam" ? exams : practice
+        return candidates.first { summary(of: $0)?.title.lowercased() == title.lowercased() }
+    }
+
+    /// The folder a current set, or an imported exam set, is in.
+    private func existingFolder(of setID: String) -> FakeStudy.Folder? {
+        if let folder = study.folder(holding: setID) { return folder }
+        guard let courseID = state.withLock({ $0.imported[setID]?.courseID }) else { return nil }
+        return study.folders(courseID).first { $0.bank.contains { $0.hasPrefix("bank-\(setID)-") } }
+    }
+
+    /// Brings back the version an imported set replaced.
+    private func restoreImported(_ id: String) -> Reply {
+        let previous = state.withLock { state -> String? in
+            guard let entry = state.imported[id], entry.isCurrent, let previous = entry.previous else { return nil }
+            state.imported[id]?.isCurrent = false
+            state.imported[previous]?.isCurrent = true
+            return previous
+        }
+        guard let previous else { return failure(404, "request_refused", "That set is not the current version.") }
+        study.replace(set: id, with: previous)
+        return (200, set(previous))
+    }
+
     // MARK: Practice
 
     /// A set of either course, its questions drawn from `FakePracticeQuestions`.
     private func practiceSet(id: String) -> Reply {
-        guard let (courseID, folder) = find(set: id), let entry = Self.catalog[id] else {
+        guard let (courseID, folder) = find(set: id), let entry = summary(of: id) else {
             return failure(404, "request_refused", "That set is not in the app.")
         }
         return (200, [
@@ -556,7 +772,7 @@ nonisolated final class FakeQBankServer: HTTPTransport {
 
     /// The course and folder a current set is in.
     private func find(set id: String) -> (courseID: String, folder: FakeStudy.Folder)? {
-        for courseID in [Self.mentalHealthID, Self.fundamentalsID] {
+        for courseID in state.withLock({ $0.courses.map(\.id) }) {
             if let folder = study.folders(courseID).first(where: { $0.sets.contains(id) }) {
                 return (courseID, folder)
             }
@@ -642,6 +858,46 @@ nonisolated final class FakeQBankServer: HTTPTransport {
 
     private func failure(_ status: Int, _ code: String, _ message: String) -> Reply {
         (status, ["error": code, "message": message])
+    }
+
+    // MARK: Make questions' library
+
+    func makerCourse(_ id: String) -> (code: String, title: String)? {
+        state.withLock { state in state.courses.first { $0.id == id && $0.archivedAt == nil }.map { ($0.code, $0.title) } }
+    }
+
+    func makerFolderName(courseID: String, folderID: String) -> String? {
+        study.folders(courseID).first { $0.id == folderID }?.name
+    }
+
+    func makerSetTitle(_ id: String) -> String? {
+        summary(of: id)?.title
+    }
+
+    func fileMadeSet(
+        courseID: String, folderID: String?, folderName: String, title: String, questionCount: Int, termCount: Int, examTwins: Int
+    ) -> FakeQuestionMaker.Filed? {
+        let named = folderID == nil && folderName != "Unsorted" ? folderName : nil
+        guard case .success(let folder) = study.importFolder(courseID: courseID, folderID: folderID, folderName: named) else { return nil }
+        let (setID, examID) = state.withLock { state -> (String, String?) in
+            state.importCount += 1
+            let setID = String(format: "5e700000-0000-4000-8000-%012d", 9000 + state.importCount)
+            state.imported[setID] = ImportedEntry(
+                courseID: courseID, title: title, kind: "practice", questionCount: questionCount, termCount: termCount,
+                importedAt: .now, status: "imported", previous: nil
+            )
+            guard examTwins > 0 else { return (setID, nil) }
+            state.importCount += 1
+            let examID = String(format: "5e700000-0000-4000-8000-%012d", 9000 + state.importCount)
+            state.imported[examID] = ImportedEntry(
+                courseID: courseID, title: "\(title) exam", kind: "exam", questionCount: examTwins, termCount: 0,
+                importedAt: .now, status: "imported", previous: nil
+            )
+            return (setID, examID)
+        }
+        study.file(set: setID, in: folder.id, replacing: nil)
+        if let examID { study.file(bank: FakeStudy.ids("bank-\(examID)", examTwins), in: folder.id) }
+        return FakeQuestionMaker.Filed(setID: setID, folderID: folder.id, folderName: folder.name, examPageID: folder.examPageID, examSetID: examID)
     }
 }
 

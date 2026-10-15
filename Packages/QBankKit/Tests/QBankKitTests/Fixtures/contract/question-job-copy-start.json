@@ -1,0 +1,96 @@
+{
+  "recordedFrom": "fe9f73e7ea2e798593f98c2d269999405105c662",
+  "request": {
+    "method": "POST",
+    "path": "/api/question-jobs",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": {
+      "courseId": "c0000000-0000-4000-8000-000000000401",
+      "folderId": "f0000000-0000-4000-8000-000000000401",
+      "materialKind": "questions",
+      "material": {
+        "images": [
+          {
+            "mediaType": "image/jpeg",
+            "data": "/9j/4AAQSkZJRgABAQAAAQABAAD/2Q=="
+          },
+          {
+            "mediaType": "image/jpeg",
+            "data": "/9j/4AAQSkZJRgABAQAAAQABAAD/2Q=="
+          }
+        ]
+      },
+      "examTwins": true
+    }
+  },
+  "response": {
+    "status": 202,
+    "headers": {},
+    "body": {
+      "id": "a0b00000-0000-4000-8000-000000000403",
+      "status": "running",
+      "step": "read",
+      "waitingFor": null,
+      "steps": [
+        {
+          "key": "read",
+          "label": "Copy the questions",
+          "state": "current",
+          "done": null,
+          "total": null
+        },
+        {
+          "key": "review",
+          "label": "Your check",
+          "state": "todo",
+          "done": null,
+          "total": null
+        },
+        {
+          "key": "twins",
+          "label": "Exam twins",
+          "state": "todo",
+          "done": null,
+          "total": null
+        },
+        {
+          "key": "file",
+          "label": "File the set",
+          "state": "todo",
+          "done": null,
+          "total": null
+        }
+      ],
+      "course": {
+        "id": "c0000000-0000-4000-8000-000000000401",
+        "code": "NURS 310",
+        "title": "Invented Mental Health"
+      },
+      "folder": {
+        "id": "f0000000-0000-4000-8000-000000000401",
+        "name": "Week 4"
+      },
+      "materialKind": "questions",
+      "level": "exam",
+      "reference": null,
+      "count": null,
+      "examTwins": true,
+      "title": null,
+      "photoCount": 2,
+      "sets": [],
+      "createdAt": "2026-10-15 20:08:23.233+00",
+      "updatedAt": "2026-10-15 20:08:23.233+00",
+      "finishedAt": null,
+      "failure": null,
+      "warnings": [],
+      "usage": {
+        "calls": 0,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      }
+    }
+  }
+}

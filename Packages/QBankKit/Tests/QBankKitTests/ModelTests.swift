@@ -117,6 +117,23 @@ struct ModelTests {
         #expect(QBankJSON.parseDate("2026-10-13T00:02:35Z") != nil)
         #expect(QBankJSON.parseDate("2026-10-13") == nil)
     }
+
+    /// The make-questions job routes send Postgres's own text for a timestamp.
+    @Test func postgresTimestampsReadAsTheSameInstant() throws {
+        let cases = [
+            ("2026-10-13 00:02:35.395+00", "2026-10-13T00:02:35.395Z"),
+            ("2026-10-12 19:02:35.395-05", "2026-10-13T00:02:35.395Z"),
+            ("2026-10-13 05:32:35.395+05:30", "2026-10-13T00:02:35.395Z"),
+            ("2026-10-13 00:02:35.39+00", "2026-10-13T00:02:35.390Z"),
+            ("2026-10-13 00:02:35.395123+00", "2026-10-13T00:02:35.395Z"),
+            ("2026-10-13 00:02:35+00", "2026-10-13T00:02:35.000Z"),
+        ]
+        for (postgres, iso) in cases {
+            let date = try #require(QBankJSON.parseDate(postgres), "\(postgres)")
+            #expect(QBankJSON.formatDate(date) == iso, "\(postgres)")
+        }
+        #expect(QBankJSON.parseDate("2026-10-13 00:02:35") == nil)
+    }
 }
 
 @Suite("Question media")

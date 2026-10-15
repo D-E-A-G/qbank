@@ -80,6 +80,12 @@ final class PracticeModel {
         return false
     }
 
+    /// A sample of a set being made: scored on the phone and never sent.
+    var isSample: Bool {
+        if case .sample = source { return true }
+        return false
+    }
+
     var question: Question? {
         questions.indices.contains(index) ? questions[index] : nil
     }
@@ -139,6 +145,8 @@ final class PracticeModel {
                 try await app.load(.practiceSet(id)) { () async throws(QBankError) in try await app.client.practiceSet(id: id) }.value
             case .review(let filter, let questionID):
                 try await app.client.reviewPractice(courseID: courseID, filter: filter, questionID: questionID)
+            case .sample(let jobID, let sampleID):
+                try await sample(jobID: jobID, sampleID: sampleID)
             }
             if loaded.kind == .exam {
                 phase = .failed("This set’s questions are asked only on exams.")
@@ -151,12 +159,21 @@ final class PracticeModel {
             begin(loaded)
         } catch {
             if app.handle(error) { return }
-            if case .transport = error, !isReview {
+            if case .transport = error, !isReview, !isSample {
                 phase = .failed("No connection, and this set is not saved on this phone yet. Open it once with a connection to practice it offline.")
             } else if let words = Wording.problem(error) {
                 phase = .failed(words)
             }
         }
+    }
+
+    /// One sample of a set being made, as a set of one question.
+    private func sample(jobID: String, sampleID: String) async throws(QBankError) -> PracticeSet {
+        let samples = try await app.client.questionSamples(jobID: jobID)
+        guard let index = samples.questions.firstIndex(where: { $0.id == sampleID }) else {
+            throw .server(ServerError(status: 404, code: .requestRefused, message: "That sample is not in this set anymore."))
+        }
+        return PracticeSet(id: jobID, courseID: courseID, title: "Sample \(index + 1)", questions: [samples.questions[index]])
     }
 
     private func begin(_ loaded: PracticeSet) {
@@ -198,6 +215,10 @@ final class PracticeModel {
             phoneScore = try Scoring.score(question.body, response: response)
         } catch {
             problem = error.message
+            return
+        }
+        if isSample {
+            attempts[index].score = phoneScore
             return
         }
         let checking = index

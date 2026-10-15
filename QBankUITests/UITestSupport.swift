@@ -38,6 +38,27 @@ extension XCTestCase {
         add(attachment)
     }
 
+    /// Keeps a screenshot in light and in dark, as she sees the screen after choosing Light or
+    /// Dark in Settings, then goes back to Match device. The Look is set through the Darwin
+    /// notifications `DebugLaunchScenario.lookNotification(_:)` names.
+    @MainActor
+    func attachLooks(_ app: XCUIApplication, _ name: String) {
+        for look in ["light", "dark"] {
+            setLook(look)
+            attach(app, "\(name) \(look)")
+        }
+        setLook("auto")
+    }
+
+    /// Sets the app's Look, `light`, `dark`, or `auto`, and gives the screen a moment to redraw
+    /// in its colors and to finish any animation.
+    @MainActor
+    private func setLook(_ look: String) {
+        let name = "com.dimitrygallego.qbank.uitest.look.\(look)"
+        CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), CFNotificationName(name as CFString), nil, nil, true)
+        RunLoop.current.run(until: .now.addingTimeInterval(1))
+    }
+
     /// Waits until the element's label contains the text.
     @MainActor
     func waitForLabel(_ element: XCUIElement, containing text: String, timeout: TimeInterval = 10) {
