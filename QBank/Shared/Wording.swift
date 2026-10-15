@@ -165,6 +165,7 @@ nonisolated enum Wording {
 
     /// What went wrong, in words for her. The server's own messages are written for her, so they
     /// are shown as they come; everything else is said plainly. Nil when there is nothing to say.
+    @MainActor
     static func problem(_ error: QBankError) -> String? {
         switch error {
         case .server(let server):
@@ -183,7 +184,7 @@ nonisolated enum Wording {
                 ? "QBank is having trouble right now. Try again in a moment."
                 : "Something went wrong. Try again."
         case .storage:
-            return "This iPhone could not keep your sign-in. Try again."
+            return "This \(Device.model) could not keep your sign-in. Try again."
         case .notSignedIn:
             return "Sign in to continue."
         case .invalidRequest:

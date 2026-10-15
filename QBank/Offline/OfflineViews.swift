@@ -44,23 +44,27 @@ extension OfflineBanner {
     static func showingSaved(phoneIsOnline: Bool) -> OfflineBanner {
         OfflineBanner(
             title: phoneIsOnline ? "QBank cannot be reached" : "No connection",
-            message: "Showing what is saved on this phone. Your answers send when you are back online."
+            message: "Showing what is saved on this \(Device.noun). Your answers send when you are back online."
         )
     }
 
     /// An answer checked without a connection, under the question.
-    static let answerSaved = OfflineBanner(
-        title: "Saved on this phone",
-        message: "It will send when you are back online. Your score is the same either way.",
-        systemImage: "iphone"
-    )
+    static var answerSaved: OfflineBanner {
+        OfflineBanner(
+            title: "Saved on this \(Device.noun)",
+            message: "It will send when you are back online. Your score is the same either way.",
+            systemImage: Device.symbol
+        )
+    }
 
     /// An answer checked without a connection when the phone cannot keep answers in a file.
-    static let answerNotKept = OfflineBanner(
-        title: "Not saved on this phone",
-        message: "It sends if the connection comes back before the app closes. Your score is the same either way.",
-        systemImage: "exclamationmark.triangle"
-    )
+    static var answerNotKept: OfflineBanner {
+        OfflineBanner(
+            title: "Not saved on this \(Device.noun)",
+            message: "It sends if the connection comes back before the app closes. Your score is the same either way.",
+            systemImage: "exclamationmark.triangle"
+        )
+    }
 
     /// Exams start and end on the server, so they need a connection.
     static let examsNeedConnection = OfflineBanner(

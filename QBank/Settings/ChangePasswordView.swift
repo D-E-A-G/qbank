@@ -54,13 +54,14 @@ struct ChangePasswordView: View {
                 .accessibilityIdentifier("changePassword.save")
                 .padding(.top, 2)
             }
-            .padding(.horizontal, QBankSpacing.gutterPhone)
+            .screenColumn()
             .padding(.top, QBankSpacing.space3)
             .padding(.bottom, QBankSpacing.space7)
         }
         .scrollDismissesKeyboard(.interactively)
         .qbankScreenBackground()
         .navigationTitle("Change password")
+        .screenColumnTitle()
     }
 
     private func save() {

@@ -160,7 +160,7 @@ final class PracticeModel {
         } catch {
             if app.handle(error) { return }
             if case .transport = error, !isReview, !isSample {
-                phase = .failed("No connection, and this set is not saved on this phone yet. Open it once with a connection to practice it offline.")
+                phase = .failed("No connection, and this set is not saved on this \(Device.noun) yet. Open it once with a connection to practice it offline.")
             } else if let words = Wording.problem(error) {
                 phase = .failed(words)
             }
@@ -246,7 +246,7 @@ final class PracticeModel {
         } catch {
             if error == .cancelled || app.handle(error) { return }
             if case .storage = error {
-                problem = "This iPhone could not save your answer. Try again."
+                problem = "This \(Device.model) could not save your answer. Try again."
             } else {
                 problem = Wording.problem(error)
             }

@@ -13,22 +13,17 @@ enum AppTab: Hashable {
 @Observable
 final class TabNavigator {
     var tab: AppTab = .home
-    let home = HomeNavigator()
+    let home = HomeNavigator(isSplit: Device.isPad)
 
     /// Shows a folder of a course in Home, on top of the course page, in place of what Home showed.
     func openFolder(courseID: String, code: String?, folderID: String) {
-        var path = NavigationPath()
-        path.append(CourseRoute(id: courseID, code: code))
-        path.append(CoursePage.folder(folderID))
-        home.path = path
+        home.show(CourseRoute(id: courseID, code: code), then: [.folder(folderID)])
         tab = .home
     }
 
     /// Shows a course in Home, in place of what Home showed.
     func openCourse(courseID: String, code: String?) {
-        var path = NavigationPath()
-        path.append(CourseRoute(id: courseID, code: code))
-        home.path = path
+        home.show(CourseRoute(id: courseID, code: code))
         tab = .home
     }
 }

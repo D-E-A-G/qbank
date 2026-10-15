@@ -1,6 +1,6 @@
 # Project agent memory
 
-This public repository is QBank for iPhone: the native SwiftUI client of QBank, an NCLEX practice question bank. It talks to the private QBank server only through the server's public HTTPS API. The product choices it follows: app name QBank, bundle id `com.dimitrygallego.qbank`, iPhone first, iOS 18 minimum, Swift only. The root `README.md` is the public landing page; keep its status line truthful.
+This public repository is QBank for iPhone and iPad: the native SwiftUI client of QBank, an NCLEX practice question bank. It talks to the private QBank server only through the server's public HTTPS API. The product choices it follows: app name QBank, bundle id `com.dimitrygallego.qbank`, iPhone first, iOS 18 minimum, Swift only. The root `README.md` is the public landing page; keep its status line truthful.
 
 The app's service implementation and operations are maintained separately. Keep this repository frontend-only: do not add backend source, migrations, credentials, deployment assets, or infrastructure configuration here.
 

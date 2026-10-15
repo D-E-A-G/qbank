@@ -34,13 +34,8 @@ struct SignInView: View {
 
     private var header: some View {
         VStack(spacing: 8) {
-            Text("Q")
-                .font(.system(size: 30, weight: .black, design: .rounded))
-                .foregroundStyle(.qbank(.textOnTint))
-                .frame(width: 64, height: 64)
-                .background(.qbank(.tint), in: .rect(cornerRadius: 16, style: .continuous))
+            QBankMark()
                 .padding(.bottom, QBankSpacing.space2)
-                .accessibilityHidden(true)
             Text("QBank")
                 .qbankFont(.largeTitle)
                 .foregroundStyle(.qbank(.text1))
@@ -116,5 +111,17 @@ struct SignInView: View {
     private func signIn() {
         focus = nil
         Task { await model.signIn() }
+    }
+}
+
+/// The app's "Q" mark, over the sign-in form and the lock screen.
+struct QBankMark: View {
+    var body: some View {
+        Text("Q")
+            .font(.system(size: 30, weight: .black, design: .rounded))
+            .foregroundStyle(.qbank(.textOnTint))
+            .frame(width: 64, height: 64)
+            .background(.qbank(.tint), in: .rect(cornerRadius: 16, style: .continuous))
+            .accessibilityHidden(true)
     }
 }

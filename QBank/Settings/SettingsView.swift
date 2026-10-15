@@ -30,6 +30,7 @@ struct SettingsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: QBankSpacing.space7) {
                     account
+                    lock
                     if catalog.isEditable {
                         semesters
                     }
@@ -41,12 +42,13 @@ struct SettingsView: View {
                         .frame(maxWidth: .infinity)
                         .accessibilityIdentifier("settings.version")
                 }
-                .padding(.horizontal, QBankSpacing.gutterPhone)
+                .screenColumn()
                 .padding(.top, QBankSpacing.space3)
                 .padding(.bottom, QBankSpacing.space7)
             }
             .qbankScreenBackground()
             .navigationTitle("Settings")
+            .screenColumnTitle()
             .refreshable { await catalog.load() }
             .navigationDestination(for: SettingsRoute.self) { route in
                 switch route {
@@ -90,7 +92,7 @@ struct SettingsView: View {
             }
             .buttonStyle(.qbankRow)
             .accessibilityIdentifier("settings.changePassword")
-            QBankListRow("Passkeys and Face ID", detail: "Coming in a later update", showsChevron: true)
+            QBankListRow("Passkeys", detail: "Coming in a later update", showsChevron: true)
                 .opacity(0.4)
                 .accessibilityIdentifier("settings.passkeys")
             Button {
@@ -110,7 +112,7 @@ struct SettingsView: View {
             .disabled(isSigningOut)
             .accessibilityIdentifier("settings.signOut")
             .confirmationDialog(
-                "Sign out with answers still on this phone?",
+                "Sign out with answers still on this \(Device.noun)?",
                 isPresented: $asksToSignOut,
                 titleVisibility: .visible
             ) {
@@ -118,7 +120,7 @@ struct SettingsView: View {
                 Button("Cancel", role: .cancel) {}
             } message: {
                 let waiting = app.offline?.waiting.count ?? 0
-                Text("\(Wording.count(waiting, "answer")) \(waiting == 1 ? "has" : "have") not reached QBank yet. Signing out deletes \(waiting == 1 ? "it" : "them") from this phone.")
+                Text("\(Wording.count(waiting, "answer")) \(waiting == 1 ? "has" : "have") not reached QBank yet. Signing out deletes \(waiting == 1 ? "it" : "them") from this \(Device.noun).")
             }
         }
     }
@@ -126,6 +128,42 @@ struct SettingsView: View {
     private func signOut() {
         isSigningOut = true
         Task { await app.signOut() }
+    }
+
+    /// The Face ID lock: on asks for Face ID first, so she sees it work; off needs nothing. A
+    /// device with no passcode cannot lock, and says how to change that.
+    private var lock: some View {
+        let lock = app.lock
+        let method = lock.method
+        let isOn = Binding {
+            lock.isEnabled || lock.isChecking
+        } set: { on in
+            if on {
+                Task { await lock.turnOn() }
+            } else {
+                lock.turnOff()
+            }
+        }
+        let footer = if let method {
+            method == .passcode
+                ? "QBank asks for your passcode when it opens and each time you come back to it."
+                : "QBank asks for \(method.name) when it opens and each time you come back to it. Your passcode works too."
+        } else {
+            "Set a passcode for this \(Device.model) in the Settings app to lock QBank."
+        }
+        return QBankListGroup(header: "Lock", footer: footer) {
+            Toggle(isOn: isOn) {
+                Text("Lock with \(method?.name ?? "Face ID")")
+                    .qbankFont(.body)
+                    .foregroundStyle(.qbank(.text1))
+            }
+            .disabled(lock.isChecking || (method == nil && !lock.isEnabled))
+            .padding(.horizontal, QBankSpacing.rowPaddingHorizontal)
+            .padding(.vertical, 11)
+            .frame(minHeight: QBankSpacing.rowMin)
+            .accessibilityIdentifier("settings.lock")
+        }
+        .onAppear { lock.refresh() }
     }
 
     private var semesters: some View {
@@ -188,7 +226,7 @@ struct SettingsView: View {
 
     private var onThisPhone: some View {
         let waiting = app.offline?.waiting.count ?? 0
-        return QBankListGroup(header: "On this phone") {
+        return QBankListGroup(header: "On this \(Device.noun)") {
             NavigationLink(value: SettingsRoute.savedForOffline) {
                 QBankListRow(
                     "Saved for offline",

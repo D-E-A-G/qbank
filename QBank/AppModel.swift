@@ -26,6 +26,8 @@ final class AppModel {
     let client: QBankClient
     /// Light or dark, chosen in Settings and kept on this phone.
     let look: LookStore
+    /// The optional Face ID lock, turned on in Settings and kept on this phone.
+    let lock: AppLock
     /// Whether the phone has a network path.
     let connection: Connection
     /// Saved courses and unsent answers for the account on this phone. Nil when signed out.
@@ -37,12 +39,14 @@ final class AppModel {
     init(
         client: QBankClient,
         look: LookStore = LookStore(),
+        lock: AppLock = AppLock(),
         storage: PhoneStorage,
         connection: Connection = Connection(),
         networkWatcher: NetworkWatcher? = nil
     ) {
         self.client = client
         self.look = look
+        self.lock = lock
         self.storage = storage
         self.connection = connection
         self.networkWatcher = networkWatcher
@@ -73,10 +77,17 @@ final class AppModel {
         }
     }
 
+    /// QBank is on screen again: the lock asks for Face ID if it locked in the meantime.
+    func becameActive() async {
+        guard account != nil else { return }
+        await lock.becameActive()
+    }
+
     /// After a password sign-in.
     func signedIn(_ signedIn: SignedIn, password: String) {
         signedOutReason = nil
         hasLanded = false
+        lock.signedIn()
         temporaryPassword = signedIn.user.mustChangePassword ? password : nil
         route = Self.route(for: signedIn.user)
     }

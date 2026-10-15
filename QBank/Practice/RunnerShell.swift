@@ -25,7 +25,7 @@ struct RunnerShell<Leading: View, Trailing: View, Content: View, Footer: View>: 
                 }
                 .frame(maxWidth: QBankLayout.contentMax, alignment: .leading)
                 .frame(maxWidth: .infinity)
-                .padding(.horizontal, QBankSpacing.gutterPhone)
+                .padding(.horizontal, Device.gutter)
                 .padding(.bottom, 28)
             }
             .scrollDismissesKeyboard(.never)
@@ -37,7 +37,7 @@ struct RunnerShell<Leading: View, Trailing: View, Content: View, Footer: View>: 
                 }
                 .frame(maxWidth: QBankLayout.contentMax)
                 .frame(maxWidth: .infinity)
-                .padding(.horizontal, QBankSpacing.gutterPhone)
+                .padding(.horizontal, Device.gutter)
                 .padding(.vertical, QBankSpacing.space4)
                 .background { RunnerBar(edge: .top) }
             }
@@ -66,7 +66,7 @@ struct RunnerShell<Leading: View, Trailing: View, Content: View, Footer: View>: 
             .padding(.horizontal, QBankSpacing.space3)
             .frame(minHeight: 48)
             QBankProgressBar(value: progress, height: 3, accessibilityTitle: "Progress")
-                .padding(.horizontal, QBankSpacing.gutterPhone)
+                .padding(.horizontal, Device.gutter)
                 .padding(.bottom, QBankSpacing.space3)
         }
         .background { RunnerBar(edge: .bottom) }

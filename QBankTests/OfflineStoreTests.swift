@@ -213,7 +213,7 @@ struct OfflineStoreTests {
         try Data("written by another version".utf8).write(to: account.appendingPathComponent("pending-attempts.json"))
 
         let store = Self.store(StubServer(), storage: storage.open("a1"), connection: Connection(isOnline: false))
-        #expect(store.problem == "Some answers waiting on this iPhone could not be read, so they cannot be sent. New answers are saved as usual.")
+        #expect(store.problem == "Some answers waiting on this \(Device.model) could not be read, so they cannot be sent. New answers are saved as usual.")
         #expect(store.keepsAnswers)
         #expect(store.waiting.isEmpty)
         let names = try FileManager.default.contentsOfDirectory(atPath: account.path())
@@ -229,7 +229,7 @@ struct OfflineStoreTests {
         let broken = PhoneStorage.Account(cache: InMemoryContentCache(), pending: UnreadableStore())
         let store = Self.store(StubServer(), storage: broken, connection: Connection(isOnline: false))
         #expect(!store.keepsAnswers)
-        #expect(store.problem == "This iPhone cannot save answers right now. Answers you give without a connection wait only until the app closes.")
+        #expect(store.problem == "This \(Device.model) cannot save answers right now. Answers you give without a connection wait only until the app closes.")
         _ = try await store.submit(Self.answer("a1"), courseID: "c1")
         #expect(store.waiting.map(\.id) == ["a1"], "they still wait while the app runs")
     }

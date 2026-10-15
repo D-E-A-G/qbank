@@ -6,8 +6,10 @@ final class QBankUITests: XCTestCase {
     private static let email = "student@example.com"
     private static let password = "synthetic-pass-1"
 
-    override func setUpWithError() throws {
+    @MainActor
+    override func setUp() async throws {
         continueAfterFailure = false
+        try skipOnIPad()
     }
 
     @MainActor
@@ -103,7 +105,7 @@ final class QBankUITests: XCTestCase {
         for (tile, title) in [("exam", "Exam"), ("review", "Review"), ("terms", "Terms")] {
             app.buttons["course.tile.\(tile)"].tap()
             XCTAssertTrue(app.navigationBars[title].waitForExistence(timeout: 5), title)
-            app.navigationBars[title].buttons.firstMatch.tap()
+            goBack(app, from: title)
             XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 5))
         }
     }

@@ -28,11 +28,12 @@ struct CourseView: View {
     var body: some View {
         ScrollView {
             content
-                .padding(.horizontal, QBankSpacing.gutterPhone)
+                .screenColumn()
                 .padding(.bottom, QBankSpacing.space7)
         }
         .qbankScreenBackground()
         .navigationTitle(model.course?.code ?? route.code ?? "Course")
+        .screenColumnTitle()
         .refreshable { await model.load() }
         .reloadsWithConnection(app) { await model.load() }
         .task {
@@ -44,6 +45,12 @@ struct CourseView: View {
             // Back from Review, Terms or an exam: its counts may have changed.
             guard model.course != nil else { return }
             Task { await model.load() }
+        }
+        .onChange(of: model.course) { old, _ in
+            // On iPad the courses stay beside this one, and their card shows these counts too.
+            if old != nil {
+                navigator?.courseChanged()
+            }
         }
         .navigationDestination(for: CoursePage.self) { page in
             switch page {

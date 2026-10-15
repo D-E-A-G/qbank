@@ -86,7 +86,7 @@ struct PracticeModelTests {
         let server = StubServer(["GET /api/practice-sets/set1": .offline])
         let (model, _) = Self.model(server)
         await model.load()
-        #expect(model.phase == .failed("No connection, and this set is not saved on this phone yet. Open it once with a connection to practice it offline."))
+        #expect(model.phase == .failed("No connection, and this set is not saved on this \(Device.noun) yet. Open it once with a connection to practice it offline."))
     }
 
     @Test func aSavedSetOpensWithoutSignal() async throws {

@@ -36,7 +36,7 @@ struct JobView: View {
                         .qbankFont(.largeTitle)
                         .foregroundStyle(.qbank(.text1))
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, QBankSpacing.gutterPhone)
+                        .screenColumn()
                         .accessibilityAddTraits(.isHeader)
                 }
                 content
@@ -682,7 +682,7 @@ private struct FinishedView: View {
             }
             .padding(.top, QBankSpacing.space4)
         }
-        .padding(.horizontal, QBankSpacing.gutterPhone)
+        .screenColumn()
         .padding(.top, QBankSpacing.space7)
         .padding(.bottom, QBankSpacing.space7)
         .navigationBarBackButtonHidden()
@@ -737,7 +737,7 @@ private struct JobColumn<Content: View>: View {
         VStack(alignment: .leading, spacing: QBankSpacing.space4) {
             content
         }
-        .padding(.horizontal, QBankSpacing.gutterPhone)
+        .screenColumn()
         .padding(.top, QBankSpacing.space2)
         .padding(.bottom, QBankSpacing.space7)
     }

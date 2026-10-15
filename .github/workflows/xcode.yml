@@ -22,7 +22,7 @@ jobs:
   build-and-test:
     name: Build and test
     runs-on: ${{ vars.MAC_RUNNER || 'macos-26' }}
-    timeout-minutes: 45
+    timeout-minutes: 75
 
     env:
       PROJECT_PATH: QBank.xcodeproj
@@ -51,7 +51,8 @@ jobs:
 
       # test/sim.sh owns the simulator: it creates one run-scoped device, boots
       # it, and deletes it on every exit path. Never target a simulator here
-      # directly.
+      # directly. After a failure xcodebuild would gather simulator diagnostics,
+      # which can wait without end; the result bundle is uploaded instead.
       - name: Build and run unit and UI tests
         run: |
           ./test/sim.sh --device "iPhone 17 Pro" --device "iPhone 17" -- \
@@ -61,14 +62,31 @@ jobs:
               -configuration Debug \
               -destination "platform=iOS Simulator,id={{UDID}}" \
               -derivedDataPath "$DERIVED_DATA_PATH" \
+              -collect-test-diagnostics never \
               -resultBundlePath TestResults.xcresult
+
+      # The same tests on an iPad: the iPad layout's UI tests run there, and the
+      # iPhone layout's skip themselves.
+      - name: Build and run unit and UI tests on iPad
+        run: |
+          ./test/sim.sh --device "iPad Pro 13-inch (M5)" --device "iPad Pro 13-inch (M4)" -- \
+            xcodebuild test \
+              -project "$PROJECT_PATH" \
+              -scheme "$SCHEME" \
+              -configuration Debug \
+              -destination "platform=iOS Simulator,id={{UDID}}" \
+              -derivedDataPath "$DERIVED_DATA_PATH" \
+              -collect-test-diagnostics never \
+              -resultBundlePath TestResults-iPad.xcresult
 
       - name: Upload test results on failure
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: test-results
-          path: TestResults.xcresult
+          path: |
+            TestResults.xcresult
+            TestResults-iPad.xcresult
           retention-days: 14
           if-no-files-found: ignore
 

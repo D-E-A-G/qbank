@@ -4,8 +4,10 @@ import XCTest
 /// with her edits, end to end against the in-process fake server of the Debug launch seam, which
 /// keeps the server's rules and words. Invented questions and accounts only.
 final class StudyUITests: XCTestCase {
-    override func setUpWithError() throws {
+    @MainActor
+    override func setUp() async throws {
         continueAfterFailure = false
+        try skipOnIPad()
     }
 
     // MARK: Review (1c-1)
@@ -66,7 +68,7 @@ final class StudyUITests: XCTestCase {
         XCTAssertFalse(app.buttons["review.clear"].exists)
         attach(app, "1c-1 review, cleared")
 
-        app.navigationBars["Review"].buttons.firstMatch.tap()
+        goBack(app, from: "Review")
         let tile = app.buttons["course.tile.review"]
         XCTAssertTrue(tile.waitForExistence(timeout: 5))
         let emptied = NSPredicate(format: "label BEGINSWITH %@", "0")
@@ -206,7 +208,7 @@ final class StudyUITests: XCTestCase {
         app.buttons["examResult.openReview"].tap()
         XCTAssertTrue(app.navigationBars["Review"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.buttons["review.question.communication-v1-q0"].waitForExistence(timeout: 5), "the practice question she missed")
-        app.navigationBars["Review"].buttons.firstMatch.tap()
+        goBack(app, from: "Review")
         XCTAssertTrue(app.navigationBars["Exam"].waitForExistence(timeout: 5))
         reveal(app.staticTexts["Past exams"], in: app)
         attach(app, "1c-3 exam setup, after the exam")
@@ -272,14 +274,14 @@ final class StudyUITests: XCTestCase {
         XCTAssertTrue(app.buttons["course.set.Therapeutic Communication and the Relationship"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["folder.bank"].label.contains("No exam bank yet · exams use practice questions"))
         attach(app, "C folder")
-        app.navigationBars["Week 2"].buttons.firstMatch.tap()
-        app.navigationBars["Exam 1"].buttons.firstMatch.tap()
+        goBack(app, from: "Week 2")
+        goBack(app, from: "Exam 1")
         openFolder(app, "Week 3", on: "Exam 2")
         XCTAssertTrue(app.descendants(matching: .any)["folder.bank"].label.contains("Exam bank: 31 questions, exams only"))
 
         // Start exam on an exam page opens the setup with its folders ticked.
-        app.navigationBars["Week 3"].buttons.firstMatch.tap()
-        app.navigationBars["Exam 2"].buttons.firstMatch.tap()
+        goBack(app, from: "Week 3")
+        goBack(app, from: "Exam 2")
         tapVisible(app.buttons["course.page.Exam 1"], in: app)
         tapVisible(app.buttons["page.startExam"], in: app)
         XCTAssertTrue(app.navigationBars["Exam"].waitForExistence(timeout: 5))
@@ -301,7 +303,7 @@ final class StudyUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["examResult.title"].waitForExistence(timeout: 10))
         app.buttons["examResult.done"].tap()
         XCTAssertTrue(app.navigationBars["Exam"].waitForExistence(timeout: 5))
-        app.navigationBars["Exam"].buttons.firstMatch.tap()
+        goBack(app, from: "Exam")
         XCTAssertTrue(app.navigationBars["Exam 1"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["page.sitting.e0000000-0000-4000-8000-000000000004"].waitForExistence(timeout: 10))
     }
@@ -358,7 +360,7 @@ final class StudyUITests: XCTestCase {
         attach(app, "C folder, emptied")
 
         // On the course page, no folder is left on no exam page.
-        app.navigationBars["Mixed review"].buttons.firstMatch.tap()
+        goBack(app, from: "Mixed review")
         XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 5))
         waitForLabel(app.buttons["course.page.Exam 2"], containing: "2 folders · 31 questions")
         XCTAssertFalse(app.staticTexts["Folders on no exam page. Open one to see its sets."].exists)
@@ -377,7 +379,7 @@ final class StudyUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Week 2"].waitForExistence(timeout: 5))
 
         // Her order: Edit, then the arrows, then Done.
-        app.navigationBars["Week 2"].buttons.firstMatch.tap()
+        goBack(app, from: "Week 2")
         XCTAssertTrue(app.navigationBars["Exam 1"].waitForExistence(timeout: 5))
         XCTAssertLessThan(app.buttons["folder.Week 1"].frame.minY, app.buttons["folder.Week 2"].frame.minY)
         tapVisible(app.buttons["page.edit"], in: app)
@@ -394,7 +396,7 @@ final class StudyUITests: XCTestCase {
         XCTAssertLessThan(app.buttons["folder.Week 2"].frame.minY, week1.frame.minY)
 
         // The order is saved in QBank: the page reads it back when she opens it again.
-        app.navigationBars["Exam 1"].buttons.firstMatch.tap()
+        goBack(app, from: "Exam 1")
         tapVisible(app.buttons["course.page.Exam 1"], in: app)
         XCTAssertTrue(app.buttons["folder.Week 1"].waitForExistence(timeout: 5))
         XCTAssertLessThan(app.buttons["folder.Week 2"].frame.minY, app.buttons["folder.Week 1"].frame.minY)
@@ -408,7 +410,7 @@ final class StudyUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Edit Exam 1"].waitForExistence(timeout: 10))
         app.buttons["editPage.cancel"].tap()
         XCTAssertTrue(app.navigationBars["Edit Exam 1"].waitForNonExistence(timeout: 5))
-        app.navigationBars["Exam 1"].buttons.firstMatch.tap()
+        goBack(app, from: "Exam 1")
         tapVisible(app.buttons["course.page.Exam 1"], in: app)
         XCTAssertTrue(app.buttons["folder.Week 1"].waitForExistence(timeout: 5))
         XCTAssertLessThan(app.buttons["folder.Week 1"].frame.minY, app.buttons["folder.Week 2"].frame.minY)
@@ -455,7 +457,7 @@ final class StudyUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Exams you finish over Exam 1 show up here with their scores."].exists)
         attach(app, "C exam page, new")
 
-        app.navigationBars["Exam 1"].buttons.firstMatch.tap()
+        goBack(app, from: "Exam 1")
         XCTAssertTrue(app.buttons["course.page.Exam 1"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["folder.Week 1"].exists)
         XCTAssertTrue(app.buttons["folder.Week 3"].exists)

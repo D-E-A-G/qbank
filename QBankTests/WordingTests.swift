@@ -49,6 +49,7 @@ struct WordingTests {
         #expect(Wording.answeredPercent(try course(questions: 0, answered: 0)) == 0)
     }
 
+    @MainActor
     @Test func problemsInPlainWords() {
         #expect(Wording.problem(.server(ServerError(status: 401, code: .invalidCredentials, message: "That email or password is not right."))) == "That email or password is not right.")
         #expect(Wording.problem(.transport(.notConnectedToInternet)) == "No connection. Check Wi-Fi or cellular data and try again.")

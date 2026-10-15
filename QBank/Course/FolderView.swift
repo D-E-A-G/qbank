@@ -35,17 +35,18 @@ struct FolderView: View {
         ScrollView {
             if let folder = model.folder(id) {
                 content(folder)
-                    .padding(.horizontal, QBankSpacing.gutterPhone)
+                    .screenColumn()
                     .padding(.bottom, QBankSpacing.space7)
             } else if model.course != nil {
                 // Removed elsewhere, such as on the web, while it was open here.
                 EmptyCard(message: "This folder is not in the course anymore.", systemImage: "folder")
-                    .padding(.horizontal, QBankSpacing.gutterPhone)
+                    .screenColumn()
                     .padding(.top, QBankSpacing.space4)
             }
         }
         .qbankScreenBackground()
         .navigationTitle(model.folder(id)?.name ?? "Folder")
+        .screenColumnTitle()
         .refreshable { await model.load() }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             if let selection, !selection.isEmpty, let folder = model.folder(id) {
@@ -182,7 +183,7 @@ private struct MoveBar: View {
             Label("Move \(Wording.count(count, "set"))", systemImage: "arrow.up.and.down.and.arrow.left.and.right")
         }
         .buttonStyle(.qbank(.primary, size: .large, fullWidth: true))
-        .padding(.horizontal, QBankSpacing.gutterPhone)
+        .screenColumn()
         .padding(.vertical, QBankSpacing.space3)
         .background(.qbank(.bg))
         .overlay(alignment: .top) {

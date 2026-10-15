@@ -98,11 +98,13 @@ enum TestApp {
     ///   - storage: The phone's saved courses and unsent answers; another model made with the
     ///     same storage finds what this one left, as a relaunch does.
     ///   - connection: The phone's network path, online unless a test turns it off.
+    ///   - lock: The Face ID lock, off on a device with Face ID unless a test gives another.
     static func make(
         _ server: StubServer,
         account: Account? = nil,
         storage: PhoneStorage = .memory(),
-        connection: Connection = Connection()
+        connection: Connection = Connection(),
+        lock: AppLock? = nil
     ) -> (AppModel, InMemorySessionStore) {
         let store = InMemorySessionStore(account.map { StoredSession(token: token, expiresAt: nil, account: $0) })
         let client = QBankClient(
@@ -114,6 +116,7 @@ enum TestApp {
         let app = AppModel(
             client: client,
             look: LookStore(defaults: defaults),
+            lock: lock ?? AppLock(defaults: defaults, owner: DebugDeviceOwner(.faceID)),
             storage: storage,
             connection: connection
         )

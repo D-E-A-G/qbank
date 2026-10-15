@@ -22,17 +22,18 @@ struct ExamPageView: View {
         ScrollView {
             if let page = model.layout?.page(id) {
                 content(page)
-                    .padding(.horizontal, QBankSpacing.gutterPhone)
+                    .screenColumn()
                     .padding(.bottom, QBankSpacing.space7)
             } else if model.course != nil, !isRemoved {
                 // Removed elsewhere, such as on the web, while it was open here.
                 EmptyCard(message: "This exam page is not in the course anymore. Its folders are under Folders.", systemImage: "square.stack.3d.up")
-                    .padding(.horizontal, QBankSpacing.gutterPhone)
+                    .screenColumn()
                     .padding(.top, QBankSpacing.space4)
             }
         }
         .qbankScreenBackground()
         .navigationTitle(model.layout?.page(id)?.exam.name ?? "Exam page")
+        .screenColumnTitle()
         .refreshable { await model.load() }
         .onAppear {
             // Back from Exam setup or a folder: an exam she took shows under Your exams.

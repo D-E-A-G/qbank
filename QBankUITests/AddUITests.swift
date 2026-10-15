@@ -76,7 +76,7 @@ final class AddUITests: XCTestCase {
         // Open Unsorted shows the set in its folder on Home.
         app.buttons["import.done.open"].tap()
         XCTAssertTrue(app.navigationBars["Unsorted"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.tabBars.buttons["Home"].isSelected)
+        XCTAssertTrue(tabButton(app, "Home").isSelected)
         XCTAssertTrue(app.buttons["course.set.Invented Sleep and Rest"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["course.restore"].exists, "the replaced set offers its previous version")
         attachLooks(app, "3-3 open unsorted")
@@ -138,9 +138,7 @@ final class AddUITests: XCTestCase {
 
     @MainActor
     private func openImport(_ app: XCUIApplication) {
-        let tab = app.tabBars.buttons["Add"]
-        XCTAssertTrue(tab.waitForExistence(timeout: 5))
-        tab.tap()
+        openTab(app, "Add")
         XCTAssertTrue(app.navigationBars["Add questions"].waitForExistence(timeout: 5))
         app.buttons["add.import"].tap()
         XCTAssertTrue(app.navigationBars["Import"].waitForExistence(timeout: 5))
@@ -164,8 +162,14 @@ final class AddUITests: XCTestCase {
         XCTAssertTrue(paste.waitForExistence(timeout: 5))
         paste.tap()
         waitForLabel(editor, valueContaining: "\"questions\"")
-        // The keyboard covers the buttons below.
-        app.swipeDown(velocity: .fast)
+        // The keyboard covers the buttons below. An iPad's has a key that hides it, and there a
+        // swipe down would close the sheet the field can be in.
+        let hide = app.keyboards.buttons["Hide keyboard"]
+        if hide.exists {
+            hide.tap()
+        } else {
+            app.swipeDown(velocity: .fast)
+        }
     }
 
     @MainActor
