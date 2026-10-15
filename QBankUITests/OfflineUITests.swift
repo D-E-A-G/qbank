@@ -7,8 +7,10 @@ import XCTest
 final class OfflineUITests: XCTestCase {
     private static let set = "Anxiety, Panic, and Anxiolytics"
 
-    override func setUpWithError() throws {
+    @MainActor
+    override func setUp() async throws {
         continueAfterFailure = false
+        try skipOnIPad()
     }
 
     @MainActor
@@ -80,11 +82,11 @@ final class OfflineUITests: XCTestCase {
         waitForLabel(line, containing: "3 of 13 answered")
         reveal(line, in: app)
         attach(app, "1e folder, waiting answers counted")
-        app.navigationBars["Week 3"].buttons.firstMatch.tap()
+        goBack(app, from: "Week 3")
         let week3 = app.buttons["folder.Week 3"]
         XCTAssertTrue(week3.waitForExistence(timeout: 5))
         waitForLabel(week3, containing: "3 of 31 answered")
-        app.navigationBars["Exam 2"].buttons.firstMatch.tap()
+        goBack(app, from: "Exam 2")
 
         // Exams start and end on the server.
         XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 5))
@@ -92,7 +94,7 @@ final class OfflineUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["exam.needsConnection"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Exams need a connection"].exists)
         attach(app, "1e-3 exams need a connection")
-        app.navigationBars["Exam"].buttons.firstMatch.tap()
+        goBack(app, from: "Exam")
 
         // Home says what it shows and what waits.
         app.navigationBars["NURS 310"].buttons["Home"].tap()

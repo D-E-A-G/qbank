@@ -17,7 +17,7 @@ It references no secrets, reads the repository with a `contents: read` token, an
 Pushes to `main`, `qbank-v*` tags, and manual runs (Actions > Xcode > Run workflow) run one Mac job:
 
 1. `test/package-tests.sh --macos`: `swift test` in every package under `Packages/` on the Mac host
-2. `xcodebuild test` of the `QBank` scheme (unit and UI tests) on a run-scoped simulator through `test/sim.sh`
+2. `xcodebuild test` of the `QBank` scheme (unit and UI tests) on a run-scoped iPhone simulator through `test/sim.sh`, then again on a run-scoped iPad simulator, where the iPad layout's UI tests run and the iPhone layout's skip themselves
 3. a Release build for `generic/platform=iOS` without signing, which proves Debug-only code stays out of Release
 
 It never runs on pull requests, because its machine may be the captain's own Mac.

@@ -6,8 +6,10 @@ import XCTest
 final class PracticeUITests: XCTestCase {
     private static let set = "Mixed Clinical Judgment"
 
-    override func setUpWithError() throws {
+    @MainActor
+    override func setUp() async throws {
         continueAfterFailure = false
+        try skipOnIPad()
     }
 
     @MainActor

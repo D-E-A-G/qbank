@@ -148,7 +148,7 @@ private struct ExamQuestionPage: View {
                 }
             }
             Text(question.stem)
-                .qbankFont(.reading)
+                .qbankFont(.stem)
                 .foregroundStyle(.qbank(.text1))
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityIdentifier("practice.stem")

@@ -41,7 +41,8 @@ Answer these in App Store Connect exactly this way: "Yes, we collect data from t
 
 | Phase | Change |
 |---|---|
-| 3 Passkeys and Face ID | nothing new is collected that Apple's labels count (a passkey's public key is a credential). Face ID is handled by iOS and never reaches the app. |
+| 3 Face ID lock | shipped: nothing is collected. iOS checks Face ID, Touch ID or the passcode and tells the app only whether it matched; the on-off setting stays on the device. |
+| 3 Passkeys | nothing new is collected that Apple's labels count (a passkey's public key is a credential). |
 | 3 Import | shipped: an imported question file becomes shared course content; it is not personal data, so no new type. Re-check if the file can carry personal notes. |
 | Q Make questions (the accounts the server allows) | shipped: **Photos or Videos** and **Other User Content** (notes, files) declared above; the policy names Anthropic. |
 | 4 Free on this phone | data in on-phone mode is never sent anywhere and is not collected; the signed-in mode keeps the answers above. |

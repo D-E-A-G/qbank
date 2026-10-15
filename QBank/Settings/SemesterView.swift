@@ -24,13 +24,14 @@ struct SemesterView: View {
                 courses
                 addCourse
             }
-            .padding(.horizontal, QBankSpacing.gutterPhone)
+            .screenColumn()
             .padding(.top, QBankSpacing.space3)
             .padding(.bottom, QBankSpacing.space7)
         }
         .scrollDismissesKeyboard(.interactively)
         .qbankScreenBackground()
         .navigationTitle(model.semester?.name ?? "Semester")
+        .screenColumnTitle()
     }
 
     private var details: some View {

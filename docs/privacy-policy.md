@@ -8,7 +8,7 @@ This policy will be published at the privacy policy URL named in [app-store-list
 
 ## What this app is
 
-QBank is an iPhone app for practicing nursing exam questions (NCLEX style). It is the phone version of the QBank web app. Both talk to the same private QBank server, which one person runs for himself and a few invited students. You sign in with the account the owner set up for you; the app has no sign-up of its own.
+QBank is an iPhone and iPad app for practicing nursing exam questions (NCLEX style). It is the phone and tablet version of the QBank web app. Both talk to the same private QBank server, which one person runs for himself and a few invited students. You sign in with the account the owner set up for you; the app has no sign-up of its own.
 
 ## What we do not do
 
@@ -29,9 +29,9 @@ QBank is an iPhone app for practicing nursing exam questions (NCLEX style). It i
 
 ### 2. Your sign-in session
 
-- When you sign in, the server creates a session and the app receives a session token. The app stores the token in the iOS Keychain on that iPhone only, and sends it with every request so you stay signed in.
+- When you sign in, the server creates a session and the app receives a session token. The app stores the token in the iOS Keychain on that device only, and sends it with every request so you stay signed in.
 - With each session the server stores when it was created and expires, the IP address the sign-in came from, and the device description the app sends (its user agent). The sign-in library records these by default; QBank does not use them, and never uses them to work out where you are.
-- Sessions expire on their own after a long period of no use. Signing out removes the token from the phone and ends the session on the server when the phone can reach it.
+- Sessions expire on their own after a long period of no use. Signing out removes the token from the device and ends the session on the server when the device can reach it.
 - After 5 wrong passwords in a row the server locks sign-in for that email address for a short time. For that it keeps the email address, a count of failed tries, and when the lock ends.
 
 ### 3. Your answers and progress
@@ -53,12 +53,13 @@ Your answers and progress are yours alone among students: other students cannot 
 - **Making questions** (only on the accounts the owner turns it on for). The notes you paste, the photos you take or pick, or the file you choose are sent to the server with the course, folder, and choices you make. The server deletes the photos and files once it has read them. It keeps the text of your material (what you pasted, and what it read from your photos and files) in the record of that set, with the questions it wrote, so the set can carry on where it stopped; the record is deleted with your account. To read your material and to write and check the questions, the server sends it to Anthropic's Claude API under the owner's own Anthropic account; the app never contacts Anthropic itself and holds no key. The questions become a set in the course and folder you pick, shared course content like an imported file. The server also keeps a record of each set you start (when, for which course and folder, how far it got, and how much of the AI service it used), to show your recent sets and to keep to a daily limit.
 - **Camera and photos.** The app uses the camera only when you tap Take photo while making questions. The photo picker gives the app only the photos you pick; the app cannot see the rest of your photo library.
 
-### 5. What stays on your iPhone
+### 5. What stays on your device
 
-- **Saved for offline.** So you can practice without a signal, the app keeps a copy of the courses on your Home screen, with their sets and questions, and your recent progress, plus the Review list and terms of each course you open, in its own storage on the phone. It saves them by itself while it is online. Answers you give without a connection are scored on the phone and wait there until they can be sent. The server ignores an answer it already has, so nothing is counted twice. Exams need a connection and are not kept for offline use.
-- **Settings on the phone.** Your light or dark look choice is stored on the phone.
+- **Saved for offline.** So you can practice without a signal, the app keeps a copy of the courses on your Home screen, with their sets and questions, and your recent progress, plus the Review list and terms of each course you open, in its own storage on the device. It saves them by itself while it is online. Answers you give without a connection are scored on the device and wait there until they can be sent. The server ignores an answer it already has, so nothing is counted twice. Exams need a connection and are not kept for offline use.
+- **Settings on the device.** Your light or dark look choice, and whether the Face ID lock is on, are stored on the device.
+- **The Face ID lock.** When you turn it on, iOS checks your face, fingerprint, or passcode and tells the app only whether it matched. The app never receives or stores any biometric data, and nothing about the lock is sent to the server.
 - **Signing out** removes the session token, the offline copy, and any answers still waiting to send. The app warns you before it removes answers that have not been sent.
-- Deleting the app removes everything it stored on that phone.
+- Deleting the app removes everything it stored on that device.
 
 ### 6. Exporting your data
 
@@ -78,11 +79,11 @@ While the app is tested through Apple's TestFlight, Apple may share with the own
 
 - **On the server:** your account, answers, and progress are kept until the account is deleted. Expired sessions stop working; their records are removed with the account. Photos and files sent to make questions are deleted once the server has read them; the text of your material stays in the record of that set until the account is deleted.
 - **In backups:** up to about 30 days after deletion from the live server.
-- **On your iPhone:** until you sign out or delete the app.
+- **On your iPhone or iPad:** until you sign out or delete the app.
 
 ## Deleting your account and data
 
-The app has no in-app sign-up, so accounts are made and removed by the owner. To delete your account, ask the owner (contact below). He removes the account from the server, and with it everything linked to it: sign-in, sessions, passkeys, answers, progress, Review list, exams, the records of the sets you made questions for, and your last-opened course. Backup copies age out within about 30 days. To remove the copy on your phone, sign out or delete the app.
+The app has no in-app sign-up, so accounts are made and removed by the owner. To delete your account, ask the owner (contact below). He removes the account from the server, and with it everything linked to it: sign-in, sessions, passkeys, answers, progress, Review list, exams, the records of the sets you made questions for, and your last-opened course. Backup copies age out within about 30 days. To remove the copy on your device, sign out or delete the app.
 
 If you only want a copy of your data, use **Export my progress** first.
 
@@ -94,8 +95,8 @@ QBank is made for nursing students preparing for licensing exams. It is not dire
 
 These are planned and are not in the app yet. Each one updates this policy before it ships:
 
-- **Passkeys and Face ID sign-in:** the server would keep each passkey's public key, name, and creation date (it already does for the web app); the private key never leaves your Apple device.
-- **Using the app on this phone without an account:** courses, answers, and progress would stay only on the phone and nothing would be sent to the server.
+- **Passkeys sign-in:** the server would keep each passkey's public key, name, and creation date (it already does for the web app); the private key never leaves your Apple device.
+- **Using the app on this device without an account:** courses, answers, and progress would stay only on the device and nothing would be sent to the server.
 
 ## Contact
 

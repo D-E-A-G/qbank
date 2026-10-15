@@ -33,7 +33,7 @@ struct ExamResultView: View {
             }
             .frame(maxWidth: QBankLayout.contentMax, alignment: .leading)
             .frame(maxWidth: .infinity)
-            .padding(.horizontal, QBankSpacing.gutterPhone)
+            .padding(.horizontal, Device.gutter)
             .padding(.bottom, QBankSpacing.space10)
         }
         .safeAreaInset(edge: .top, spacing: 0) {

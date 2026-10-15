@@ -115,13 +115,13 @@ final class OfflineStore {
             // Written by a version that saved answers differently: kept aside rather than deleted.
             queue = fresh
             waiting = []
-            problem = "Some answers waiting on this iPhone could not be read, so they cannot be sent. New answers are saved as usual."
+            problem = "Some answers waiting on this \(Device.model) could not be read, so they cannot be sent. New answers are saved as usual."
             keepsAnswers = true
         } else {
             // Answers she makes now still wait, in memory until the app closes.
             queue = Self.queueInMemory(sender: client, now: now)
             waiting = []
-            problem = "This iPhone cannot save answers right now. Answers you give without a connection wait only until the app closes."
+            problem = "This \(Device.model) cannot save answers right now. Answers you give without a connection wait only until the app closes."
             keepsAnswers = false
         }
         self.queue = queue

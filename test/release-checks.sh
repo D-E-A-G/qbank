@@ -186,10 +186,19 @@ else
 fi
 
 families="$(grep -oE 'TARGETED_DEVICE_FAMILY = [^;]+;' "$PBXPROJ" | sort -u)"
-if [ "$families" = "TARGETED_DEVICE_FAMILY = 1;" ]; then
-  pass "every target is iPhone only"
+if [ "$families" = 'TARGETED_DEVICE_FAMILY = "1,2";' ]; then
+  pass "every target is iPhone and iPad"
 else
-  fail "every target is iPhone only (found: ${families:-none})"
+  fail "every target is iPhone and iPad (found: ${families:-none})"
+fi
+# An iPad app that shares the screen must support every orientation.
+require_grep 'INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";' "$PBXPROJ" "the iPad supports every orientation"
+require_grep 'INFOPLIST_KEY_NSFaceIDUsageDescription = "[^"]+";' "$PBXPROJ" "the app says why it asks for Face ID"
+# The captain installs with a free Personal Team, which cannot sign capabilities.
+if git ls-files | grep -qE '\.entitlements$' || grep -qE 'CODE_SIGN_ENTITLEMENTS' "$PBXPROJ"; then
+  fail "the app needs no entitlements, so a free Personal Team can sign it"
+else
+  pass "the app needs no entitlements, so a free Personal Team can sign it"
 fi
 
 require_grep 'PRODUCT_BUNDLE_IDENTIFIER = com\.dimitrygallego\.qbank;' "$PBXPROJ" "app bundle id is com.dimitrygallego.qbank"

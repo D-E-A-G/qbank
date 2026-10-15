@@ -25,6 +25,9 @@ struct RootView: View {
         .tint(QBankColor(.tint))
         .qbankPalette(.default)
         .background(WindowLook(look: model.look.look))
+        .background(
+            LockWindow(lock: model.lock, look: model.look.look, hasAccount: model.account != nil, isLocked: model.account != nil && model.lock.isLocked)
+        )
         .task {
             // A session kept from an earlier launch: check the server still accepts it.
             await model.refreshSession()

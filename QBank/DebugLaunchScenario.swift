@@ -7,9 +7,9 @@ import QBankKit
 /// composes synthetic data and in-process fakes, never a real account or the
 /// production server: the app talks to `FakeQBankServer` and keeps its session
 /// in memory, so the Keychain is never touched. Settings kept on the phone, such
-/// as Look, live in their own defaults suite, and saved courses and unsent
-/// answers in their own folder, `Application Support/QBankUITest`; both are
-/// emptied at launch.
+/// as Look and the lock, live in their own defaults suite, and saved courses and
+/// unsent answers in their own folder, `Application Support/QBankUITest`; both
+/// are emptied at launch.
 ///
 /// Supported environment variables:
 /// - `QB_UITEST_SCENARIO`: the scenario to start in, one of `Scenario`'s raw
@@ -21,19 +21,29 @@ import QBankKit
 ///   The fake server starts afresh either way.
 /// - `QB_UITEST_NETWORK`: `offline` starts without a network; absent or
 ///   `online` starts with one.
+/// - `QB_UITEST_DEVICE_OWNER`: how the device answers the Face ID lock, one of
+///   `DebugDeviceOwner.Kind`'s raw values, such as `face-id`. Absent means the
+///   simulator's own Face ID or passcode, for a look by hand.
 ///
 /// While the app runs, a test turns the network off and on by posting the
 /// Darwin notifications `networkOfflineNotification` and
-/// `networkOnlineNotification` (see `DebugNetwork`), and sets the app's Look by
-/// posting `lookNotification(_:)` (see `DebugLook`).
+/// `networkOnlineNotification` (see `DebugNetwork`), sets the app's Look by
+/// posting `lookNotification(_:)` (see `DebugLook`), and makes the device
+/// confirm or refuse her with `ownerConfirmsNotification` and
+/// `ownerRefusesNotification` (see `DebugDeviceOwner`). On iPad, it opens
+/// another window with `newWindowNotification` (see `DebugWindows`).
 nonisolated enum DebugLaunchScenario {
     static let scenarioKey = "QB_UITEST_SCENARIO"
     static let keepPhoneSettingsKey = "QB_UITEST_KEEP_PHONE_SETTINGS"
     static let keepPhoneDataKey = "QB_UITEST_KEEP_PHONE_DATA"
     static let networkKey = "QB_UITEST_NETWORK"
+    static let deviceOwnerKey = "QB_UITEST_DEVICE_OWNER"
     static let defaultsSuite = "com.dimitrygallego.qbank.uitest"
     static let networkOfflineNotification = "com.dimitrygallego.qbank.uitest.network.offline"
     static let networkOnlineNotification = "com.dimitrygallego.qbank.uitest.network.online"
+    static let ownerConfirmsNotification = "com.dimitrygallego.qbank.uitest.owner.confirms"
+    static let ownerRefusesNotification = "com.dimitrygallego.qbank.uitest.owner.refuses"
+    static let newWindowNotification = "com.dimitrygallego.qbank.uitest.window.new"
 
     /// The notification that sets the app's Look: `com.dimitrygallego.qbank.uitest.look.dark`,
     /// `.light`, or `.auto` for Match device.
@@ -44,6 +54,8 @@ nonisolated enum DebugLaunchScenario {
     /// The network and the Look listener of the app's scenario, kept while the app runs.
     @MainActor private static var network: DebugNetwork?
     @MainActor private static var look: DebugLook?
+    /// The device owner of the app's scenario, kept while the app runs.
+    @MainActor private static var deviceOwner: DebugDeviceOwner?
 
     enum Scenario: String, CaseIterable {
         /// No session on the phone: the sign-in screen. `FakeQBankServer.student`
@@ -67,6 +79,16 @@ nonisolated enum DebugLaunchScenario {
             let known = Scenario.allCases.map(\.rawValue).joined(separator: ", ")
             return "Unknown \(DebugLaunchScenario.scenarioKey) \"\(name)\"; known scenarios: \(known)"
         }
+    }
+
+    /// The device owner the environment asks for, or nil for the simulator's own. An unknown one
+    /// stops the app, as an unknown scenario does.
+    static func deviceOwnerKind(in environment: [String: String]) -> DebugDeviceOwner.Kind? {
+        guard let name = environment[deviceOwnerKey] else { return nil }
+        guard let kind = DebugDeviceOwner.Kind(rawValue: name) else {
+            fatalError("Unknown \(deviceOwnerKey) \"\(name)\"")
+        }
+        return kind
     }
 
     /// The scenario the environment asks for, or nil for a normal launch.
@@ -97,18 +119,19 @@ nonisolated enum DebugLaunchScenario {
         let defaults = phoneSettings(keep: environment[keepPhoneSettingsKey] == "1")
         let storage = phoneData(in: phoneFolder ?? defaultPhoneFolder, keep: environment[keepPhoneDataKey] == "1")
         let isOnline = environment[networkKey] != "offline"
+        let owner: DeviceOwner = deviceOwner(deviceOwnerKind(in: environment))
         switch scenario {
         case .signedOut:
-            return model(server: FakeQBankServer(signedIn: false), session: nil, defaults: defaults, storage: storage, isOnline: isOnline)
+            return model(server: FakeQBankServer(signedIn: false), session: nil, defaults: defaults, storage: storage, isOnline: isOnline, owner: owner)
         case .signedIn:
             return model(
                 server: FakeQBankServer(signedIn: true), session: FakeQBankServer.storedStudentSession(),
-                defaults: defaults, storage: storage, isOnline: isOnline
+                defaults: defaults, storage: storage, isOnline: isOnline, owner: owner
             )
         case .maker, .makerNotSetUp:
             return model(
                 server: FakeQBankServer(signedIn: true, as: FakeQBankServer.maker, makerIsSetUp: scenario == .maker),
-                session: FakeQBankServer.storedMakerSession(), defaults: defaults, storage: storage, isOnline: isOnline
+                session: FakeQBankServer.storedMakerSession(), defaults: defaults, storage: storage, isOnline: isOnline, owner: owner
             )
         }
     }
@@ -135,9 +158,21 @@ nonisolated enum DebugLaunchScenario {
         return defaults
     }
 
+    /// The scenario's device owner: the test's fake, listening for its notifications, or the
+    /// simulator's own.
+    @MainActor
+    private static func deviceOwner(_ kind: DebugDeviceOwner.Kind?) -> DeviceOwner {
+        guard let kind else { return LocalDeviceOwner() }
+        let owner = DebugDeviceOwner(kind)
+        owner.listen()
+        deviceOwner = owner
+        return owner
+    }
+
     @MainActor
     private static func model(
-        server: FakeQBankServer, session: StoredSession?, defaults: UserDefaults, storage: PhoneStorage, isOnline: Bool
+        server: FakeQBankServer, session: StoredSession?, defaults: UserDefaults, storage: PhoneStorage, isOnline: Bool,
+        owner: DeviceOwner
     ) -> AppModel {
         let connection = Connection(isOnline: isOnline)
         let network = DebugNetwork(server: server, connection: connection, isOnline: isOnline)
@@ -147,6 +182,7 @@ nonisolated enum DebugLaunchScenario {
         let look = DebugLook(store: lookStore)
         look.listen()
         self.look = look
+        DebugWindows.listen()
         return AppModel(
             client: QBankClient(
                 configuration: APIConfiguration(baseURL: URL(string: "https://fake-qbank.invalid")!),
@@ -154,6 +190,7 @@ nonisolated enum DebugLaunchScenario {
                 sessionStore: InMemorySessionStore(session)
             ),
             look: lookStore,
+            lock: AppLock(defaults: defaults, owner: owner),
             storage: storage,
             connection: connection
         )

@@ -50,11 +50,12 @@ struct ExamSetupView: View {
                 }
                 content
             }
-            .padding(.horizontal, QBankSpacing.gutterPhone)
+            .screenColumn()
             .padding(.bottom, QBankSpacing.space7)
         }
         .qbankScreenBackground()
         .navigationTitle("Exam")
+        .screenColumnTitle()
         .refreshable { await model.load() }
         .reloadsWithConnection(app) { await model.load() }
         .task { await model.load() }

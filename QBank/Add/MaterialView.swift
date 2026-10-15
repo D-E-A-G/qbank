@@ -67,13 +67,14 @@ struct MaterialView: View {
                 .disabled(!model.canGoOn || !app.connection.isOnline)
                 .accessibilityIdentifier("make.next")
             }
-            .padding(.horizontal, QBankSpacing.gutterPhone)
+            .screenColumn()
             .padding(.top, QBankSpacing.space2)
             .padding(.bottom, QBankSpacing.space7)
         }
         .scrollDismissesKeyboard(.interactively)
         .qbankScreenBackground()
         .navigationTitle("Your material")
+        .screenColumnTitle()
         // As in the wireframes, the steps of a new set take the whole screen.
         .toolbar(.hidden, for: .tabBar)
         .toolbar {
@@ -272,13 +273,14 @@ struct LevelView: View {
                 .disabled(model.isStarting || !app.connection.isOnline)
                 .accessibilityIdentifier("make.start")
             }
-            .padding(.horizontal, QBankSpacing.gutterPhone)
+            .screenColumn()
             .padding(.top, QBankSpacing.space2)
             .padding(.bottom, QBankSpacing.space7)
         }
         .scrollDismissesKeyboard(.interactively)
         .qbankScreenBackground()
         .navigationTitle("Level and count")
+        .screenColumnTitle()
         .toolbar(.hidden, for: .tabBar)
         .task { await model.loadReferences() }
         .toolbar {

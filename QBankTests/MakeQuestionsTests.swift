@@ -19,7 +19,14 @@ struct MakeQuestionsTests {
             transport: server,
             sessionStore: InMemorySessionStore(session)
         )
-        return AppModel(client: client, look: LookStore(defaults: TestApp.freshDefaults()), storage: .memory(), connection: Connection(isOnline: online))
+        let defaults = TestApp.freshDefaults()
+        return AppModel(
+            client: client,
+            look: LookStore(defaults: defaults),
+            lock: AppLock(defaults: defaults, owner: DebugDeviceOwner(.faceID)),
+            storage: .memory(),
+            connection: Connection(isOnline: online)
+        )
     }
 
     // MARK: The hub

@@ -103,7 +103,7 @@ final class MakeQuestionsUITests: XCTestCase {
 
         app.buttons["make.done.open"].tap()
         XCTAssertTrue(app.navigationBars["Unsorted"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.tabBars.buttons["Home"].isSelected)
+        XCTAssertTrue(tabButton(app, "Home").isSelected)
     }
 
     @MainActor
@@ -165,9 +165,7 @@ final class MakeQuestionsUITests: XCTestCase {
 
     @MainActor
     private func openAdd(_ app: XCUIApplication) {
-        let tab = app.tabBars.buttons["Add"]
-        XCTAssertTrue(tab.waitForExistence(timeout: 10))
-        tab.tap()
+        openTab(app, "Add", timeout: 10)
         XCTAssertTrue(app.navigationBars["Add questions"].waitForExistence(timeout: 5))
     }
 }

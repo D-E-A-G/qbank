@@ -1,20 +1,71 @@
 import Observation
 import SwiftUI
 
-/// The Home tab's navigation stack, so a screen deep in it can open another one or step back,
-/// as the exam result does with Open Review and Back to course.
+/// The Home tab's navigation, so a screen deep in it can open another one or step back, as the
+/// exam result does with Open Review and Back to course.
+///
+/// On iPhone, one stack holds the courses and every screen over them. On iPad, the course chosen in
+/// the sidebar is the root of the stack beside it, which holds the screens past the course.
 @Observable
 final class HomeNavigator {
+    /// True on iPad, where courses sit in a sidebar beside the course chosen.
+    let isSplit: Bool
     var path = NavigationPath()
+    /// The course open beside the sidebar on iPad.
+    private(set) var course: CourseRoute?
+    /// The column a narrow iPad shows: the courses, or the course chosen.
+    var compactColumn: NavigationSplitViewColumn = .sidebar
+    /// Counts each time the open course's counts change, so the iPad's sidebar, which stays on
+    /// screen, can show them too.
+    private(set) var courseRevision = 0
+
+    init(isSplit: Bool = false) {
+        self.isSplit = isSplit
+    }
 
     func open(_ route: some Hashable) {
+        if isSplit, let course = route as? CourseRoute {
+            select(course)
+            return
+        }
         path.append(route)
+        if isSplit {
+            compactColumn = .detail
+        }
+    }
+
+    /// On iPad: shows the course beside the sidebar, from its own page.
+    func select(_ course: CourseRoute) {
+        self.course = course
+        path = NavigationPath()
+        compactColumn = .detail
+    }
+
+    /// Shows a course in place of what Home showed, and then its pages given: over the courses on
+    /// iPhone, beside them on iPad.
+    func show(_ course: CourseRoute, then pages: [CoursePage] = []) {
+        var path = NavigationPath()
+        if isSplit {
+            self.course = course
+            compactColumn = .detail
+        } else {
+            path.append(course)
+        }
+        for page in pages {
+            path.append(page)
+        }
+        self.path = path
     }
 
     /// Steps back one screen.
     func back() {
         guard !path.isEmpty else { return }
         path.removeLast()
+    }
+
+    /// The open course was read again with different counts.
+    func courseChanged() {
+        courseRevision += 1
     }
 }
 

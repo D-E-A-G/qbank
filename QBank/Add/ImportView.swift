@@ -44,7 +44,7 @@ struct ImportView: View {
                         form
                     }
                 }
-                .padding(.horizontal, QBankSpacing.gutterPhone)
+                .screenColumn()
                 .padding(.top, QBankSpacing.space2)
                 .padding(.bottom, QBankSpacing.space7)
                 .id(Self.contentID)
@@ -59,6 +59,7 @@ struct ImportView: View {
         .scrollDismissesKeyboard(.interactively)
         .qbankScreenBackground()
         .navigationTitle("Import")
+        .screenColumnTitle()
         .task { await model.load() }
         .fileImporter(isPresented: $picksFile, allowedContentTypes: [.json, .plainText]) { result in
             read(result)

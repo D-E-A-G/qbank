@@ -33,7 +33,7 @@ The copy describes only what the build does. Apple rejects a listing that promis
 
 Up to 170 characters; can change at any time without a new review.
 
-> Practice NCLEX-style questions on your iPhone: all eight question formats, rationales for every answer, a Review list of what you missed, and timed exams.
+> Practice NCLEX-style questions on your iPhone or iPad: all eight question formats, rationales for every answer, a Review list of what you missed, and timed exams.
 
 ## Description
 
@@ -60,10 +60,11 @@ Timed exams
 - See your score by folder and by clinical judgment step when you finish.
 
 Study without signal
-- Your courses stay on your phone. Practice offline, and your answers send by themselves when you are back online.
+- Your courses stay on your iPhone or iPad. Practice offline, and your answers send by themselves when you are back online.
 
 Private by design
 - No ads, no tracking, no third-party analytics.
+- Lock QBank with Face ID, Touch ID or your passcode.
 - Export your answers and progress as a file whenever you like.
 
 QBank works with an account on a QBank server. The app has no sign-up; accounts are made by the server's owner.
@@ -118,7 +119,7 @@ Expected result: **16+**, set by "frequent medical or treatment information". Th
 
 ## Screenshots
 
-App Store Connect needs one iPhone set at **6.9 inch, 1320 x 2868 pixels portrait** (Apple scales it down for smaller iPhones); 3 to 10 images. An iPad set is needed only once the app runs on iPad (phase 3).
+App Store Connect needs one iPhone set at **6.9 inch, 1320 x 2868 pixels portrait** (Apple scales it down for smaller iPhones); 3 to 10 images. The app runs on iPad too, so App Store Connect also needs one iPad set at **13 inch, 2064 x 2752 pixels portrait**; 3 to 10 images, taken the same way on a 13-inch iPad simulator or device.
 
 Take them from a TestFlight build signed in to a **demo account**, never Khine's account, so no real progress shows. The question text shown comes from the shared course bank, which is Khine's own writing: the owner confirms with her before her questions appear in public screenshots, or a demo course is used instead.
 
@@ -145,7 +146,7 @@ Captions are optional overlay text; plain device screenshots without captions ar
 Each App Store version needs release notes. The first one:
 
 ```text
-The first release of QBank for iPhone.
+The first release of QBank for iPhone and iPad.
 ```
 
 Later versions: one or two plain sentences on what changed for students, written from the release PR.

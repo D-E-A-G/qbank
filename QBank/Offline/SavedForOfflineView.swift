@@ -59,12 +59,13 @@ struct SavedForOfflineView: View {
                 }
                 courses
             }
-            .padding(.horizontal, QBankSpacing.gutterPhone)
+            .screenColumn()
             .padding(.top, QBankSpacing.space3)
             .padding(.bottom, QBankSpacing.space7)
         }
         .qbankScreenBackground()
         .navigationTitle("Saved for offline")
+        .screenColumnTitle()
         .refreshable { await model.load() }
         .task(id: model.offline?.waiting) { await model.load() }
         .onChange(of: model.offline?.savedRevision) {
@@ -77,7 +78,7 @@ struct SavedForOfflineView: View {
         let isEmpty = model.offline?.waiting.isEmpty ?? true
         return QBankListGroup(
             header: "Waiting to send",
-            footer: isEmpty ? nil : "They also send by themselves as soon as the phone is online."
+            footer: isEmpty ? nil : "They also send by themselves as soon as the \(Device.noun) is online."
         ) {
             if isEmpty {
                 QBankListRow("Nothing waiting", detail: "Every answer you gave is saved on QBank.")
@@ -126,7 +127,7 @@ struct SavedForOfflineView: View {
 
     private var courses: some View {
         QBankListGroup(
-            header: "Courses on this phone",
+            header: "Courses on this \(Device.noun)",
             footer: "Courses save by themselves while the app is online, so every set can be practiced without signal."
         ) {
             if let courses = model.courses {

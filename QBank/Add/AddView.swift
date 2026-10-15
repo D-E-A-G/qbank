@@ -39,12 +39,13 @@ struct AddView: View {
                         inProgress
                     }
                 }
-                .padding(.horizontal, QBankSpacing.gutterPhone)
+                .screenColumn()
                 .padding(.top, QBankSpacing.space3)
                 .padding(.bottom, QBankSpacing.space7)
             }
             .qbankScreenBackground()
             .navigationTitle("Add questions")
+            .screenColumnTitle()
             .refreshable { await model.load() }
             .task(id: path.isEmpty) {
                 if path.isEmpty { await model.load() }

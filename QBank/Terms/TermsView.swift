@@ -77,12 +77,14 @@ struct TermsView: View {
                 }
                 content
             }
-            .padding(.horizontal, QBankSpacing.gutterPhone)
+            .screenColumn()
             .padding(.bottom, QBankSpacing.space7)
         }
         .qbankScreenBackground()
         .navigationTitle("Terms")
-        .searchable(text: $model.query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search terms")
+        .screenColumnTitle()
+        // Under the title on iPhone; at the top right on iPad, away from the centered column.
+        .searchable(text: $model.query, placement: Device.isPad ? .toolbar : .navigationBarDrawer(displayMode: .always), prompt: "Search terms")
         .refreshable { await model.load() }
         .reloadsWithConnection(app) { await model.load() }
         .task { await model.load() }

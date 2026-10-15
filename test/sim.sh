@@ -12,8 +12,9 @@
 # The device uses the newest available iOS simulator runtime and the first
 # --device name that runtime supports (default order: iPhone 17 Pro,
 # iPhone 17, iPhone 16 Pro, iPhone 16; otherwise the runtime's last listed
-# iPhone). It is booted headlessly, and shut down and deleted on every exit
-# path. Devices left behind by an earlier run that was killed are reaped first.
+# device of the first name's family, iPhone or iPad). It is booted
+# headlessly, and shut down and deleted on every exit path. Devices left
+# behind by an earlier run that was killed are reaped first.
 # COMMAND is stopped after --timeout seconds (default 1800).
 #
 # Compatible with the bash 3.2 that ships with macOS.
@@ -107,10 +108,11 @@ types = runtime.get("supportedDeviceTypes", [])
 by_name = {t["name"]: t for t in types}
 chosen = next((by_name[n] for n in preferred if n in by_name), None)
 if chosen is None:
-    iphones = [t for t in types if t.get("productFamily") == "iPhone"]
-    if not iphones:
-        sys.exit("iOS runtime %s supports no iPhone device type" % runtime["version"])
-    chosen = iphones[-1]
+    family = "iPad" if preferred[0].startswith("iPad") else "iPhone"
+    devices = [t for t in types if t.get("productFamily") == family]
+    if not devices:
+        sys.exit("iOS runtime %s supports no %s device type" % (runtime["version"], family))
+    chosen = devices[-1]
 print("\t".join([runtime["identifier"], runtime["version"], chosen["identifier"], chosen["name"]]))
 ' "${preferred[@]}"
 }

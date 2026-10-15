@@ -133,6 +133,36 @@ struct DebugLaunchScenarioTests {
         #expect(Self.launch(environment)?.look.look == .matchDevice)
     }
 
+    @Test func deviceOwnerAnswersTheLockAsTheTestSays() async throws {
+        #expect(DebugLaunchScenario.deviceOwnerKind(in: [:]) == nil)
+        let environment = [DebugLaunchScenario.scenarioKey: "signed-in", DebugLaunchScenario.deviceOwnerKey: "face-id-refusing"]
+        let first = try #require(Self.launch(environment))
+        #expect(first.lock.method == .faceID)
+        #expect(!first.lock.isEnabled, "the lock starts off")
+        await first.lock.turnOn()
+        #expect(!first.lock.isEnabled, "refused")
+
+        let confirming = try #require(Self.launch([DebugLaunchScenario.scenarioKey: "signed-in", DebugLaunchScenario.deviceOwnerKey: "face-id"]))
+        await confirming.lock.turnOn()
+        #expect(confirming.lock.isEnabled)
+
+        var keep = environment
+        keep[DebugLaunchScenario.keepPhoneSettingsKey] = "1"
+        let relaunched = try #require(Self.launch(keep))
+        #expect(relaunched.lock.isLocked, "the lock kept on the phone locks the next launch")
+        await relaunched.becameActive()
+        #expect(relaunched.lock.isLocked)
+        CFNotificationCenterPostNotification(
+            CFNotificationCenterGetDarwinNotifyCenter(), CFNotificationName(DebugLaunchScenario.ownerConfirmsNotification as CFString), nil, nil, true
+        )
+        try await Task.sleep(for: .milliseconds(200))
+        await relaunched.lock.unlock()
+        #expect(!relaunched.lock.isLocked)
+
+        let noPasscode = try #require(Self.launch([DebugLaunchScenario.scenarioKey: "signed-in", DebugLaunchScenario.deviceOwnerKey: "no-passcode"]))
+        #expect(noPasscode.lock.method == nil)
+    }
+
     @Test func fakeServerServesEveryFormatAndScoresWithTheServersRules() async throws {
         let app = try #require(Self.launch("signed-in"))
         let set = try await app.client.practiceSet(id: "mixed-v1")
