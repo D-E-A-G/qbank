@@ -13,17 +13,20 @@ struct FolderView: View {
     /// The sets she ticked, while she selects.
     @State private var selection: Set<String>?
     @State private var sheet: Sheet?
+    @Environment(TabNavigator.self) private var tabs: TabNavigator?
 
     private enum Sheet: Identifiable {
         case rename
         case page
         case move([PracticeSetSummary])
+        case importHere
 
         var id: String {
             switch self {
             case .rename: "rename"
             case .page: "page"
             case .move: "move"
+            case .importHere: "import"
             }
         }
     }
@@ -52,7 +55,7 @@ struct FolderView: View {
             }
         }
         .practiceCover(app: app, model: model, route: $practicing)
-        .sheet(item: $sheet) { sheet in
+        .sheet(item: $sheet, onDismiss: { Task { await model.load() } }, content: { sheet in
             if let folder = model.folder(id) {
                 switch sheet {
                 case .rename:
@@ -63,9 +66,18 @@ struct FolderView: View {
                     MoveSetsSheet(model: model, folder: folder, sets: sets) {
                         selection = nil
                     }
+                case .importHere:
+                    ImportHereSheet(app: app, courseID: model.id, folderID: folder.id) { set in
+                        self.sheet = nil
+                        Task { await model.load() }
+                        // A replaced set stays in its own folder, which may be another one.
+                        if set.folderID != id {
+                            tabs?.openFolder(courseID: set.courseID, code: set.courseCode, folderID: set.folderID)
+                        }
+                    }
                 }
             }
-        }
+        })
         .onChange(of: model.folder(id)?.sets.map(\.id)) { _, sets in
             // Sets that left the folder leave the selection, and with none left, selecting ends.
             guard let sets, let current = selection else { return }
@@ -86,7 +98,8 @@ struct FolderView: View {
             if let problem = model.problem {
                 ProblemText(text: problem)
             }
-            HStack(spacing: QBankSpacing.space2) {
+            // The buttons keep their words on one line and wrap as a row when they do not fit.
+            FlowLayout(spacing: QBankSpacing.space2, lineSpacing: QBankSpacing.space2) {
                 Button {
                     sheet = .rename
                 } label: {
@@ -100,6 +113,12 @@ struct FolderView: View {
                 }
                 .accessibilityLabel("Exam page: \(model.page(of: folder)?.name ?? "none")")
                 .accessibilityIdentifier("folder.page")
+                Button {
+                    sheet = .importHere
+                } label: {
+                    Label("Import here", systemImage: "square.and.arrow.down")
+                }
+                .accessibilityIdentifier("folder.import")
             }
             .buttonStyle(.qbank(.secondary, size: .small))
             .disabled(!model.canEdit || selection != nil)

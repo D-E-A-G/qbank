@@ -20,7 +20,7 @@ nonisolated final class FakeStudy: Sendable {
         /// Its sets, by the id of the version that is current.
         var sets: [String]
         /// Its exam-bank questions, asked only on exams.
-        let bank: [String]
+        var bank: [String]
     }
 
     /// An exam page.
@@ -204,7 +204,7 @@ nonisolated final class FakeStudy: Sendable {
         // /api/courses/{id}/...
         if parts.count >= 4, parts[0] == "api", parts[1] == "courses" {
             let courseID = parts[2]
-            guard Self.codes[courseID] != nil else { return nil }
+            guard knows(courseID) else { return nil }
             switch (method, parts.dropFirst(3).joined(separator: "/")) {
             case ("GET", "terms"): return (200, ["terms": termsJSON(courseID)])
             case ("GET", "review"): return review(courseID, filter: query["filter"] ?? "all")
@@ -239,6 +239,11 @@ nonisolated final class FakeStudy: Sendable {
             }
         }
         return nil
+    }
+
+    /// One of the two studied courses, or a course an import made folders in.
+    func knows(_ courseID: String) -> Bool {
+        Self.codes[courseID] != nil || state.withLock { state in state.folders.contains { $0.courseID == courseID } }
     }
 
     /// A course's folders in its page's order: each exam page's, then those on no page.
@@ -696,6 +701,60 @@ nonisolated final class FakeStudy: Sendable {
             "byStep": steps.sorted { rank($0.label) < rank($1.label) }.map { ["label": $0.label, "right": $0.right, "total": $0.total] },
             "items": items,
         ]
+    }
+
+    // MARK: Import, with the rules of `content/service.ts` `commitImport`
+
+    /// The folder holding a current practice set.
+    func folder(holding setID: String) -> Folder? {
+        state.withLock { state in state.folders.first { $0.sets.contains(setID) } }
+    }
+
+    /// The folder an import files a set under: the one she picked, the one she named (the course's
+    /// folder of that name on no exam page, else its only folder of that name, else a new one at the
+    /// end of its Folders list), or Unsorted, made at the top of the Folders list the first time.
+    func importFolder(courseID: String, folderID: String?, folderName: String?) -> Result<Folder, Failure> {
+        state.withLock { state in
+            if let folderID {
+                guard let folder = state.folders.first(where: { $0.id == folderID && $0.courseID == courseID }) else {
+                    return .failure(Failure(status: 400, message: "That folder is not in this course."))
+                }
+                return .success(folder)
+            }
+            if let folderName {
+                let named = state.folders.filter { $0.courseID == courseID && $0.name.lowercased() == folderName.lowercased() }
+                if let loose = named.first(where: { $0.examPageID == nil }) { return .success(loose) }
+                if named.count == 1 { return .success(named[0]) }
+                return .success(Self.newFolder(folderName, courseID: courseID, page: nil, in: &state))
+            }
+            if let unsorted = state.folders.first(where: { $0.courseID == courseID && $0.examPageID == nil && $0.name == "Unsorted" }) {
+                return .success(unsorted)
+            }
+            let top = (state.folders.filter { $0.courseID == courseID && $0.examPageID == nil }.map(\.sortOrder).min() ?? 1) - 1
+            var unsorted = Self.newFolder("Unsorted", courseID: courseID, page: nil, in: &state)
+            unsorted.sortOrder = top
+            state.folders[state.folders.count - 1] = unsorted
+            return .success(unsorted)
+        }
+    }
+
+    /// Files a new practice set in a folder, or with `replacing`, in that set's place.
+    func file(set id: String, in folderID: String, replacing old: String?) {
+        state.withLock { state in
+            if let old, let index = state.folders.firstIndex(where: { $0.sets.contains(old) }) {
+                state.folders[index].sets = state.folders[index].sets.map { $0 == old ? id : $0 }
+            } else if let index = state.folders.firstIndex(where: { $0.id == folderID }) {
+                state.folders[index].sets.append(id)
+            }
+        }
+    }
+
+    /// Files an exam set's questions in a folder's exam bank.
+    func file(bank questionIDs: [String], in folderID: String) {
+        state.withLock { state in
+            guard let index = state.folders.firstIndex(where: { $0.id == folderID }) else { return }
+            state.folders[index].bank += questionIDs
+        }
     }
 
     // MARK: Folders and exam pages, with the rules and words of `content/folders.ts`

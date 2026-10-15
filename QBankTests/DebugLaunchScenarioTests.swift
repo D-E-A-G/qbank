@@ -36,6 +36,17 @@ struct DebugLaunchScenarioTests {
         #expect(await home.landingCourse() == CourseRoute(id: FakeQBankServer.mentalHealthID, code: "NURS 310"))
     }
 
+    @Test(arguments: [("maker", true), ("maker-not-set-up", false)])
+    func makerScenariosSignInAsTheAccountThatMakesQuestions(scenario: String, isSetUp: Bool) async throws {
+        let app = try #require(Self.launch(scenario))
+        #expect(app.account?.email == FakeQBankServer.maker.email)
+        let hub = AddModel(app: app)
+        await hub.load()
+        #expect(hub.canMake == isSetUp)
+        #expect(hub.makeNote == (isSetUp ? "1 of 3 sets left today" : "Making questions is not set up yet."))
+        #expect(hub.inProgress.count == (isSetUp ? 2 : 0))
+    }
+
     @Test func fakeServerSignsInAndRefusesWrongPasswords() async throws {
         let app = try #require(Self.launch("signed-out"))
         let model = SignInModel(app: app)
@@ -185,6 +196,16 @@ struct DebugLaunchScenarioTests {
 
         CFNotificationCenterPostNotification(center, CFNotificationName(DebugLaunchScenario.networkOfflineNotification as CFString), nil, nil, true)
         try await waitUntil { !app.connection.isOnline }
+    }
+
+    @Test func theTestSetsTheLookForItsScreenshots() async throws {
+        let app = try #require(Self.launch("signed-in"))
+        #expect(app.look.look == .matchDevice)
+        let center = CFNotificationCenterGetDarwinNotifyCenter()
+        for look in [Look.dark, .light, .matchDevice] {
+            CFNotificationCenterPostNotification(center, CFNotificationName(DebugLaunchScenario.lookNotification(look) as CFString), nil, nil, true)
+            try await waitUntil { app.look.look == look }
+        }
     }
 
     @Test func fakeServerServesTheSetsOfBothCourses() async throws {

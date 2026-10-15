@@ -1,0 +1,171 @@
+{
+  "recordedFrom": "fe9f73e7ea2e798593f98c2d269999405105c662",
+  "request": {
+    "method": "GET",
+    "path": "/api/question-jobs/a0b00000-0000-4000-8000-000000000401/result",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token"
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "set": {
+        "setId": "5e700000-0000-4000-8000-000000000402",
+        "title": "Week 4 - Set 1: Invented topics",
+        "folderId": "f0000000-0000-4000-8000-000000000401",
+        "termCount": 0,
+        "examPageId": null,
+        "folderName": "Week 4",
+        "questionCount": 10
+      },
+      "examSet": {
+        "setId": "5e700000-0000-4000-8000-000000000403",
+        "title": "Week 4 - Set 1 exam: Invented topics",
+        "folderId": "f0000000-0000-4000-8000-000000000401",
+        "termCount": 0,
+        "examPageId": null,
+        "folderName": "Week 4",
+        "questionCount": 10
+      },
+      "blindCheck": {
+        "passed": 10,
+        "fixed": 0,
+        "removed": 0,
+        "questions": [
+          {
+            "id": "A01",
+            "flags": [],
+            "topic": "Invented topic 1",
+            "outcome": "passed"
+          },
+          {
+            "id": "A02",
+            "flags": [],
+            "topic": "Invented topic 2",
+            "outcome": "passed"
+          },
+          {
+            "id": "A03",
+            "flags": [],
+            "topic": "Invented topic 3",
+            "outcome": "passed"
+          },
+          {
+            "id": "A04",
+            "flags": [],
+            "topic": "Invented topic 4",
+            "outcome": "passed"
+          },
+          {
+            "id": "A05",
+            "flags": [],
+            "topic": "Invented topic 5",
+            "outcome": "passed"
+          },
+          {
+            "id": "A06",
+            "flags": [],
+            "topic": "Invented topic 6",
+            "outcome": "passed"
+          },
+          {
+            "id": "A07",
+            "flags": [],
+            "topic": "Invented topic 7",
+            "outcome": "passed"
+          },
+          {
+            "id": "A08",
+            "flags": [],
+            "topic": "Invented topic 8",
+            "outcome": "passed"
+          },
+          {
+            "id": "A09",
+            "flags": [],
+            "topic": "Invented topic 9",
+            "outcome": "passed"
+          },
+          {
+            "id": "A10",
+            "flags": [],
+            "topic": "Invented topic 10",
+            "outcome": "passed"
+          }
+        ],
+        "changeList": "No changes."
+      },
+      "examBlindCheck": {
+        "passed": 10,
+        "fixed": 0,
+        "removed": 0,
+        "questions": [
+          {
+            "id": "XA01",
+            "flags": [],
+            "topic": "Invented topic 1",
+            "outcome": "passed"
+          },
+          {
+            "id": "XA02",
+            "flags": [],
+            "topic": "Invented topic 2",
+            "outcome": "passed"
+          },
+          {
+            "id": "XA03",
+            "flags": [],
+            "topic": "Invented topic 3",
+            "outcome": "passed"
+          },
+          {
+            "id": "XA04",
+            "flags": [],
+            "topic": "Invented topic 4",
+            "outcome": "passed"
+          },
+          {
+            "id": "XA05",
+            "flags": [],
+            "topic": "Invented topic 5",
+            "outcome": "passed"
+          },
+          {
+            "id": "XA06",
+            "flags": [],
+            "topic": "Invented topic 6",
+            "outcome": "passed"
+          },
+          {
+            "id": "XA07",
+            "flags": [],
+            "topic": "Invented topic 7",
+            "outcome": "passed"
+          },
+          {
+            "id": "XA08",
+            "flags": [],
+            "topic": "Invented topic 8",
+            "outcome": "passed"
+          },
+          {
+            "id": "XA09",
+            "flags": [],
+            "topic": "Invented topic 9",
+            "outcome": "passed"
+          },
+          {
+            "id": "XA10",
+            "flags": [],
+            "topic": "Invented topic 10",
+            "outcome": "passed"
+          }
+        ],
+        "changeList": "No changes."
+      },
+      "suggestedAnswers": [],
+      "warnings": []
+    }
+  }
+}

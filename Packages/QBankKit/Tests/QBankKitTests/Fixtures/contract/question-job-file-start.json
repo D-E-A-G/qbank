@@ -1,0 +1,107 @@
+{
+  "recordedFrom": "fe9f73e7ea2e798593f98c2d269999405105c662",
+  "request": {
+    "method": "POST",
+    "path": "/api/question-jobs",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": {
+      "courseId": "c0000000-0000-4000-8000-000000000401",
+      "folderName": "Week 5",
+      "materialKind": "notes",
+      "material": {
+        "file": {
+          "name": "Week 5 notes.md",
+          "mediaType": "text/markdown",
+          "data": "IyBJbnZlbnRlZCB3ZWVrIDUgbm90ZXMKCi0gSW52ZW50ZWQgdG9waWMgZm9yIGEgdGVzdC4K"
+        }
+      },
+      "level": "course",
+      "count": 12,
+      "examTwins": false
+    }
+  },
+  "response": {
+    "status": 202,
+    "headers": {},
+    "body": {
+      "id": "a0b00000-0000-4000-8000-000000000402",
+      "status": "running",
+      "step": "read",
+      "waitingFor": null,
+      "steps": [
+        {
+          "key": "read",
+          "label": "Read your material",
+          "state": "current",
+          "done": null,
+          "total": null
+        },
+        {
+          "key": "samples",
+          "label": "Write 5 samples",
+          "state": "todo",
+          "done": null,
+          "total": null
+        },
+        {
+          "key": "review",
+          "label": "Your check",
+          "state": "todo",
+          "done": null,
+          "total": null
+        },
+        {
+          "key": "write",
+          "label": "Write the rest",
+          "state": "todo",
+          "done": null,
+          "total": null
+        },
+        {
+          "key": "check",
+          "label": "Blind check",
+          "state": "todo",
+          "done": null,
+          "total": null
+        },
+        {
+          "key": "file",
+          "label": "File the set",
+          "state": "todo",
+          "done": null,
+          "total": null
+        }
+      ],
+      "course": {
+        "id": "c0000000-0000-4000-8000-000000000401",
+        "code": "NURS 310",
+        "title": "Invented Mental Health"
+      },
+      "folder": {
+        "id": null,
+        "name": "Week 5"
+      },
+      "materialKind": "notes",
+      "level": "course",
+      "reference": null,
+      "count": 12,
+      "examTwins": false,
+      "title": null,
+      "photoCount": 0,
+      "sets": [],
+      "createdAt": "2026-10-15 20:08:23.223+00",
+      "updatedAt": "2026-10-15 20:08:23.223+00",
+      "finishedAt": null,
+      "failure": null,
+      "warnings": [],
+      "usage": {
+        "calls": 0,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      }
+    }
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "recordedFrom": "fe9f73e7ea2e798593f98c2d269999405105c662",
+  "request": {
+    "method": "POST",
+    "path": "/api/question-jobs/a0b00000-0000-4000-8000-000000000403/copies/accept",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": {
+      "keep": [
+        {
+          "id": "P01",
+          "question": {
+            "cj": "Analyze cues",
+            "id": "P01",
+            "ask": "Which action should the nurse take first?",
+            "src": "Invented slide 1",
+            "diff": 3,
+            "need": "Physiological Adaptation",
+            "stem": "An invented patient in Invented topic 1 reports cool hands since this morning.",
+            "type": "single",
+            "terms": [],
+            "topic": "Invented topic 1",
+            "options": [],
+            "takeaway": "Assess first.",
+            "rationale": "Invented rationale for Invented topic 1: a baseline comes before any other step."
+          }
+        }
+      ]
+    }
+  },
+  "response": {
+    "status": 400,
+    "headers": {},
+    "body": {
+      "error": "invalid_request",
+      "message": "Question 1 (P01): needs at least 3 options"
+    }
+  }
+}

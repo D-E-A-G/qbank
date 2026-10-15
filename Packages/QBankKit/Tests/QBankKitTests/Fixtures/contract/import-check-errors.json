@@ -1,0 +1,35 @@
+{
+  "recordedFrom": "a7902ee866d377d7a58a2a2c6ab3520af791fed3",
+  "request": {
+    "method": "POST",
+    "path": "/api/imports/check",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": {
+      "source": "{\"title\":\"Broken set\",\"questions\":[{\"id\":\"Q1\",\"type\":\"single\",\"stem\":\"Invented.\",\"ask\":\"Which?\",\"options\":[{\"t\":\"One\",\"ok\":true},{\"t\":\"Two\"},{\"t\":\"Three\",\"ok\":true}],\"rationale\":\"Invented.\"}]}"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "ok": false,
+      "title": "Broken set",
+      "description": "",
+      "kind": "practice",
+      "questionCount": 0,
+      "termCount": 0,
+      "formats": [],
+      "errors": [
+        "Question 1 (Q1): missing takeaway",
+        "Question 1 (Q1): needs exactly one option with \"ok\": true (found 2)"
+      ],
+      "warnings": [
+        "Question 1 (Q1): missing cj",
+        "Question 1 (Q1): missing need",
+        "Question 1 (Q1): missing diff",
+        "Question 1 (Q1): missing src"
+      ]
+    }
+  }
+}

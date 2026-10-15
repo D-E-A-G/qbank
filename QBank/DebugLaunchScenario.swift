@@ -24,7 +24,8 @@ import QBankKit
 ///
 /// While the app runs, a test turns the network off and on by posting the
 /// Darwin notifications `networkOfflineNotification` and
-/// `networkOnlineNotification` (see `DebugNetwork`).
+/// `networkOnlineNotification` (see `DebugNetwork`), and sets the app's Look by
+/// posting `lookNotification(_:)` (see `DebugLook`).
 nonisolated enum DebugLaunchScenario {
     static let scenarioKey = "QB_UITEST_SCENARIO"
     static let keepPhoneSettingsKey = "QB_UITEST_KEEP_PHONE_SETTINGS"
@@ -34,16 +35,29 @@ nonisolated enum DebugLaunchScenario {
     static let networkOfflineNotification = "com.dimitrygallego.qbank.uitest.network.offline"
     static let networkOnlineNotification = "com.dimitrygallego.qbank.uitest.network.online"
 
-    /// The network of the app's scenario, kept while the app runs.
+    /// The notification that sets the app's Look: `com.dimitrygallego.qbank.uitest.look.dark`,
+    /// `.light`, or `.auto` for Match device.
+    static func lookNotification(_ look: Look) -> String {
+        "com.dimitrygallego.qbank.uitest.look.\(look.rawValue)"
+    }
+
+    /// The network and the Look listener of the app's scenario, kept while the app runs.
     @MainActor private static var network: DebugNetwork?
+    @MainActor private static var look: DebugLook?
 
     enum Scenario: String, CaseIterable {
         /// No session on the phone: the sign-in screen. `FakeQBankServer.student`
         /// signs in normally; `FakeQBankServer.resetStudent` must choose a new password.
         case signedOut = "signed-out"
         /// `FakeQBankServer.student` is signed in from an earlier launch and last
-        /// used the Mental Health course.
+        /// used the Mental Health course. The server does not let her make questions.
         case signedIn = "signed-in"
+        /// `FakeQBankServer.maker` is signed in: the server lets her make questions, with one set
+        /// being written and the questions copied from two photos waiting for her check.
+        case maker = "maker"
+        /// `FakeQBankServer.maker` is signed in, but the server has no Claude key, so making
+        /// questions is not set up yet.
+        case makerNotSetUp = "maker-not-set-up"
     }
 
     struct UnknownScenario: Error, CustomStringConvertible {
@@ -91,6 +105,11 @@ nonisolated enum DebugLaunchScenario {
                 server: FakeQBankServer(signedIn: true), session: FakeQBankServer.storedStudentSession(),
                 defaults: defaults, storage: storage, isOnline: isOnline
             )
+        case .maker, .makerNotSetUp:
+            return model(
+                server: FakeQBankServer(signedIn: true, as: FakeQBankServer.maker, makerIsSetUp: scenario == .maker),
+                session: FakeQBankServer.storedMakerSession(), defaults: defaults, storage: storage, isOnline: isOnline
+            )
         }
     }
 
@@ -124,13 +143,17 @@ nonisolated enum DebugLaunchScenario {
         let network = DebugNetwork(server: server, connection: connection, isOnline: isOnline)
         network.listen()
         self.network = network
+        let lookStore = LookStore(defaults: defaults)
+        let look = DebugLook(store: lookStore)
+        look.listen()
+        self.look = look
         return AppModel(
             client: QBankClient(
                 configuration: APIConfiguration(baseURL: URL(string: "https://fake-qbank.invalid")!),
                 transport: server,
                 sessionStore: InMemorySessionStore(session)
             ),
-            look: LookStore(defaults: defaults),
+            look: lookStore,
             storage: storage,
             connection: connection
         )

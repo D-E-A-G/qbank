@@ -8,6 +8,8 @@ struct PracticeRoute: Identifiable, Hashable {
         case set(id: String)
         /// The course's Review list under a filter, or only one of its questions.
         case review(filter: ReviewFilter, questionID: String?)
+        /// A sample of a set being made, answered to check it. Her answer is not saved.
+        case sample(jobID: String, sampleID: String)
     }
 
     let source: Source
@@ -18,6 +20,7 @@ struct PracticeRoute: Identifiable, Hashable {
         switch source {
         case .set(let id): "set:\(id)"
         case .review(let filter, let questionID): "review:\(filter.rawValue):\(questionID ?? "")"
+        case .sample(let jobID, let sampleID): "sample:\(jobID):\(sampleID)"
         }
     }
 }

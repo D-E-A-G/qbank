@@ -7,10 +7,11 @@ import SwiftUI
 struct HomeView: View {
     let app: AppModel
     @State private var model: HomeModel
-    @State private var navigator = HomeNavigator()
+    @Bindable private var navigator: HomeNavigator
 
-    init(app: AppModel) {
+    init(app: AppModel, navigator: HomeNavigator) {
         self.app = app
+        self.navigator = navigator
         _model = State(initialValue: HomeModel(app: app))
     }
 

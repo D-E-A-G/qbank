@@ -90,6 +90,14 @@ public struct ServerError: Error, Sendable, Equatable {
         public static let invalidRequest: Code = "invalid_request"
         // Content.
         public static let requestRefused: Code = "request_refused"
+        // Import: a file the importer refuses. The message is its first error.
+        public static let invalidImport: Code = "invalid_import"
+        // Making questions: an account the server does not allow, a server without its Claude key,
+        // past the daily limit, and a set not at the step a call needs.
+        public static let notAllowed: Code = "not_allowed"
+        public static let notSetUp: Code = "not_set_up"
+        public static let dailyLimit: Code = "daily_limit"
+        public static let wrongStep: Code = "wrong_step"
         // Answers.
         public static let invalidResponse: Code = "invalid_response"
         public static let attemptConflict: Code = "attempt_conflict"

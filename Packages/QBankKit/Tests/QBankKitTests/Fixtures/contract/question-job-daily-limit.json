@@ -1,0 +1,28 @@
+{
+  "recordedFrom": "fe9f73e7ea2e798593f98c2d269999405105c662",
+  "request": {
+    "method": "POST",
+    "path": "/api/question-jobs",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": {
+      "courseId": "c0000000-0000-4000-8000-000000000401",
+      "materialKind": "notes",
+      "material": {
+        "text": "Invented lecture notes for week 4.\nSlide 1: invented topics for a test."
+      },
+      "level": "exam",
+      "count": 15,
+      "examTwins": true
+    }
+  },
+  "response": {
+    "status": 429,
+    "headers": {},
+    "body": {
+      "error": "daily_limit",
+      "message": "You have started 4 sets in the last 24 hours, the most for one day. You can start another in 24 hours.",
+      "availableAt": "2026-10-16T20:08:23.129Z"
+    }
+  }
+}

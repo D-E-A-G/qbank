@@ -1,0 +1,29 @@
+{
+  "recordedFrom": "a7902ee866d377d7a58a2a2c6ab3520af791fed3",
+  "request": {
+    "method": "POST",
+    "path": "/api/imports/check",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": {
+      "source": "Here are your questions: {"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "ok": false,
+      "title": null,
+      "description": "",
+      "kind": "practice",
+      "questionCount": 0,
+      "termCount": 0,
+      "formats": [],
+      "errors": [
+        "This is not valid JSON: Unexpected token 'H', \"Here are y\"... is not valid JSON. Ask your AI chat to resend only the JSON block."
+      ],
+      "warnings": []
+    }
+  }
+}
