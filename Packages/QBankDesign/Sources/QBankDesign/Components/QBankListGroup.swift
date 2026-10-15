@@ -125,7 +125,7 @@ public struct QBankListRow<Accessory: View>: View {
                         .qbankFont(.body)
                         .foregroundStyle(.qbank(isDestructive ? .wrong : .text1))
                     if let detail {
-                        Text(detail)
+                        QBankDetailText(detail)
                             .qbankFont(.footnote)
                             .foregroundStyle(.qbank(.text3))
                     }

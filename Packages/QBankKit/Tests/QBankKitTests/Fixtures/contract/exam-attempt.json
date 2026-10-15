@@ -1,5 +1,5 @@
 {
-  "recordedFrom": "2b7a4291fc79877edeb8e4eb0e430209ef56fd8b",
+  "recordedFrom": "9fa05c0b3f85764a60f8c8afaa8ca702241aded7",
   "request": {
     "method": "POST",
     "path": "/api/attempts",
@@ -7,7 +7,7 @@
     "authorization": "Bearer synthetic-session-token",
     "body": {
       "clientAttemptId": "77777777-7777-4777-8777-777777777777",
-      "questionId": "c5c4ce64-492c-4ca6-a6c1-a2779e23d809",
+      "questionId": "b8d0578b-68eb-4e23-a3dc-257af888dbc0",
       "response": {
         "type": "single",
         "choice": 0
@@ -21,7 +21,7 @@
           1
         ]
       },
-      "studySessionId": "a03e90aa-6bd5-4811-b832-61188300940b"
+      "studySessionId": "30724e62-e3f2-425a-9f78-c336f8e4b5ca"
     }
   },
   "response": {
@@ -29,15 +29,17 @@
     "headers": {},
     "body": {
       "clientAttemptId": "77777777-7777-4777-8777-777777777777",
-      "questionId": "c5c4ce64-492c-4ca6-a6c1-a2779e23d809",
-      "courseId": "6081c42b-988b-40d1-8068-273a13195673",
+      "questionId": "b8d0578b-68eb-4e23-a3dc-257af888dbc0",
+      "courseId": "7a7665d2-2bbe-4093-ae10-a2cf1c968283",
       "status": "correct",
       "points": 1,
       "maxPoints": 1,
       "guessed": false,
-      "answeredAt": "2026-10-13T00:02:35.514Z",
+      "answeredAt": "2026-10-15T02:12:18.796Z",
       "inReview": false,
       "label": "Correct",
+      "pointsText": null,
+      "ruleText": null,
       "replayed": false
     }
   }

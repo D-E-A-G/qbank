@@ -32,12 +32,18 @@ struct CourseRef: Hashable {
     let title: String
 }
 
-/// The Exam setup screen, from the Exam tile with nothing ticked, or from an exam folder's Start
-/// button with that exam's weeks ticked.
+/// The Exam setup screen, from the Exam tile with nothing ticked, or from an exam page's Start
+/// exam button with that page's folders ticked.
 struct ExamSetupRoute: Hashable {
     let course: CourseRef
-    /// The weeks ticked when it opens.
-    var weeks: [String] = []
-    /// The course exam those weeks come from, named above the week list.
+    /// The folders ticked when it opens.
+    var folderIDs: [String] = []
+    /// The exam page those folders come from, named above the folder list.
     var examName: String?
+}
+
+/// A screen of a course under its page: an exam page or a folder, by id, so a rename keeps it open.
+enum CoursePage: Hashable {
+    case examPage(String)
+    case folder(String)
 }

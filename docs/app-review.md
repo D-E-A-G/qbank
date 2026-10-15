@@ -64,9 +64,9 @@ Sign in: accounts are created by the server's owner, so the app has no sign-up s
 
 What to try:
 1. Sign in. Home lists courses by semester.
-2. Open a course, open a week's practice set, and answer a few questions. Tap "Check answer" to see per-choice reasons, the rationale and the key takeaway. Mark one answer "I'm guessing".
+2. Open a course, open an exam page and one of its folders, open a practice set, and answer a few questions. Tap "Check answer" to see per-choice reasons, the rationale and the key takeaway. Mark one answer "I'm guessing".
 3. Finish or leave the set, then open Review from the course to see missed, partly right and guessed questions.
-4. Open Exam in the course, pick weeks (or "Wrong questions only"), and start a timed exam. "End exam" scores what was answered.
+4. Open Exam in the course, pick folders (or "Wrong questions only"), and start a timed exam. "End exam" scores what was answered.
 5. Turn on Airplane Mode and answer a practice question: it is saved on the phone and sent when the connection returns. Exams need a connection.
 
 Accounts: the app does not create accounts, so there is no in-app account deletion (Guideline 5.1.1(v)); students ask the owner to delete theirs, as the privacy policy says. There is no third-party or social login (Guideline 4.8 does not apply).

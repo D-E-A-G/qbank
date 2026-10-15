@@ -1,10 +1,17 @@
 import Foundation
 
-/// Invented server bodies for slice 1c, shaped like the real routes' answers: Review, exams, and
-/// courses with exams.
+/// Invented server bodies for the study screens, shaped like the real routes' answers: Review,
+/// exams, and courses with folders and exam pages.
 enum StudyBodies {
+    /// An exam page holding folders, by id.
+    typealias Page = (id: String, name: String, folders: [String])
+
     static func week(_ label: String, sets: [String], bank: Int = 0) -> String {
         #"{"label":"\#(label)","sets":[\#(sets.joined(separator: ","))],"examBankCount":\#(bank)}"#
+    }
+
+    static func folder(_ id: String, _ name: String, page: String? = nil, order: Int, sets: [String], bank: Int = 0) -> String {
+        #"{"id":"\#(id)","name":"\#(name)","examPageId":\#(page.map { "\"\($0)\"" } ?? "null"),"sortOrder":\#(order),"sets":[\#(sets.joined(separator: ","))],"examBankCount":\#(bank)}"#
     }
 
     static func set(_ id: String, questions: Int, answered: Int = 0, right: Int = 0) -> String {
@@ -13,40 +20,71 @@ enum StudyBodies {
         return #"{"id":"\#(id)","title":"Invented \#(id)","description":"","questionCount":\#(questions),"importedAt":"2026-10-01T00:00:00.000Z","activeSince":"2026-10-01T00:00:00.000Z","status":"imported","canRestore":false,"answeredCount":\#(answered),"fullyRightCount":\#(right),"lastAnsweredAt":\#(last),"questionIds":[\#(ids)]}"#
     }
 
-    static func courseExam(_ id: String, _ name: String, order: Int, weeks: [String]) -> String {
-        #"{"id":"\#(id)","name":"\#(name)","sortOrder":\#(order),"weekLabels":[\#(weeks.map { "\"\($0)\"" }.joined(separator: ","))]}"#
+    static func courseExam(_ id: String, _ name: String, order: Int, weeks: [String], folders: [String]? = nil) -> String {
+        let list = { (items: [String]) in items.map { "\"\($0)\"" }.joined(separator: ",") }
+        let folderField = folders.map { #","folderIds":[\#(list($0))]"# } ?? ""
+        return #"{"id":"\#(id)","name":"\#(name)","sortOrder":\#(order),"weekLabels":[\#(list(weeks))]\#(folderField)}"#
     }
 
-    /// A course of three weeks: Week 1 done, Week 2 started, Week 3 not started with an exam bank.
-    static func course(id: String = "c1", exams: [String]? = []) -> String {
-        let weeks = [
-            week("Week 1", sets: [set("w1", questions: 10, answered: 10, right: 8)]),
-            week("Week 2", sets: [set("w2a", questions: 6, answered: 2, right: 1), set("w2b", questions: 4)]),
-            week("Week 3", sets: [set("w3", questions: 12)], bank: 20),
-        ]
+    /// The three folders of `course()`, by id, name, and sets: Week 1 done, Week 2 started, Week 3
+    /// not started with an exam bank of 20.
+    static let threeFolders: [(id: String, name: String, sets: [String], bank: Int)] = [
+        ("f1", "Week 1", [set("w1", questions: 10, answered: 10, right: 8)], 0),
+        ("f2", "Week 2", [set("w2a", questions: 6, answered: 2, right: 1), set("w2b", questions: 4)], 0),
+        ("f3", "Week 3", [set("w3", questions: 12)], 20),
+    ]
+
+    /// A course of `threeFolders`, with `pages` holding some of them, in their order on each page.
+    /// Its folders come in the course's order, as the server sends them: each page's folders,
+    /// pages in order, then the folders on no exam page.
+    static func course(id: String = "c1", pages: [Page] = []) -> String {
+        let pageOf = { (folder: String) in pages.first { $0.folders.contains(folder) } }
+        let loose = threeFolders.filter { pageOf($0.id) == nil }.map(\.id)
+        let ordered = (pages.flatMap(\.folders) + loose).compactMap { id in threeFolders.first { $0.id == id } }
+        let folders = ordered.map { folder in
+            let page = pageOf(folder.id)
+            let order = (page?.folders ?? loose).firstIndex(of: folder.id).map { $0 + 1 } ?? 1
+            return StudyBodies.folder(folder.id, folder.name, page: page?.id, order: order, sets: folder.sets, bank: folder.bank)
+        }
+        let exams = pages.enumerated().map { index, page in
+            courseExam(page.id, page.name, order: index + 1, weeks: page.folders.compactMap { id in threeFolders.first { $0.id == id }?.name }, folders: page.folders)
+        }
+        let weeks = threeFolders.map { week($0.name, sets: $0.sets, bank: $0.bank) }
+        return #"{"id":"\#(id)","code":"NURS 101","title":"Invented Basics","archivedAt":null,"semester":{"id":"s1","number":1,"name":"Semester 1"},"questionCount":32,"examQuestionCount":40,"weekCount":3,"termCount":4,"reviewCount":2,"answeredCount":12,"fullyRightCount":9,"points":9,"maxPoints":12,"weeks":[\#(weeks.joined(separator: ","))],"exams":[\#(exams.joined(separator: ","))],"folders":[\#(folders.joined(separator: ","))]}"#
+    }
+
+    /// The same course as a server from before folders sends it: weeks, and exams by week label, or
+    /// with `exams` nil, from before course exams too.
+    static func legacyCourse(id: String = "c1", exams: [String]? = []) -> String {
+        let weeks = threeFolders.map { week($0.name, sets: $0.sets, bank: $0.bank) }
         let examsField = exams.map { #","exams":[\#($0.joined(separator: ","))]"# } ?? ""
         return #"{"id":"\#(id)","code":"NURS 101","title":"Invented Basics","archivedAt":null,"semester":{"id":"s1","number":1,"name":"Semester 1"},"questionCount":32,"examQuestionCount":40,"weekCount":3,"termCount":4,"reviewCount":2,"answeredCount":12,"fullyRightCount":9,"points":9,"maxPoints":12,"weeks":[\#(weeks.joined(separator: ","))]\#(examsField)}"#
     }
 
     static func summary(
-        _ id: String, weeks: [String], courseExam: String? = nil, pool: String = "all",
+        _ id: String, weeks: [String], folders: [String]? = nil, courseExam: String? = nil, pool: String = "all",
         finished: Bool = true, reason: String = "finished", answered: Int = 3, questions: Int = 5, right: Int = 2,
         endsAt: String = "2026-10-12T01:00:00.000Z"
     ) -> String {
         let weekList = weeks.map { "\"\($0)\"" }.joined(separator: ",")
+        let folderField = folders.map { #""folderIds":[\#($0.map { "\"\($0)\"" }.joined(separator: ","))],"# } ?? ""
         let courseExamField = courseExam.map { "\"\($0)\"" } ?? "null"
         let score = finished ? #""fullyRight":\#(right),"points":\#(right),"maxPoints":\#(questions),"minutesUsed":12"# : #""fullyRight":null,"points":null,"maxPoints":null,"minutesUsed":null"#
-        return #"{"id":"\#(id)","courseId":"c1","weeks":[\#(weekList)],"courseExamId":\#(courseExamField),"pool":"\#(pool)","practiceWeeks":null,"questionCount":\#(questions),"timeLimitSeconds":\#(questions * 90),"startedAt":"2026-10-12T00:00:00.000Z","endsAt":"\#(endsAt)","finishedAt":\#(finished ? #""2026-10-12T00:12:00.000Z""# : "null"),"endReason":\#(finished ? "\"\(reason)\"" : "null"),"answeredCount":\#(answered),\#(score)}"#
+        return #"{"id":"\#(id)","courseId":"c1","weeks":[\#(weekList)],\#(folderField)"courseExamId":\#(courseExamField),"pool":"\#(pool)","practiceWeeks":null,"questionCount":\#(questions),"timeLimitSeconds":\#(questions * 90),"startedAt":"2026-10-12T00:00:00.000Z","endsAt":"\#(endsAt)","finishedAt":\#(finished ? #""2026-10-12T00:12:00.000Z""# : "null"),"endReason":\#(finished ? "\"\(reason)\"" : "null"),"answeredCount":\#(answered),\#(score)}"#
     }
 
-    static func setup(weeks: [(label: String, count: Int, wrong: Int, source: String)], inProgress: String? = nil, exams: [String] = []) -> String {
-        let weekList = weeks.map { #"{"label":"\#($0.label)","questionCount":\#($0.count),"wrongCount":\#($0.wrong),"source":"\#($0.source)"}"# }
-        return #"{"courseId":"c1","weeks":[\#(weekList.joined(separator: ","))],"inProgress":\#(inProgress ?? "null"),"exams":[\#(exams.joined(separator: ","))]}"#
+    /// A folder's pool in the exam setup.
+    typealias Pool = (id: String, name: String, page: String?, count: Int, wrong: Int, source: String)
+
+    static func setup(folders: [Pool], inProgress: String? = nil, exams: [String] = []) -> String {
+        let weekList = folders.map { #"{"label":"\#($0.name)","questionCount":\#($0.count),"wrongCount":\#($0.wrong),"source":"\#($0.source)"}"# }
+        let folderList = folders.map { #"{"id":"\#($0.id)","name":"\#($0.name)","examPageId":\#($0.page.map { "\"\($0)\"" } ?? "null"),"questionCount":\#($0.count),"wrongCount":\#($0.wrong),"source":"\#($0.source)"}"# }
+        return #"{"courseId":"c1","weeks":[\#(weekList.joined(separator: ","))],"folders":[\#(folderList.joined(separator: ","))],"inProgress":\#(inProgress ?? "null"),"exams":[\#(exams.joined(separator: ","))]}"#
     }
 
     /// The setup of `course()`: Week 3 has an exam bank, and only Weeks 1 and 2 have wrong questions.
-    static let threeWeeks: [(label: String, count: Int, wrong: Int, source: String)] = [
-        ("Week 1", 10, 2, "practice"), ("Week 2", 10, 3, "practice"), ("Week 3", 20, 0, "exam"),
+    static let threePools: [Pool] = [
+        ("f1", "Week 1", nil, 10, 2, "practice"), ("f2", "Week 2", nil, 10, 3, "practice"), ("f3", "Week 3", nil, 20, 0, "exam"),
     ]
 
     static func question(_ id: String, position: Int, type: String = "single") -> String {
@@ -71,7 +109,7 @@ enum StudyBodies {
 
     static func result(count: Int = 3) -> String {
         let items = (0..<count).map { #"{"questionId":"e1-q\#($0)","status":"\#($0 == 0 ? "correct" : "unanswered")","points":\#($0 == 0 ? 1 : 0),"maxPoints":1,"guessed":false,"response":\#($0 == 0 ? #"{"type":"single","choice":0}"# : "null"),"shuffle":null}"# }
-        return #"{"questionCount":\#(count),"answered":1,"unanswered":\#(count - 1),"fullyRight":1,"partial":0,"missed":0,"guessed":0,"points":1,"maxPoints":\#(count),"minutesUsed":10,"reviewCount":0,"examBankWrong":0,"byWeek":[{"label":"Week 1","right":1,"total":\#(count)}],"byStep":[{"label":"Take action","right":1,"total":\#(count)}],"items":[\#(items.joined(separator: ","))]}"#
+        return #"{"questionCount":\#(count),"answered":1,"unanswered":\#(count - 1),"fullyRight":1,"partial":0,"missed":0,"guessed":0,"points":1,"maxPoints":\#(count),"minutesUsed":10,"reviewCount":0,"examBankWrong":0,"byWeek":[{"label":"Week 1","right":1,"total":\#(count)}],"byFolder":[{"folderId":"f1","label":"Week 1","right":1,"total":\#(count)}],"byStep":[{"label":"Take action","right":1,"total":\#(count)}],"items":[\#(items.joined(separator: ","))]}"#
     }
 
     static func saved(question: String, attempt: String, status: String = "correct") -> String {

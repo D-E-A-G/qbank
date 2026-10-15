@@ -1,8 +1,8 @@
 {
-  "recordedFrom": "a1a22c1424b751417b30830ee4b96266f5519255",
+  "recordedFrom": "9fa05c0b3f85764a60f8c8afaa8ca702241aded7",
   "request": {
     "method": "GET",
-    "path": "/api/courses/2fc1aa3a-1d04-46d1-89ab-4077a36647f8/exams",
+    "path": "/api/courses/7a7665d2-2bbe-4093-ae10-a2cf1c968283/exams",
     "query": {},
     "authorization": "Bearer synthetic-session-token",
     "body": null
@@ -11,7 +11,25 @@
     "status": 200,
     "headers": {},
     "body": {
-      "courseId": "2fc1aa3a-1d04-46d1-89ab-4077a36647f8",
+      "courseId": "7a7665d2-2bbe-4093-ae10-a2cf1c968283",
+      "folders": [
+        {
+          "id": "de55efe2-6662-4fea-bf71-2c26199059b2",
+          "name": "Week 1",
+          "examPageId": null,
+          "questionCount": 2,
+          "wrongCount": 1,
+          "source": "exam"
+        },
+        {
+          "id": "31e05eea-ece9-409f-9696-b035a99c94c4",
+          "name": "Week 2",
+          "examPageId": null,
+          "questionCount": 2,
+          "wrongCount": 0,
+          "source": "practice"
+        }
+      ],
       "weeks": [
         {
           "label": "Week 1",
@@ -27,18 +45,21 @@
         }
       ],
       "inProgress": {
-        "id": "842114a9-60c2-4ffd-82d6-cb4b2d2e68f6",
-        "courseId": "2fc1aa3a-1d04-46d1-89ab-4077a36647f8",
+        "id": "b2172b0c-3f62-466e-918c-5742f1427053",
+        "courseId": "7a7665d2-2bbe-4093-ae10-a2cf1c968283",
         "weeks": [
           "Week 1"
+        ],
+        "folderIds": [
+          "de55efe2-6662-4fea-bf71-2c26199059b2"
         ],
         "courseExamId": null,
         "pool": "wrong",
         "practiceWeeks": [],
         "questionCount": 1,
         "timeLimitSeconds": 90,
-        "startedAt": "2026-10-13T03:38:35.807Z",
-        "endsAt": "2026-10-13T03:40:05.807Z",
+        "startedAt": "2026-10-15T02:12:18.826Z",
+        "endsAt": "2026-10-15T02:13:48.826Z",
         "finishedAt": null,
         "endReason": null,
         "answeredCount": 0,
@@ -49,11 +70,15 @@
       },
       "exams": [
         {
-          "id": "c57fff2b-d7f7-4d6f-ad8c-9771f4255f45",
-          "courseId": "2fc1aa3a-1d04-46d1-89ab-4077a36647f8",
+          "id": "30724e62-e3f2-425a-9f78-c336f8e4b5ca",
+          "courseId": "7a7665d2-2bbe-4093-ae10-a2cf1c968283",
           "weeks": [
             "Week 1",
             "Week 2"
+          ],
+          "folderIds": [
+            "de55efe2-6662-4fea-bf71-2c26199059b2",
+            "31e05eea-ece9-409f-9696-b035a99c94c4"
           ],
           "courseExamId": null,
           "pool": "all",
@@ -62,9 +87,9 @@
           ],
           "questionCount": 4,
           "timeLimitSeconds": 360,
-          "startedAt": "2026-10-13T03:38:35.610Z",
-          "endsAt": "2026-10-13T03:44:35.610Z",
-          "finishedAt": "2026-10-13T03:38:35.729Z",
+          "startedAt": "2026-10-15T02:12:18.782Z",
+          "endsAt": "2026-10-15T02:18:18.782Z",
+          "finishedAt": "2026-10-15T02:12:18.808Z",
           "endReason": "finished",
           "answeredCount": 1,
           "fullyRight": 1,
@@ -72,7 +97,14 @@
           "maxPoints": 4,
           "minutesUsed": 1
         }
-      ]
+      ],
+      "rules": {
+        "maxQuestions": 40,
+        "fullTimeSeconds": 3600,
+        "secondsPerQuestion": 90
+      },
+      "preview": null,
+      "courseExams": []
     }
   }
 }

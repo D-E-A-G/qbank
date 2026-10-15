@@ -90,7 +90,7 @@ public struct QBankClient: Sendable {
         return response.semesters
     }
 
-    /// A course, its weeks, and its practice sets.
+    /// A course, its folders and exam pages, and its practice sets.
     public func course(id: String) async throws(QBankError) -> CourseDetail {
         try await send(Request(.get, "/api/courses/\(id)"))
     }
@@ -113,21 +113,71 @@ public struct QBankClient: Sendable {
         try await send(Request(.post, "/api/practice-sets/\(id)/restore"))
     }
 
-    // MARK: Course exams
+    // MARK: Folders
 
-    /// Adds an exam, such as "Exam 1", over some of the course's weeks, after its other exams.
-    /// A week already in another exam is refused with 409, naming it ("Week 2 is in Exam 1."), as
-    /// is a name the course already uses; a week the course has no sets in is refused with 400.
-    public func createCourseExam(courseID: String, name: String, weekLabels: [String]) async throws(QBankError) -> CourseExam {
-        try await send(Request(.post, "/api/courses/\(courseID)/course-exams", body: CourseExamRequest(name: name, weekLabels: weekLabels)))
+    /// Adds an empty folder to the course, on no exam page, at the end of that list. A name the
+    /// list already has, in any case, is refused with 409 in her words.
+    @discardableResult
+    public func createFolder(courseID: String, name: String) async throws(QBankError) -> Folder {
+        try await send(Request(.post, "/api/courses/\(courseID)/folders", body: FolderNameRequest(name: name)))
     }
 
-    /// Renames an exam and replaces its weeks, with the same refusals as `createCourseExam`.
-    public func updateCourseExam(id: String, name: String, weekLabels: [String]) async throws(QBankError) -> CourseExam {
-        try await send(Request(.put, "/api/course-exams/\(id)", body: CourseExamRequest(name: name, weekLabels: weekLabels)))
+    /// Renames a folder. Only the name changes: its sets, their progress, its exam page and her
+    /// past exams stay with it. A name its list already has is refused with 409 in her words.
+    @discardableResult
+    public func renameFolder(id: String, name: String) async throws(QBankError) -> Folder {
+        try await send(Request(.patch, "/api/folders/\(id)", body: FolderNameRequest(name: name)))
     }
 
-    /// Removes an exam. Its weeks, their sets, and her past exams stay as they are.
+    /// Puts a folder on an exam page, at the end of its folders, or with `examPageID` nil takes it
+    /// off its page, to the end of the course's Folders list. Its sets and progress stay in it. A
+    /// name the new list already has is refused with 409 in her words.
+    @discardableResult
+    public func placeFolder(id: String, onExamPage examPageID: String?) async throws(QBankError) -> Folder {
+        try await send(Request(.patch, "/api/folders/\(id)", body: FolderPageRequest(examPageId: examPageID)))
+    }
+
+    /// Moves a set, with every version of it, into another folder of its course. Her answers and
+    /// progress move with it. Returns the folder it is in now.
+    @discardableResult
+    public func moveSet(id: String, toFolder folderID: String) async throws(QBankError) -> Folder {
+        try await send(Request(.post, "/api/practice-sets/\(id)/move", body: MoveSetRequest(folderId: folderID, newFolderName: nil)))
+    }
+
+    /// Moves a set into a new folder by that name, made at the end of the course's Folders list.
+    @discardableResult
+    public func moveSet(id: String, toNewFolder name: String) async throws(QBankError) -> Folder {
+        try await send(Request(.post, "/api/practice-sets/\(id)/move", body: MoveSetRequest(folderId: nil, newFolderName: name)))
+    }
+
+    /// Saves her order of one list: an exam page's folders, or with `examPageID` nil, the folders on
+    /// no exam page. A list that does not name exactly the folders it holds is refused with 409.
+    /// Returns the list's folders in the new order.
+    @discardableResult
+    public func setFolderOrder(courseID: String, examPageID: String?, folderIDs: [String]) async throws(QBankError) -> [Folder] {
+        let body = FolderOrderRequest(examPageId: examPageID, folderIds: folderIDs)
+        let list: FolderList = try await send(Request(.put, "/api/courses/\(courseID)/folder-order", body: body))
+        return list.folders
+    }
+
+    // MARK: Exam pages
+
+    /// Adds an exam page, such as "Exam 1", with some of the course's folders on it in that order,
+    /// after its other pages. A folder on another page is refused with 409, naming it ("Week 2 is
+    /// in Exam 1."), as is a name the course already uses.
+    public func createCourseExam(courseID: String, name: String, folderIDs: [String]) async throws(QBankError) -> CourseExam {
+        try await send(Request(.post, "/api/courses/\(courseID)/course-exams", body: CourseExamRequest(name: name, folderIds: folderIDs)))
+    }
+
+    /// Renames an exam page and replaces its folders, in the order sent, with the same refusals as
+    /// `createCourseExam`. A folder taken off goes to the end of the course's Folders list.
+    public func updateCourseExam(id: String, name: String, folderIDs: [String]) async throws(QBankError) -> CourseExam {
+        try await send(Request(.put, "/api/course-exams/\(id)", body: CourseExamRequest(name: name, folderIds: folderIDs)))
+    }
+
+    /// Removes an exam page. Its folders go back to the end of the course's Folders list; their sets
+    /// and her past exams stay as they are. Refused with 409 when one of its folders has the name of
+    /// a folder already in that list.
     public func deleteCourseExam(id: String) async throws(QBankError) {
         _ = try await exchange(Request(.delete, "/api/course-exams/\(id)"))
     }
@@ -198,16 +248,16 @@ public struct QBankClient: Sendable {
 
     // MARK: Exams
 
-    /// The week picker with per-week wrong counts, her running exam, and her ended exams.
+    /// The folder picker with per-folder wrong counts, her running exam, and her ended exams.
     public func examSetup(courseID: String) async throws(QBankError) -> ExamSetup {
         try await send(Request(.get, "/api/courses/\(courseID)/exams"))
     }
 
-    /// Starts an exam over the ticked weeks: up to 40 questions, 90 seconds each.
-    /// With `.wrong`, only the questions she last answered not fully right; a ticked week with none
-    /// is refused with 400 `no_wrong_questions`.
-    public func startExam(courseID: String, weeks: [String], pool: ExamPool = .all) async throws(QBankError) -> Exam {
-        try await send(Request(.post, "/api/courses/\(courseID)/exams", body: StartExamRequest(weeks: weeks, pool: pool)))
+    /// Starts an exam over the ticked folders: up to 40 questions, 90 seconds each, drawn from
+    /// their sets in proportion to each folder's size. With `.wrong`, only the questions she last
+    /// answered not fully right; a ticked folder with none is refused with 400 `no_wrong_questions`.
+    public func startExam(courseID: String, folderIDs: [String], pool: ExamPool = .all) async throws(QBankError) -> Exam {
+        try await send(Request(.post, "/api/courses/\(courseID)/exams", body: StartExamRequest(folderIds: folderIDs, pool: pool)))
     }
 
     /// One exam. An exam whose time ran out is ended first.
@@ -316,6 +366,11 @@ public struct QBankClient: Sendable {
         let retryAfter = body.retryAfterSeconds ?? response.value(forHTTPHeaderField: "Retry-After").flatMap { Int($0) }
         return .server(ServerError(status: status, code: .init(rawValue: body.error), message: body.message, retryAfterSeconds: retryAfter))
     }
+}
+
+/// The body of `PUT /api/courses/{id}/folder-order`'s answer: one list's folders in the new order.
+private struct FolderList: Decodable {
+    let folders: [Folder]
 }
 
 /// One API call before it becomes a URLRequest.

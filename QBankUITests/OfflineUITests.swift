@@ -36,7 +36,7 @@ final class OfflineUITests: XCTestCase {
         attach(app, "1e course, no connection")
 
         // A set never opened before opens from the phone and is answered there.
-        openFolder(app, week: "Week 3")
+        openFolder(app, "Week 3", on: "Exam 2")
         let set = app.buttons["course.set.\(Self.set)"]
         tapVisible(set, in: app)
         XCTAssertTrue(app.buttons["practice.close"].waitForExistence(timeout: 5))
@@ -73,17 +73,21 @@ final class OfflineUITests: XCTestCase {
         app.buttons["savedForOffline.done"].tap()
         XCTAssertTrue(waiting.waitForNonExistence(timeout: 5))
 
-        // Back on the course, the set counts her waiting answers.
+        // Back in its folder, the set counts her waiting answers, and so does its exam page.
         app.buttons["practice.close"].tap()
         let line = app.buttons["course.set.\(Self.set)"]
         XCTAssertTrue(line.waitForExistence(timeout: 5))
         waitForLabel(line, containing: "3 of 13 answered")
         reveal(line, in: app)
-        attach(app, "1e course, waiting answers counted")
+        attach(app, "1e folder, waiting answers counted")
+        app.navigationBars["Week 3"].buttons.firstMatch.tap()
+        let week3 = app.buttons["folder.Week 3"]
+        XCTAssertTrue(week3.waitForExistence(timeout: 5))
+        waitForLabel(week3, containing: "3 of 31 answered")
+        app.navigationBars["Exam 2"].buttons.firstMatch.tap()
 
         // Exams start and end on the server.
-        app.swipeDown()
-        app.swipeDown()
+        XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 5))
         tapVisible(app.buttons["course.tile.exam"], in: app)
         XCTAssertTrue(app.descendants(matching: .any)["exam.needsConnection"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Exams need a connection"].exists)
@@ -126,6 +130,7 @@ final class OfflineUITests: XCTestCase {
 
         // QBank has them: the fake server, started afresh at the relaunch, counts the three.
         again.buttons["home.course.NURS 310"].tap()
+        openFolder(again, "Week 3", on: "Exam 2")
         let sent = again.buttons["course.set.\(Self.set)"]
         XCTAssertTrue(sent.waitForExistence(timeout: 10))
         waitForLabel(sent, containing: "3 of 13 answered")
@@ -136,7 +141,7 @@ final class OfflineUITests: XCTestCase {
     func testAnOfflineAnswerSendsWhileTheRunnerIsOpen() throws {
         let app = launch("signed-in")
         XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 10))
-        openFolder(app, week: "Weeks 1-3")
+        openFolder(app, "Weeks 1-3")
         tapVisible(app.buttons["course.set.Mixed Clinical Judgment"], in: app)
         XCTAssertTrue(app.buttons["practice.close"].waitForExistence(timeout: 5))
         expectCount(app, "1 of 8")

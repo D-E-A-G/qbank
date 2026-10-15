@@ -152,7 +152,7 @@ final class PracticeUITests: XCTestCase {
         attach(app, "1b-10 result, end")
 
         app.buttons["result.back"].tap()
-        XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Weeks 1-3"].waitForExistence(timeout: 5))
         let set = app.buttons["course.set.\(Self.set)"]
         XCTAssertTrue(set.waitForExistence(timeout: 5))
         XCTAssertTrue(set.label.contains("Done today · 2 of 8 fully right"), set.label)
@@ -168,7 +168,7 @@ final class PracticeUITests: XCTestCase {
         next(app)
         expectQuestion(app, count: "2 of 8", format: "Priority / first action")
         app.buttons["practice.close"].tap()
-        XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Weeks 1-3"].waitForExistence(timeout: 5))
         let set = app.buttons["course.set.\(Self.set)"]
         XCTAssertTrue(set.waitForExistence(timeout: 5))
         XCTAssertTrue(set.label.contains("1 of 8 answered"), set.label)
@@ -179,7 +179,7 @@ final class PracticeUITests: XCTestCase {
     @MainActor
     private func openSet(_ app: XCUIApplication) {
         XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 10))
-        openFolder(app, week: "Weeks 1-3")
+        openFolder(app, "Weeks 1-3")
         let set = app.buttons["course.set.\(Self.set)"]
         XCTAssertTrue(set.waitForExistence(timeout: 5))
         tapVisible(set, in: app)

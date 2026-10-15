@@ -1,13 +1,13 @@
 {
-  "recordedFrom": "2b7a4291fc79877edeb8e4eb0e430209ef56fd8b",
+  "recordedFrom": "9fa05c0b3f85764a60f8c8afaa8ca702241aded7",
   "request": {
     "method": "POST",
-    "path": "/api/courses/6081c42b-988b-40d1-8068-273a13195673/exams",
+    "path": "/api/courses/7a7665d2-2bbe-4093-ae10-a2cf1c968283/exams",
     "query": {},
     "authorization": "Bearer synthetic-session-token",
     "body": {
-      "weeks": [
-        "Week 1"
+      "folderIds": [
+        "de55efe2-6662-4fea-bf71-2c26199059b2"
       ],
       "pool": "wrong"
     }
@@ -16,24 +16,27 @@
     "status": 201,
     "headers": {},
     "body": {
-      "id": "ebad5273-b423-465f-aabe-51210d3da700",
-      "courseId": "6081c42b-988b-40d1-8068-273a13195673",
+      "id": "b2172b0c-3f62-466e-918c-5742f1427053",
+      "courseId": "7a7665d2-2bbe-4093-ae10-a2cf1c968283",
       "courseCode": "NURS 101",
       "courseTitle": "Invented Nursing Basics",
       "weeks": [
         "Week 1"
       ],
+      "folderIds": [
+        "de55efe2-6662-4fea-bf71-2c26199059b2"
+      ],
       "pool": "wrong",
       "practiceWeeks": [],
       "timeLimitSeconds": 90,
-      "startedAt": "2026-10-13T00:02:35.538Z",
-      "endsAt": "2026-10-13T00:04:05.538Z",
+      "startedAt": "2026-10-15T02:12:18.826Z",
+      "endsAt": "2026-10-15T02:13:48.826Z",
       "finishedAt": null,
       "endReason": null,
-      "serverNow": "2026-10-13T00:02:35.538Z",
+      "serverNow": "2026-10-15T02:12:18.826Z",
       "questions": [
         {
-          "id": "4af32af6-c2d6-4527-a339-214185442a23",
+          "id": "7d227ed4-0954-4ce2-9db8-cdd8922c9852",
           "publicId": "E1",
           "position": 1,
           "type": "single",
@@ -61,6 +64,8 @@
               }
             ]
           },
+          "table": null,
+          "images": [],
           "terms": [],
           "weekLabel": "Week 1"
         }

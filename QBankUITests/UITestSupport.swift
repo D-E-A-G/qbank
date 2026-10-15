@@ -69,15 +69,18 @@ extension XCTestCase {
         }
     }
 
-    /// Shows the course by week and opens a week's folder, if it is closed.
+    /// Opens a folder from the course page, through its exam page when it is on one.
     @MainActor
-    func openFolder(_ app: XCUIApplication, week: String) {
-        let weeks = app.buttons["Weeks"]
-        XCTAssertTrue(weeks.waitForExistence(timeout: 5))
-        if !weeks.isSelected { weeks.tap() }
-        let folder = app.buttons["course.week.\(week)"]
-        reveal(folder, in: app)
-        if folder.value as? String == "Collapsed" { folder.tap() }
-        XCTAssertEqual(folder.value as? String, "Expanded")
+    func openFolder(_ app: XCUIApplication, _ name: String, on page: String? = nil) {
+        if let page {
+            let row = app.buttons["course.page.\(page)"]
+            XCTAssertTrue(row.waitForExistence(timeout: 5))
+            tapVisible(row, in: app)
+            XCTAssertTrue(app.navigationBars[page].waitForExistence(timeout: 5))
+        }
+        let row = app.buttons["folder.\(name)"]
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        tapVisible(row, in: app)
+        XCTAssertTrue(app.navigationBars[name].waitForExistence(timeout: 5))
     }
 }

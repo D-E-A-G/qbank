@@ -2,15 +2,27 @@ import Foundation
 import Observation
 import QBankKit
 
-/// Exam setup, as the web's (`apps/web/src/exam/ExamSetupScreen.tsx`): the weeks to tick with
-/// their question or wrong counts, Wrong questions only, the summary of what Start draws, her
-/// running exam, and her past exams.
+/// Exam setup, as the web's (`apps/web/src/exam/ExamSetupScreen.tsx`): the folders to tick, by
+/// exam page, with their question or wrong counts, Wrong questions only, the summary of what Start
+/// draws, her running exam, and her past exams.
 @Observable
 final class ExamSetupModel {
+    /// The folders of one exam page, or of none, as the picker groups them.
+    struct Group: Identifiable, Equatable {
+        /// The exam page's name, "On no exam page", or nil when the course's pages are not known.
+        let title: String?
+        let folders: [ExamSetup.Folder]
+
+        var id: String { title ?? "" }
+    }
+
     let route: ExamSetupRoute
     private(set) var setup: ExamSetup?
+    /// The course, for its exam pages and her order of their folders.
+    private(set) var detail: CourseDetail?
     /// When the setup arrived, for the running exam's minutes left.
     private(set) var loadedAt = Date.now
+    /// The ticked folders, by id.
     private(set) var ticked: Set<String> = []
     var wrongOnly = false
     private(set) var isStarting = false
@@ -38,55 +50,89 @@ final class ExamSetupModel {
         app.account?.role == .student
     }
 
-    var weeks: [ExamSetup.Week] {
-        setup?.weeks ?? []
+    var folders: [ExamSetup.Folder] {
+        groups.flatMap(\.folders)
     }
 
-    /// The questions a week gives: all of them, or with Wrong questions only her wrong ones.
-    func poolSize(_ week: ExamSetup.Week) -> Int {
-        wrongOnly ? week.wrongCount : week.questionCount
+    /// The folders by exam page, in her order, then those on no exam page. Without the course's
+    /// pages, the folders as the setup lists them.
+    var groups: [Group] {
+        guard let setup else { return [] }
+        guard let detail else { return [Group(title: nil, folders: setup.folders)] }
+        let layout = CourseLayout(course: detail, sittings: [])
+        let byID = Dictionary(setup.folders.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        var placed = Set<String>()
+        var groups: [Group] = []
+        for (title, folders) in layout.pages.map({ ($0.exam.name, $0.folders) }) + [("On no exam page", layout.looseFolders)] {
+            let pools = folders.compactMap { byID[$0.id] }
+            placed.formUnion(pools.map(\.id))
+            if !pools.isEmpty { groups.append(Group(title: title, folders: pools)) }
+        }
+        // A folder the course read does not have yet still shows, at the end.
+        let rest = setup.folders.filter { !placed.contains($0.id) }
+        if !rest.isEmpty {
+            if let last = groups.last, last.title == "On no exam page" {
+                groups[groups.count - 1] = Group(title: last.title, folders: last.folders + rest)
+            } else {
+                groups.append(Group(title: "On no exam page", folders: rest))
+            }
+        }
+        return groups
     }
 
-    /// A week with nothing to draw cannot be ticked. Its tick comes back when the switch is off.
-    func canTick(_ week: ExamSetup.Week) -> Bool {
-        poolSize(week) > 0
+    /// A folder's name, with its exam page when another folder shares the name: "First Pass (Exam 3)".
+    func name(_ folder: ExamSetup.Folder) -> String {
+        let all = setup?.folders ?? []
+        guard all.contains(where: { $0.id != folder.id && $0.name.lowercased() == folder.name.lowercased() }) else { return folder.name }
+        let page = detail?.exams.first { $0.id == folder.examPageID }?.name ?? "no exam page"
+        return "\(folder.name) (\(page))"
     }
 
-    func isTicked(_ week: ExamSetup.Week) -> Bool {
-        canTick(week) && ticked.contains(week.label)
+    /// The questions a folder gives: all of them, or with Wrong questions only her wrong ones.
+    func poolSize(_ folder: ExamSetup.Folder) -> Int {
+        wrongOnly ? folder.wrongCount : folder.questionCount
     }
 
-    func toggle(_ week: ExamSetup.Week) {
-        guard isStudent, canTick(week) else { return }
-        if ticked.contains(week.label) {
-            ticked.remove(week.label)
+    /// A folder with nothing to draw cannot be ticked. Its tick comes back when the switch is off.
+    func canTick(_ folder: ExamSetup.Folder) -> Bool {
+        poolSize(folder) > 0
+    }
+
+    func isTicked(_ folder: ExamSetup.Folder) -> Bool {
+        canTick(folder) && ticked.contains(folder.id)
+    }
+
+    func toggle(_ folder: ExamSetup.Folder) {
+        guard isStudent, canTick(folder) else { return }
+        if ticked.contains(folder.id) {
+            ticked.remove(folder.id)
         } else {
-            ticked.insert(week.label)
+            ticked.insert(folder.id)
         }
     }
 
-    /// The ticked weeks that give questions, in week order.
-    var picked: [ExamSetup.Week] {
-        weeks.filter(isTicked)
+    /// The ticked folders that give questions, in the picker's order.
+    var picked: [ExamSetup.Folder] {
+        folders.filter(isTicked)
     }
 
     var plan: ExamPlan {
-        ExamPlan(picked.map { ExamPlan.Week(label: $0.label, questionCount: poolSize($0)) })
+        ExamPlan(picked.map { ExamPlan.Pool(id: $0.id, name: name($0), questionCount: poolSize($0)) })
     }
 
-    /// "4 in exam" beside a ticked week.
-    func drawn(_ week: ExamSetup.Week) -> Int? {
-        guard isTicked(week) else { return nil }
-        return plan.weeks.first { $0.label == week.label }?.drawn
+    /// "4 in exam" beside a ticked folder.
+    func drawn(_ folder: ExamSetup.Folder) -> Int? {
+        guard isTicked(folder) else { return nil }
+        return plan.draws.first { $0.id == folder.id }?.drawn
     }
 
     /// "27 questions", or "7 wrong of 20" with Wrong questions only on, and "· exam bank" when the
-    /// week has one.
-    func meta(_ week: ExamSetup.Week) -> String {
+    /// folder has one.
+    func meta(_ folder: ExamSetup.Folder) -> String {
         let count = wrongOnly
-            ? "\(week.wrongCount) wrong of \(week.questionCount)"
-            : Wording.count(week.questionCount, "question")
-        return week.source == .exam ? "\(count) · exam bank" : count
+            ? "\(folder.wrongCount) wrong of \(folder.questionCount)"
+            : Wording.count(folder.questionCount, "question")
+        return folder.source == .exam ? "\(count) · exam bank" : count
     }
 
     /// The summary's first line: "11 questions", with its time beside it. Nil before a tick.
@@ -102,39 +148,42 @@ final class ExamSetupModel {
     /// or what to tick.
     var summarySplit: String {
         if picked.isEmpty {
-            if !wrongOnly { return "Tick at least one week." }
-            return weeks.allSatisfy { $0.wrongCount == 0 }
+            if !wrongOnly { return "Tick at least one folder." }
+            return folders.allSatisfy { $0.wrongCount == 0 }
                 ? "No wrong questions in this course right now."
-                : "Tick at least one week with wrong questions."
+                : "Tick at least one folder with wrong questions."
         }
-        let split = plan.weeks.map { "\($0.drawn) from \($0.label)" }.joined(separator: " · ")
+        let split = plan.draws.map { "\($0.drawn) from \($0.name)" }.joined(separator: " · ")
         guard plan.questionCount < ExamPlan.maxQuestions else { return split }
         return "\(split) · Fewer than \(ExamPlan.maxQuestions), so it’s all of them at 1.5 minutes each."
     }
 
-    /// The ticked weeks without an exam bank, named only once the course has one, as the server does.
+    /// The ticked folders without an exam bank, named only once the course has one, as the server does.
     var fallbackLine: String? {
-        guard weeks.contains(where: { $0.source == .exam }) else { return nil }
-        let practice = picked.filter { $0.source == .practice }.map(\.label)
-        return practice.isEmpty ? nil : Wording.practiceWeeks(practice, before: true)
+        guard folders.contains(where: { $0.source == .exam }) else { return nil }
+        let practice = picked.filter { $0.source == .practice }.map(name)
+        return practice.isEmpty ? nil : Wording.practiceFolders(practice, before: true)
     }
 
     var footer: String {
         wrongOnly
-            ? "Questions are drawn only from the wrong ones in the weeks you tick, in proportion to how many each week has."
-            : "Questions are drawn only from the weeks you tick, in proportion to each week’s size."
+            ? "Questions are drawn only from the wrong ones in the folders you tick, in proportion to how many each folder has."
+            : "Questions are drawn only from the folders you tick, in proportion to each folder’s size."
     }
 
-    /// "Exam 1 · Weeks 1-3 ticked for you", when she came from an exam's Start button.
+    /// "Exam 2 · 5 folders ticked for you", when she came from an exam page's Start exam.
     var preselectedLine: String? {
-        guard let name = route.examName, !route.weeks.isEmpty else { return nil }
-        return "\(name) · \(Wording.weeks(route.weeks)) ticked for you"
+        guard let name = route.examName, !route.folderIDs.isEmpty else { return nil }
+        let known = Set(setup?.folders.map(\.id) ?? [])
+        let count = route.folderIDs.filter(known.contains).count
+        guard count > 0 else { return nil }
+        return "\(name) · \(Wording.count(count, "folder")) ticked for you"
     }
 
     /// "Weeks 1-2 · Wrong questions only · 3 of 11 answered · 12 min left".
     func runningLine(_ exam: ExamSummary) -> String {
         let minutesLeft = max(1, Int((exam.endsAt.timeIntervalSince(loadedAt) / 60).rounded(.up)))
-        var parts = [Wording.weeks(exam.weeks)]
+        var parts = [Wording.folders(exam.weeks)]
         if exam.pool == .wrong { parts.append("Wrong questions only") }
         parts.append("\(exam.answeredCount) of \(exam.questionCount) answered")
         parts.append("\(minutesLeft) min left")
@@ -143,7 +192,10 @@ final class ExamSetupModel {
 
     // MARK: Loading and starting
 
+    /// Loads the setup, and the course for its exam pages. A course that cannot be read leaves the
+    /// folders ungrouped.
     func load() async {
+        async let reading = courseDetail()
         do {
             let loaded = try await app.client.examSetup(courseID: course.id)
             setup = loaded
@@ -151,15 +203,23 @@ final class ExamSetupModel {
             problem = nil
             if !hasTicked {
                 hasTicked = true
-                let labels = Set(loaded.weeks.map(\.label))
-                ticked = Set(route.weeks.filter(labels.contains))
+                let ids = Set(loaded.folders.map(\.id))
+                ticked = Set(route.folderIDs.filter(ids.contains))
             }
         } catch {
             report(error)
         }
+        if let read = await reading {
+            detail = read
+        }
     }
 
-    /// Starts the exam over the ticked weeks. A running exam of hers ends first, which she was
+    private func courseDetail() async -> CourseDetail? {
+        let id = course.id
+        return try? await app.load(.course(id)) { () async throws(QBankError) in try await app.client.course(id: id) }.value
+    }
+
+    /// Starts the exam over the ticked folders. A running exam of hers ends first, which she was
     /// asked about. Returns the new exam to open, or nil after a refusal, said in her words.
     func start() async -> Exam? {
         guard isStudent, !picked.isEmpty, !isStarting, !needsConnection else { return nil }
@@ -167,7 +227,7 @@ final class ExamSetupModel {
         defer { isStarting = false }
         problem = nil
         do {
-            return try await app.client.startExam(courseID: course.id, weeks: picked.map(\.label), pool: wrongOnly ? .wrong : .all)
+            return try await app.client.startExam(courseID: course.id, folderIDs: picked.map(\.id), pool: wrongOnly ? .wrong : .all)
         } catch {
             report(error)
             return nil
@@ -200,7 +260,7 @@ extension ExamSummary {
 
     /// "Weeks 1-2 · Oct 9".
     nonisolated var pastTitle: String {
-        "\(Wording.weeks(weeks)) · \(Wording.when(finishedAt ?? startedAt))"
+        "\(Wording.folders(weeks)) · \(Wording.when(finishedAt ?? startedAt))"
     }
 
     /// "31 of 40".

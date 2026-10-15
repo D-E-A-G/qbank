@@ -203,7 +203,7 @@ final class OfflineStore {
             }
             guard !Task.isCancelled else { return false }
             try? await cache.store(detail, for: .course(id), savedAt: now())
-            for set in detail.weeks.flatMap(\.sets) {
+            for set in detail.folders.flatMap(\.sets) {
                 guard !Task.isCancelled else { return false }
                 listedSets.insert(set.id)
                 if let saved = try? await cache.value(for: .practiceSet(set.id)), saved.savedAt >= set.importedAt { continue }
@@ -249,7 +249,7 @@ final class OfflineStore {
         var courses: [SavedCourse] = []
         for entry in entries where entry.name.hasPrefix(coursePrefix) {
             guard let saved = try? await cache.value(for: .course(String(entry.name.dropFirst(coursePrefix.count)))) else { continue }
-            let sets = saved.value.weeks.flatMap(\.sets)
+            let sets = saved.value.folders.flatMap(\.sets)
             let savedSets = sets.filter { names.contains(CacheKey<PracticeSet>.practiceSet($0.id).name) }
             courses.append(SavedCourse(
                 id: saved.value.id,
@@ -442,7 +442,7 @@ final class OfflineStore {
         for courseID in Set(attempts.compactMap(\.courseID)) {
             guard let course = await saved(.course(courseID))?.value else { continue }
             let questionIDs = Set(attempts.filter { $0.courseID == courseID }.map(\.submission.questionID))
-            for set in course.weeks.flatMap(\.sets) {
+            for set in course.folders.flatMap(\.sets) {
                 for questionID in set.questionIDs where questionIDs.contains(questionID) && found[questionID] == nil {
                     if sets[set.id] == nil {
                         sets[set.id] = .some(await saved(.practiceSet(set.id))?.value)

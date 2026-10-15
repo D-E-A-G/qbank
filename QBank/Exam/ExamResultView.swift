@@ -4,7 +4,7 @@ import SwiftUI
 
 /// An ended exam, as the web shows it (`apps/web/src/exam/ExamResult.tsx`): how many fully right,
 /// points and minutes, partly right / missed / guessed / not answered, Open Review for the
-/// practice questions it sent there, the score by week and by clinical judgment step, and every
+/// practice questions it sent there, the score by folder and by clinical judgment step, and every
 /// question with her answer and its explanation.
 struct ExamResultView: View {
     let exam: Exam
@@ -19,7 +19,12 @@ struct ExamResultView: View {
                 head
                 stats
                 review
-                breakdown("By week", rows: result.byWeek, detail: weekSource)
+                if let byFolder = result.byFolder {
+                    breakdown("By folder", rows: byFolder, detail: source)
+                } else {
+                    // An exam from before folders.
+                    breakdown("By week", rows: result.byWeek, detail: source)
+                }
                 breakdown("By clinical judgment step", rows: result.byStep) { _ in nil }
                 questions
                 Button("Back to course") { close(.backToCourse) }
@@ -47,7 +52,7 @@ struct ExamResultView: View {
 
     private var head: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Kicker("Exam result · \(Wording.weeks(exam.weeks))\(exam.pool == .wrong ? " · Wrong questions only" : "")")
+            Kicker("Exam result · \(Wording.folders(exam.weeks))\(exam.pool == .wrong ? " · Wrong questions only" : "")")
             Text("\(result.fullyRight) of \(result.questionCount) fully right")
                 .qbankFont(.largeTitle)
                 .foregroundStyle(.qbank(.text1))
@@ -59,7 +64,7 @@ struct ExamResultView: View {
                 .foregroundStyle(.qbank(.text2))
                 .accessibilityIdentifier("examResult.points")
             if let practiceWeeks = exam.practiceWeeks, !practiceWeeks.isEmpty {
-                Text(Wording.practiceWeeks(practiceWeeks, before: false))
+                Text(Wording.practiceFolders(practiceWeeks, before: false))
                     .qbankFont(.subheadline)
                     .foregroundStyle(.qbank(.text2))
                     .padding(.top, QBankSpacing.space2)
@@ -152,8 +157,8 @@ struct ExamResultView: View {
         return "\(lead) Turn on Wrong questions only to take \(one ? "it" : "them") again."
     }
 
-    /// Under a week in By week: where its questions came from, once the course has an exam bank.
-    private func weekSource(_ label: String) -> String? {
+    /// Under a folder in By folder: where its questions came from, once the course has an exam bank.
+    private func source(_ label: String) -> String? {
         guard let practiceWeeks = exam.practiceWeeks else { return nil }
         return practiceWeeks.contains(label) ? "practice questions" : "exam bank"
     }

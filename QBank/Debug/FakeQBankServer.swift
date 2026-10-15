@@ -52,7 +52,7 @@ nonisolated final class FakeQBankServer: HTTPTransport {
         var title: String
         var sortOrder: Int
         var archivedAt: String?
-        var questions = 0, weeks = 0, review = 0, answered = 0, right = 0, points = 0, maxPoints = 0
+        var questions = 0, folders = 0, review = 0, answered = 0, right = 0, points = 0, maxPoints = 0
     }
 
     private struct State {
@@ -99,9 +99,9 @@ nonisolated final class FakeQBankServer: HTTPTransport {
             ],
             courses: [
                 FakeCourse(id: Self.mentalHealthID, semesterID: Self.semester1ID, code: "NURS 310", title: "Mental Health", sortOrder: 1,
-                           questions: 86, weeks: 3, review: 12, answered: 35, right: 24, points: 61, maxPoints: 92),
+                           questions: 86, folders: 4, review: 12, answered: 35, right: 24, points: 61, maxPoints: 92),
                 FakeCourse(id: Self.fundamentalsID, semesterID: Self.semester1ID, code: "NURS 220", title: "Fundamentals", sortOrder: 2,
-                           questions: 146, weeks: 3, review: 5, answered: 92, right: 70, points: 131, maxPoints: 170),
+                           questions: 146, folders: 3, review: 5, answered: 92, right: 70, points: 131, maxPoints: 170),
             ],
             sessions: signedIn ? [Self.sessionToken: Self.student.email] : [:],
             place: place
@@ -186,7 +186,8 @@ nonisolated final class FakeQBankServer: HTTPTransport {
                 return state.psychosocialRestored
             }
             if restored { return failure(404, "request_refused", "That set is not the current version.") }
-            return (200, psychosocial())
+            study.replace(set: "psychosocial-v2", with: "psychosocial-v1")
+            return (200, set("psychosocial-v1"))
         case ("POST", "/api/attempts"):
             return recordAttempt(rawBody)
         default:
@@ -195,7 +196,7 @@ nonisolated final class FakeQBankServer: HTTPTransport {
         if method == "GET", path.hasPrefix("/api/practice-sets/") {
             return practiceSet(id: String(path.dropFirst("/api/practice-sets/".count)))
         }
-        if let reply = study.answer(method: method, path: path, query: query, body: body) {
+        if let reply = study.answer(method: method, path: path, query: query, body: body, folderJSON: folderJSON) {
             return reply
         }
         return failure(404, "request_refused", "That is not in the app.")
@@ -268,11 +269,15 @@ nonisolated final class FakeQBankServer: HTTPTransport {
 
     private func courseJSON(_ course: FakeCourse, latest: [String: (status: String, at: Date)]) -> [String: Any] {
         let added = Self.added(courseID: course.id, latest: latest)
+        // The two studied courses count the folders she has now; the others, their invented count.
+        let folders = FakeStudy.codes[course.id] == nil ? nil : study.folders(course.id)
         return [
             "id": course.id, "code": course.code, "title": course.title, "sortOrder": course.sortOrder,
             "archivedAt": json(course.archivedAt),
-            "questionCount": course.questions, "weekCount": course.weeks,
-            "reviewCount": FakeStudy.examWeeks(course.id) == nil ? course.review : study.reviewCount(course.id),
+            "questionCount": course.questions,
+            "weekCount": folders.map { Set($0.filter { !$0.sets.isEmpty }.map(\.name)).count } ?? course.folders,
+            "folderCount": folders?.count ?? course.folders,
+            "reviewCount": FakeStudy.codes[course.id] == nil ? course.review : study.reviewCount(course.id),
             "answeredCount": course.answered + added.answered, "fullyRightCount": course.right + added.right,
             "points": course.points, "maxPoints": course.maxPoints,
         ]
@@ -446,25 +451,9 @@ nonisolated final class FakeQBankServer: HTTPTransport {
         return [
             "id": Self.mentalHealthID, "code": "NURS 310", "title": "Mental Health", "archivedAt": NSNull(),
             "semester": ["id": "fake-semester-1", "number": 1, "name": "Semester 1"],
-            "questionCount": 86, "examQuestionCount": 134, "weekCount": 3, "termCount": 180, "reviewCount": 12,
+            "questionCount": 86, "examQuestionCount": 134, "termCount": 180, "reviewCount": 12,
             "answeredCount": 35 + added.answered, "fullyRightCount": 24 + added.right, "points": 61, "maxPoints": 92,
-            "weeks": [
-                week("Week 1", bank: 17, sets: [
-                    set("rights-v1", "Rights, Law, and Ethics", questions: 17, daysAgo: 20),
-                ]),
-                week("Week 2", bank: 0, sets: [
-                    set("communication-v1", "Therapeutic Communication and the Relationship", questions: 14, daysAgo: 12),
-                    psychosocial(),
-                ]),
-                week("Week 3", bank: 31, sets: [
-                    set("depression-v1", "Depression and Antidepressants", questions: 18, daysAgo: 0),
-                    set("anxiety-v1", "Anxiety, Panic, and Anxiolytics", questions: 13, daysAgo: 0),
-                ]),
-                week("Weeks 1-3", bank: 0, sets: [
-                    set("mixed-v1", "Mixed Clinical Judgment", questions: 8, daysAgo: 4),
-                ]),
-            ],
-        ]
+        ].merging(folders(Self.mentalHealthID)) { _, folders in folders }
     }
 
     private func fundamentals() -> [String: Any] {
@@ -472,77 +461,104 @@ nonisolated final class FakeQBankServer: HTTPTransport {
         return [
             "id": Self.fundamentalsID, "code": "NURS 220", "title": "Fundamentals", "archivedAt": NSNull(),
             "semester": ["id": "fake-semester-1", "number": 1, "name": "Semester 1"],
-            "questionCount": 146, "examQuestionCount": 146, "weekCount": 3, "termCount": 212, "reviewCount": 5,
+            "questionCount": 146, "examQuestionCount": 146, "termCount": 212, "reviewCount": 5,
             "answeredCount": 92 + added.answered, "fullyRightCount": 70 + added.right, "points": 131, "maxPoints": 170,
-            "weeks": [
-                week("Week 1", bank: 0, sets: [set("vitals-v1", "Vital Signs Under Pressure", questions: 43, daysAgo: 30)]),
-                week("Week 2", bank: 0, sets: [set("safety-v1", "Safety and Infection Control", questions: 42, daysAgo: 22)]),
-                week("Week 3", bank: 0, sets: [set("mobility-v1", "Mobility and Skin Integrity", questions: 61, daysAgo: 8)]),
-            ],
-        ]
+        ].merging(folders(Self.fundamentalsID)) { _, folders in folders }
     }
 
-    /// The Week 2 set that was replaced, until she restores its previous version.
-    private func psychosocial() -> [String: Any] {
-        let restored = state.withLock { $0.psychosocialRestored }
-        return restored
-            ? set("psychosocial-v1", "Psychosocial Assessment and Safety Screening", questions: 12, daysAgo: 0, status: "restored", canRestore: true)
-            : set("psychosocial-v2", "Psychosocial Assessment and Safety Screening", questions: 12, daysAgo: 6, status: "replaced", canRestore: true)
-    }
-
-    private func week(_ label: String, bank: Int, sets: [[String: Any]]) -> [String: Any] {
-        ["label": label, "sets": sets, "examBankCount": bank]
-    }
-
-    private func set(
-        _ id: String, _ title: String, questions: Int, daysAgo: Int,
-        status: String = "imported", canRestore: Bool = false
-    ) -> [String: Any] {
-        let earlier = Self.earlierProgress[id]
-        let questionIDs = (0..<questions).map { "\(id)-q\($0)" }
-        // Once she answers here, the set's line counts her answers, as the server's does.
-        let latest = state.withLock { state in questionIDs.compactMap { state.latest[$0] } }
-        if !latest.isEmpty {
-            return [
-                "id": id, "title": title, "description": "", "questionCount": questions,
-                "importedAt": date(days: -daysAgo), "activeSince": date(days: -daysAgo),
-                "status": status, "canRestore": canRestore,
-                "answeredCount": latest.count, "fullyRightCount": latest.count { $0.status == "correct" },
-                "lastAnsweredAt": QBankJSON.formatDate(latest.map(\.at).max() ?? now),
-                "questionIds": questionIDs,
-            ]
+    /// A course's folders with their sets, and the same sets by folder name for an app from before
+    /// folders, as the server sends both.
+    private func folders(_ courseID: String) -> [String: Any] {
+        let folders = study.folders(courseID)
+        var weeks: [[String: Any]] = []
+        for folder in folders.sorted(by: { Self.weekOrder($0.name, $1.name) }) {
+            let sets = folder.sets.map(set)
+            if let index = weeks.firstIndex(where: { $0["label"] as? String == folder.name }) {
+                weeks[index]["sets"] = (weeks[index]["sets"] as? [[String: Any]] ?? []) + sets
+                weeks[index]["examBankCount"] = (weeks[index]["examBankCount"] as? Int ?? 0) + folder.bank.count
+            } else {
+                weeks.append(["label": folder.name, "sets": sets, "examBankCount": folder.bank.count])
+            }
         }
         return [
-            "id": id, "title": title, "description": "", "questionCount": questions,
-            "importedAt": date(days: -daysAgo), "activeSince": date(days: -daysAgo),
-            "status": status, "canRestore": canRestore,
-            "answeredCount": earlier?.answered ?? 0, "fullyRightCount": earlier?.right ?? 0,
-            "lastAnsweredAt": json(earlier.map { date(days: -$0.lastAnsweredDaysAgo) }),
-            "questionIds": (0..<questions).map { "\(id)-q\($0)" },
+            "folders": folders.map(folderJSON),
+            "folderCount": folders.count,
+            "weeks": weeks,
+            "weekCount": weeks.count { !(($0["sets"] as? [[String: Any]]) ?? []).isEmpty },
         ]
+    }
+
+    /// A folder as the server sends it, with its sets.
+    private func folderJSON(_ folder: FakeStudy.Folder) -> [String: Any] {
+        [
+            "id": folder.id, "name": folder.name, "examPageId": json(folder.examPageID), "sortOrder": folder.sortOrder,
+            "sets": folder.sets.map(set), "examBankCount": folder.bank.count,
+        ]
+    }
+
+    /// The server's week order (`compareWeeks`): by the first number in the name, then by name.
+    private static func weekOrder(_ a: String, _ b: String) -> Bool {
+        let rank = { (name: String) in name.firstMatch(of: /\d+/).flatMap { Int($0.output) } ?? Int.max }
+        let (left, right) = (rank(a), rank(b))
+        return left == right ? a.localizedCompare(b) == .orderedAscending : left < right
+    }
+
+    /// Every set of the invented courses: title, size, how many days ago it arrived, and how.
+    private static let catalog: [String: (title: String, questions: Int, daysAgo: Int, status: String, canRestore: Bool)] = [
+        "rights-v1": ("Rights, Law, and Ethics", 17, 20, "imported", false),
+        "communication-v1": ("Therapeutic Communication and the Relationship", 14, 12, "imported", false),
+        "psychosocial-v2": ("Psychosocial Assessment and Safety Screening", 12, 6, "replaced", true),
+        "psychosocial-v1": ("Psychosocial Assessment and Safety Screening", 12, 0, "restored", true),
+        "depression-v1": ("Depression and Antidepressants", 18, 0, "imported", false),
+        "anxiety-v1": ("Anxiety, Panic, and Anxiolytics", 13, 0, "imported", false),
+        "mixed-v1": ("Mixed Clinical Judgment", 8, 4, "imported", false),
+        "vitals-v1": ("Vital Signs Under Pressure", 43, 30, "imported", false),
+        "safety-v1": ("Safety and Infection Control", 42, 22, "imported", false),
+        "mobility-v1": ("Mobility and Skin Integrity", 61, 8, "imported", false),
+    ]
+
+    private func set(_ id: String) -> [String: Any] {
+        let entry = Self.catalog[id] ?? ("Invented set", 0, 0, "imported", false)
+        let earlier = Self.earlierProgress[id]
+        let questionIDs = (0..<entry.questions).map { "\(id)-q\($0)" }
+        // Once she answers here, the set's line counts her answers, as the server's does.
+        let latest = state.withLock { state in questionIDs.compactMap { state.latest[$0] } }
+        var json: [String: Any] = [
+            "id": id, "title": entry.title, "description": "", "questionCount": entry.questions,
+            "importedAt": date(days: -entry.daysAgo), "activeSince": date(days: -entry.daysAgo),
+            "status": entry.status, "canRestore": entry.canRestore, "questionIds": questionIDs,
+        ]
+        if latest.isEmpty {
+            json["answeredCount"] = earlier?.answered ?? 0
+            json["fullyRightCount"] = earlier?.right ?? 0
+            json["lastAnsweredAt"] = self.json(earlier.map { date(days: -$0.lastAnsweredDaysAgo) })
+        } else {
+            json["answeredCount"] = latest.count
+            json["fullyRightCount"] = latest.count { $0.status == "correct" }
+            json["lastAnsweredAt"] = QBankJSON.formatDate(latest.map(\.at).max() ?? now)
+        }
+        return json
     }
 
     // MARK: Practice
 
     /// A set of either course, its questions drawn from `FakePracticeQuestions`.
     private func practiceSet(id: String) -> Reply {
-        guard let (courseID, set, weekLabel) = find(set: id), let count = set["questionCount"] as? Int else {
+        guard let (courseID, folder) = find(set: id), let entry = Self.catalog[id] else {
             return failure(404, "request_refused", "That set is not in the app.")
         }
         return (200, [
-            "id": id, "courseId": courseID, "title": set["title"] as? String ?? "", "weekLabel": weekLabel,
+            "id": id, "courseId": courseID, "title": entry.title, "weekLabel": folder.name, "folderId": folder.id,
             "kind": "practice",
-            "questions": (0..<count).map { FakePracticeQuestions.question(setID: id, index: $0) },
+            "questions": (0..<entry.questions).map { FakePracticeQuestions.question(setID: id, index: $0) },
         ])
     }
 
-    /// A set's course, listing and week label.
-    private func find(set id: String) -> (courseID: String, set: [String: Any], weekLabel: String)? {
-        for course in [mentalHealth(), fundamentals()] {
-            for week in course["weeks"] as? [[String: Any]] ?? [] {
-                if let set = (week["sets"] as? [[String: Any]])?.first(where: { $0["id"] as? String == id }) {
-                    return (course["id"] as? String ?? "", set, week["label"] as? String ?? "")
-                }
+    /// The course and folder a current set is in.
+    private func find(set id: String) -> (courseID: String, folder: FakeStudy.Folder)? {
+        for courseID in [Self.mentalHealthID, Self.fundamentalsID] {
+            if let folder = study.folders(courseID).first(where: { $0.sets.contains(id) }) {
+                return (courseID, folder)
             }
         }
         return nil
@@ -606,15 +622,11 @@ nonisolated final class FakeQBankServer: HTTPTransport {
         return (201, saved)
     }
 
-    /// The week and set title of a Mental Health practice question, from its set's id.
+    /// The folder name and set title of a Mental Health practice question, from its set's id.
     private func placeOf(questionID: String) -> (String, String)? {
         let setID = questionID.split(separator: "-").dropLast().joined(separator: "-")
-        for week in mentalHealth()["weeks"] as? [[String: Any]] ?? [] {
-            for set in week["sets"] as? [[String: Any]] ?? [] where set["id"] as? String == setID {
-                return (week["label"] as? String ?? "", set["title"] as? String ?? "")
-            }
-        }
-        return nil
+        guard let (courseID, folder) = find(set: setID), courseID == Self.mentalHealthID, let entry = Self.catalog[setID] else { return nil }
+        return (folder.name, entry.title)
     }
 
     // MARK: Plumbing

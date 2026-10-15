@@ -1,8 +1,8 @@
 {
-  "recordedFrom": "2b7a4291fc79877edeb8e4eb0e430209ef56fd8b",
+  "recordedFrom": "9fa05c0b3f85764a60f8c8afaa8ca702241aded7",
   "request": {
     "method": "POST",
-    "path": "/api/practice-sets/9248f35f-6fc1-4c1a-9e25-c2eb924caaa9/restore",
+    "path": "/api/practice-sets/4a1f34c9-992f-46ce-8367-c3bc90dc647a/restore",
     "query": {},
     "authorization": "Bearer synthetic-session-token",
     "body": null
@@ -11,20 +11,20 @@
     "status": 200,
     "headers": {},
     "body": {
-      "id": "12f53ee9-3baf-4456-bd3e-bef6086cf442",
+      "id": "511451a9-2c0f-4895-b5b6-1bbc30503216",
       "title": "Week 1 - Set 1: Invented basics",
       "description": "Invented practice questions.",
       "questionCount": 2,
-      "importedAt": "2026-10-13T00:43:36.683Z",
-      "activeSince": "2026-10-13T00:43:36.701Z",
+      "importedAt": "2026-10-15T02:12:18.202Z",
+      "activeSince": "2026-10-15T02:12:18.268Z",
       "status": "restored",
       "canRestore": true,
       "answeredCount": 0,
       "fullyRightCount": 0,
       "lastAnsweredAt": null,
       "questionIds": [
-        "c7470104-eb4d-459c-996a-195df2f77780",
-        "8beb2d47-a61c-4c78-b93a-288055e8aef1"
+        "ea716622-5661-4df3-b9bd-6b628d49fb13",
+        "c7a9de62-ad9d-425c-8e73-16a2b380800c"
       ]
     }
   }

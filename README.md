@@ -1,10 +1,10 @@
 # QBank for iPhone
 
-QBank is an NCLEX practice question bank: courses, weekly practice sets, a review list of missed questions, and timed exams. This repository is its iPhone app, written in SwiftUI.
+QBank is an NCLEX practice question bank: courses, practice sets in folders, a review list of missed questions, and timed exams. This repository is its iPhone app, written in SwiftUI.
 
 The app is a client of a private QBank server. The server, the web app, and their deployment live in a separate private repository; nothing here runs or configures them.
 
-**Status:** early. The app signs in with an existing QBank account, shows your courses with their sets in week folders or grouped by exam, practices a set in all eight question formats with the rationale after each answer and the set result at the end, has Review, Terms, and timed exams over the weeks you pick or only the questions you last got wrong, keeps your courses on the phone so you can practice without signal and sends those answers when you are back online, and Settings has your account, password, semesters and courses, and light or dark Look. There is no TestFlight build yet.
+**Status:** early. The app signs in with an existing QBank account, shows each course as its exam pages and folders, which you can rename, put in your order, and move sets between, practices a set in all eight question formats with the rationale after each answer and the set result at the end, has Review, Terms, and timed exams over the folders you pick or only the questions you last got wrong, keeps your courses on the phone so you can practice without signal and sends those answers when you are back online, and Settings has your account, password, semesters and courses, and light or dark Look. There is no TestFlight build yet.
 
 ## Getting started
 

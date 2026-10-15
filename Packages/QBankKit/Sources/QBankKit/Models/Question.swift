@@ -24,7 +24,10 @@ public struct PracticeSet: Codable, Sendable, Equatable, Identifiable {
     public let id: String
     public let courseID: String
     public let title: String
+    /// Its folder's name. Empty for a Review run.
     public let weekLabel: String
+    /// Its folder. Nil for a Review run, and from a server older than folders.
+    public let folderID: String?
     public let kind: Kind
     /// In the order she practices them.
     public let questions: [Question]
@@ -32,6 +35,7 @@ public struct PracticeSet: Codable, Sendable, Equatable, Identifiable {
     enum CodingKeys: String, CodingKey {
         case id, title, weekLabel, kind, questions
         case courseID = "courseId"
+        case folderID = "folderId"
     }
 }
 
@@ -57,6 +61,10 @@ public struct Question: Codable, Sendable, Equatable, Identifiable {
     public let rationale: String
     public let takeaway: String
     public let rawBody: JSONValue
+    /// The server's checked copies of the body's table and images, kept as sent so they survive
+    /// the offline cache. Nil from a server older than them.
+    let rawTable: JSONValue?
+    let rawImages: JSONValue?
     public let terms: [QuestionTerm]
     /// The format-specific part, read from `rawBody`.
     public let body: QuestionBody
@@ -75,6 +83,8 @@ public struct Question: Codable, Sendable, Equatable, Identifiable {
         case typeName = "type"
         case clinicalJudgmentStep = "cj"
         case rawBody = "body"
+        case rawTable = "table"
+        case rawImages = "images"
     }
 
     public init(from decoder: any Decoder) throws {
@@ -91,6 +101,9 @@ public struct Question: Codable, Sendable, Equatable, Identifiable {
         rationale = try container.decode(String.self, forKey: .rationale)
         takeaway = try container.decode(String.self, forKey: .takeaway)
         rawBody = try container.decode(JSONValue.self, forKey: .rawBody)
+        // Read as sent, so a table of null stays null rather than missing.
+        rawTable = container.contains(.rawTable) ? try container.decode(JSONValue.self, forKey: .rawTable) : nil
+        rawImages = container.contains(.rawImages) ? try container.decode(JSONValue.self, forKey: .rawImages) : nil
         terms = try container.decode([QuestionTerm].self, forKey: .terms)
         do {
             body = try QuestionBody(typeName: typeName, json: rawBody)
@@ -117,6 +130,8 @@ public struct Question: Codable, Sendable, Equatable, Identifiable {
         try container.encode(rationale, forKey: .rationale)
         try container.encode(takeaway, forKey: .takeaway)
         try container.encode(rawBody, forKey: .rawBody)
+        try container.encodeIfPresent(rawTable, forKey: .rawTable)
+        try container.encodeIfPresent(rawImages, forKey: .rawImages)
         try container.encode(terms, forKey: .terms)
     }
 }

@@ -1,5 +1,5 @@
 {
-  "recordedFrom": "2b7a4291fc79877edeb8e4eb0e430209ef56fd8b",
+  "recordedFrom": "9fa05c0b3f85764a60f8c8afaa8ca702241aded7",
   "request": {
     "method": "GET",
     "path": "/api/semesters",
@@ -13,20 +13,21 @@
     "body": {
       "semesters": [
         {
-          "id": "4083dbda-2bef-4b13-b406-d226ee2a8f50",
+          "id": "1a7ec991-ef27-4dfb-b26b-1c2f3e163e8b",
           "number": 1,
           "name": "Semester 1",
           "startsOn": null,
           "endsOn": null,
           "courses": [
             {
-              "id": "6081c42b-988b-40d1-8068-273a13195673",
+              "id": "7a7665d2-2bbe-4093-ae10-a2cf1c968283",
               "code": "NURS 101",
               "title": "Invented Nursing Basics",
               "sortOrder": 1,
               "archivedAt": null,
               "questionCount": 10,
               "weekCount": 2,
+              "folderCount": 2,
               "reviewCount": 0,
               "answeredCount": 0,
               "fullyRightCount": 0,

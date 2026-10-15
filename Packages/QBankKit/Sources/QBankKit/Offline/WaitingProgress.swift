@@ -77,35 +77,43 @@ public struct WaitingProgress: Sendable, Equatable {
         let weeks = course.weeks.map { week in
             Week(label: week.label, sets: week.sets.map(counting), examBankCount: week.examBankCount)
         }
-        let (answered, fullyRight) = added(from: course.weeks, to: weeks)
+        let folders = course.folders.map(counting)
+        let (answered, fullyRight) = added(from: course.folders, to: folders)
         return CourseDetail(
             id: course.id, code: course.code, title: course.title, archivedAt: course.archivedAt, semester: course.semester,
             questionCount: course.questionCount, examQuestionCount: course.examQuestionCount, weekCount: course.weekCount,
             termCount: course.termCount, reviewCount: course.reviewCount,
             answeredCount: Self.clamp(course.answeredCount + answered, to: course.questionCount),
             fullyRightCount: Self.clamp(course.fullyRightCount + fullyRight, to: course.questionCount),
-            points: course.points, maxPoints: course.maxPoints, weeks: weeks, exams: course.exams
+            points: course.points, maxPoints: course.maxPoints, weeks: weeks, exams: course.exams, folders: folders,
+            folderCount: course.folderCount
         )
     }
 
-    /// A Home course card with its waiting answers counted in, using the course's saved weeks and sets.
-    /// Unchanged without them.
+    /// A Home course card with its waiting answers counted in, using the course's saved folders and
+    /// sets. Unchanged without them.
     public func counting(_ course: CourseSummary, saved detail: CourseDetail?) -> CourseSummary {
         guard !isEmpty, let detail, detail.id == course.id else { return course }
-        let (answered, fullyRight) = added(from: detail.weeks, to: detail.weeks.map { week in
-            Week(label: week.label, sets: week.sets.map(counting), examBankCount: week.examBankCount)
-        })
+        let (answered, fullyRight) = added(from: detail.folders, to: detail.folders.map(counting))
         return CourseSummary(
             id: course.id, code: course.code, title: course.title, sortOrder: course.sortOrder, archivedAt: course.archivedAt,
-            questionCount: course.questionCount, weekCount: course.weekCount, reviewCount: course.reviewCount,
+            questionCount: course.questionCount, weekCount: course.weekCount, folderCount: course.folderCount,
+            reviewCount: course.reviewCount,
             answeredCount: Self.clamp(course.answeredCount + answered, to: course.questionCount),
             fullyRightCount: Self.clamp(course.fullyRightCount + fullyRight, to: course.questionCount),
             points: course.points, maxPoints: course.maxPoints
         )
     }
 
+    private func counting(_ folder: Folder) -> Folder {
+        Folder(
+            id: folder.id, name: folder.name, examPageID: folder.examPageID, sortOrder: folder.sortOrder,
+            sets: folder.sets.map(counting), examBankCount: folder.examBankCount
+        )
+    }
+
     /// How many answered and fully right questions counting the waiting answers adds across the sets.
-    private func added(from before: [Week], to after: [Week]) -> (answered: Int, fullyRight: Int) {
+    private func added(from before: [Folder], to after: [Folder]) -> (answered: Int, fullyRight: Int) {
         let pairs = zip(before.flatMap(\.sets), after.flatMap(\.sets))
         return pairs.reduce(into: (0, 0)) { total, pair in
             total.0 += pair.1.answeredCount - pair.0.answeredCount

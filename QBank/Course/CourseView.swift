@@ -2,19 +2,21 @@ import QBankDesign
 import QBankKit
 import SwiftUI
 
-/// A course: score line, the Exam, Review and Terms tiles, a Weeks | Exams switch, then its sets
-/// in folders: one per week, or one per exam with its weeks inside, as the web's course page and
-/// the approved by-exam view show them.
+/// A course: score line, the Exam, Review and Terms tiles, then two lists, as the iPhone Files app
+/// lists things: her exam pages, and the folders on no exam page. Each exam page and each folder
+/// opens as its own screen, sharing this screen's model.
 struct CourseView: View {
     let app: AppModel
     let route: CourseRoute
     @State private var model: CourseModel
-    /// The set or Review list she is practicing, shown full screen over the tabs.
-    @State private var practicing: PracticeRoute?
-    /// A past or running exam opened from the by-exam view.
-    @State private var exam: ExamRoute?
-    @State private var examExit: ExamExit?
-    @State private var editsExams = false
+    /// A new exam page she is making, and once made, its id.
+    @State private var makesPage = false
+    @State private var madePage: String?
+    /// The folders on no exam page in her order, while she edits it.
+    @State private var order: [String]?
+    @State private var isSavingOrder = false
+    /// Why her order was not saved, in the server's words.
+    @State private var orderProblem: String?
     @Environment(HomeNavigator.self) private var navigator: HomeNavigator?
 
     init(app: AppModel, route: CourseRoute) {
@@ -43,59 +45,49 @@ struct CourseView: View {
             guard model.course != nil else { return }
             Task { await model.load() }
         }
-        .fullScreenCover(item: $practicing, onDismiss: {
-            // Her answers changed the set's line and the course's score.
-            Task { await model.load() }
-        }, content: { route in
-            PracticeView(app: app, route: route)
-        })
-        .fullScreenCover(item: $exam, onDismiss: examClosed) { route in
-            ExamView(app: app, examID: route.id) { how in
-                examExit = how
-                exam = nil
+        .navigationDestination(for: CoursePage.self) { page in
+            switch page {
+            case .examPage(let id): ExamPageView(app: app, model: model, id: id)
+            case .folder(let id): FolderView(app: app, model: model, id: id)
             }
         }
-        .sheet(isPresented: $editsExams) {
+        .sheet(isPresented: $makesPage, onDismiss: {
+            // A new page opens once the sheet is down.
+            guard let id = madePage else { return }
+            madePage = nil
+            navigator?.open(CoursePage.examPage(id))
+        }, content: {
             if let course = model.course {
-                EditExamsView(app: app, course: course) { saved in
-                    guard saved else { return }
+                EditExamPageView(app: app, course: course, pageID: nil) { outcome in
                     Task { await model.load() }
+                    if case .saved(let id) = outcome { madePage = id }
                 }
             }
-        }
+        })
     }
 
     @ViewBuilder
     private var content: some View {
-        if let course = model.course, let ref = model.ref {
+        if let course = model.course, let ref = model.ref, let layout = model.layout {
             VStack(alignment: .leading, spacing: QBankSpacing.space4) {
                 summary(course)
                 if model.savedAt != nil {
                     OfflineBanner.showingSaved(phoneIsOnline: app.connection.isOnline)
                         .accessibilityIdentifier("course.offline")
                 }
-                if let problem = model.problem {
+                if let problem = orderProblem ?? model.problem {
                     ProblemText(text: problem)
                 }
                 tiles(course, ref: ref)
-                if course.weeks.isEmpty {
+                if course.folders.isEmpty, layout.pages.isEmpty {
                     EmptyCard(message: "This course has no question sets yet.")
                         .padding(.top, QBankSpacing.space3)
                 } else {
-                    QBankSegmentedControl(
-                        "Group by",
-                        selection: Binding(get: { model.view }, set: { model.choose($0) }),
-                        options: [.init(.weeks, "Weeks"), .init(.exams, "Exams")]
-                    )
-                    .padding(.top, QBankSpacing.space2)
-                    .accessibilityIdentifier("course.view")
-                    switch model.view {
-                    case .weeks:
-                        weekFolders(course.weeks)
-                    case .exams:
-                        if let grouping = model.grouping {
-                            byExam(grouping, ref: ref)
-                        }
+                    examPages(layout)
+                        .padding(.top, QBankSpacing.space3)
+                    if !layout.looseFolders.isEmpty {
+                        folders(layout)
+                            .padding(.top, QBankSpacing.space3)
                     }
                 }
             }
@@ -110,7 +102,7 @@ struct CourseView: View {
 
     private func summary(_ course: CourseDetail) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("\(course.title) · \(Wording.size(questions: course.questionCount, weeks: course.weekCount))")
+            Text("\(course.title) · \(Wording.size(questions: course.questionCount, folders: course.folderCount))")
             if let score = Wording.score(course) {
                 Text(score)
             }
@@ -140,120 +132,114 @@ struct CourseView: View {
         .buttonStyle(QBankCardButtonStyle(padding: QBankSpacing.space4))
     }
 
-    private func weekFolders(_ weeks: [Week]) -> some View {
-        VStack(spacing: 10) {
-            ForEach(weeks) { week in
-                weekFolder(week)
-            }
-        }
-    }
-
-    private func weekFolder(_ week: Week) -> some View {
-        WeekFolder(
-            week: week,
-            isOpen: Binding(get: { model.isOpen(week: week) }, set: { model.setOpen($0, week: week) })
-        ) {
-            ForEach(week.sets) { set in
-                SetRow(set: set, isRestoring: model.isRestoring, isStudent: model.isStudent) {
-                    practicing = PracticeRoute(source: .set(id: set.id), courseID: route.id, title: set.title)
-                } restore: {
-                    Task { await model.restore(set) }
-                }
-            }
-            ExamBankLine(week: week)
-        }
-    }
-
-    // MARK: By exam
-
-    private func byExam(_ grouping: ExamGrouping, ref: CourseRef) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline) {
-                QBankSectionHeader("By exam")
-                Spacer(minLength: QBankSpacing.space3)
-                Button("Edit exams") { editsExams = true }
-                    .buttonStyle(.qbank(.plain, size: .small))
-                    .accessibilityIdentifier("course.editExams")
-            }
-            .padding(.leading, QBankSpacing.space1)
-            if grouping.folders.isEmpty {
-                NoExamsCard { editsExams = true }
-            }
-            ForEach(grouping.folders) { folder in
-                ExamFolderView(
-                    folder: folder,
-                    isOpen: Binding(get: { model.isOpen(exam: folder) }, set: { model.setOpen($0, exam: folder) })
-                ) {
-                    ForEach(folder.weeks) { week in
-                        weekFolder(week)
-                    }
-                    if !folder.sittings.isEmpty {
-                        sittings("Your exams", folder.sittings)
-                            .padding(.top, QBankSpacing.space2)
-                    }
-                    if model.isStudent, !folder.weeks.isEmpty, let setup = model.examSetup(for: folder) {
-                        VStack(alignment: .leading, spacing: QBankSpacing.space2) {
-                            NavigationLink(value: StudyRoute.exam(setup)) {
-                                Label("Start exam over \(Wording.weeks(folder.weeks.map(\.label)))", systemImage: "timer")
-                            }
-                            .buttonStyle(.qbank(.secondary, size: .medium, fullWidth: true))
-                            .accessibilityIdentifier("course.startExam.\(folder.exam.name)")
-                            if let draw = FolderWording.examDraw(folder) {
-                                Text(draw)
-                                    .qbankFont(.footnote)
-                                    .foregroundStyle(.qbank(.text3))
-                                    .padding(.horizontal, QBankSpacing.space1)
-                            }
-                        }
-                        .padding(.top, QBankSpacing.space2)
-                    }
-                }
-            }
-            if !grouping.freeWeeks.isEmpty {
-                HStack(alignment: .firstTextBaseline) {
-                    QBankSectionHeader("Not in an exam yet")
-                    Spacer(minLength: QBankSpacing.space3)
-                    Button("Add to an exam") { editsExams = true }
-                        .buttonStyle(.qbank(.plain, size: .small))
-                        .accessibilityIdentifier("course.addToExam")
-                }
-                .padding(.leading, QBankSpacing.space1)
-                .padding(.top, QBankSpacing.space4)
-                ForEach(grouping.freeWeeks) { week in
-                    weekFolder(week)
-                }
-            }
-            if !grouping.otherSittings.isEmpty {
-                sittings("Other exams", grouping.otherSittings)
-                    .padding(.top, QBankSpacing.space4)
-            }
-        }
-    }
-
-    private func sittings(_ title: String, _ exams: [ExamSummary]) -> some View {
+    private func examPages(_ layout: CourseLayout) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            QBankSectionHeader(title)
-                .padding(.horizontal, QBankSpacing.space1)
-            QBankListGroup {
-                ForEach(exams) { sitting in
-                    Button {
-                        exam = ExamRoute(id: sitting.id)
-                    } label: {
-                        PastExamRow(exam: sitting)
+            SectionHead(title: "Exam pages", action: "New", label: "New exam page", identifier: "course.newPage", isEnabled: model.canEdit && order == nil) {
+                makesPage = true
+            }
+            if layout.pages.isEmpty {
+                EmptyCard(message: "No exam pages yet. Tap New to make \(model.nextExamName).", systemImage: "square.stack.3d.up")
+                    .accessibilityIdentifier("course.noPages")
+            } else {
+                QBankListGroup {
+                    ForEach(layout.pages) { page in
+                        NavigationLink(value: CoursePage.examPage(page.id)) {
+                            ExamPageRow(page: page)
+                        }
+                        .buttonStyle(.qbankRow)
+                        .accessibilityIdentifier("course.page.\(page.exam.name)")
                     }
-                    .buttonStyle(.qbankRow)
-                    .accessibilityIdentifier("course.sitting.\(sitting.id)")
                 }
             }
         }
     }
 
-    private func examClosed() {
-        Task { await model.load() }
-        if examExit == .openReview, let ref = model.ref {
-            navigator?.open(StudyRoute.review(ref))
+    private func folders(_ layout: CourseLayout) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            SectionHead(
+                title: "Folders",
+                action: order == nil ? "Edit" : "Done",
+                label: order == nil ? "Edit folder order" : "Done, save folder order",
+                identifier: "course.editFolders",
+                isEnabled: !isSavingOrder && (order != nil || (model.canEdit && layout.looseFolders.count > 1))
+            ) {
+                editOrder(layout.looseFolders)
+            }
+            FolderList(folders: layout.looseFolders, order: $order)
+            Text(order == nil ? "Folders on no exam page. Open one to see its sets." : "Drag a folder by its grip, or use the arrows, to put them in your order.")
+                .qbankFont(.footnote)
+                .foregroundStyle(.qbank(.text3))
+                .padding(.horizontal, QBankSpacing.space5)
         }
-        examExit = nil
+    }
+
+    /// Edit puts the list in order mode; Done saves her order when it changed.
+    private func editOrder(_ folders: [Folder]) {
+        guard let edited = order else {
+            orderProblem = nil
+            order = folders.map(\.id)
+            return
+        }
+        guard edited != folders.map(\.id) else {
+            order = nil
+            return
+        }
+        isSavingOrder = true
+        Task {
+            orderProblem = await model.saveOrder(page: nil, folderIDs: edited)
+            isSavingOrder = false
+            order = nil
+        }
+    }
+
+}
+
+extension View {
+    /// Practice over the tabs, from a set of the course. Her answers change the set's line and the
+    /// course's score, so the course is read again when it closes.
+    func practiceCover(app: AppModel, model: CourseModel, route: Binding<PracticeRoute?>) -> some View {
+        fullScreenCover(item: route, onDismiss: {
+            Task { await model.load() }
+        }, content: { route in
+            PracticeView(app: app, route: route)
+        })
+    }
+
+    /// A past or running exam over the tabs. Open Review goes to the course's Review list; Back to
+    /// course does what `backToCourse` says.
+    func examCover(app: AppModel, model: CourseModel, route: Binding<ExamRoute?>, backToCourse: @escaping () -> Void = {}) -> some View {
+        modifier(ExamCover(app: app, model: model, route: route, backToCourse: backToCourse))
+    }
+}
+
+private struct ExamCover: ViewModifier {
+    let app: AppModel
+    let model: CourseModel
+    @Binding var route: ExamRoute?
+    let backToCourse: () -> Void
+    @State private var exit: ExamExit?
+    @Environment(HomeNavigator.self) private var navigator: HomeNavigator?
+
+    func body(content: Content) -> some View {
+        content.fullScreenCover(item: $route, onDismiss: closed) { route in
+            ExamView(app: app, examID: route.id) { how in
+                exit = how
+                self.route = nil
+            }
+        }
+    }
+
+    private func closed() {
+        Task { await model.load() }
+        switch exit {
+        case .openReview:
+            if let ref = model.ref { navigator?.open(StudyRoute.review(ref)) }
+        case .backToCourse:
+            backToCourse()
+        case .done, nil:
+            break
+        }
+        exit = nil
     }
 }
 
@@ -285,126 +271,5 @@ private struct Tile: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
-    }
-}
-
-/// Before the course has exams: what the view is for, and a way to make the first one.
-private struct NoExamsCard: View {
-    let add: () -> Void
-
-    var body: some View {
-        QBankCard(padding: QBankSpacing.space4) {
-            VStack(alignment: .leading, spacing: QBankSpacing.space3) {
-                Text("Group the course’s weeks into exams, such as Exam 1 for Weeks 1-3. Each exam then holds its weeks and the exams you took over them.")
-                    .qbankFont(.subheadline)
-                    .foregroundStyle(.qbank(.text2))
-                Button(action: add) {
-                    Label("Add an exam", systemImage: "plus")
-                }
-                .buttonStyle(.qbank(.secondary, size: .medium))
-                .accessibilityIdentifier("course.addExam")
-            }
-        }
-    }
-}
-
-/// A practice set in an open folder: its title and how far she got, lined up with the week name.
-/// A replaced set offers its previous version back, with Restore beside the row rather than inside
-/// it, so each is its own button. Restore asks first.
-private struct SetRow: View {
-    let set: PracticeSetSummary
-    let isRestoring: Bool
-    let isStudent: Bool
-    let open: () -> Void
-    let restore: () -> Void
-    @State private var asksToRestore = false
-
-    var body: some View {
-        HStack(spacing: 0) {
-            if isStudent {
-                Button(action: open) {
-                    SetLabel(set: set, showsChevron: !set.canRestore)
-                }
-                .buttonStyle(.qbankRow)
-                .accessibilityIdentifier("course.set.\(set.title)")
-            } else {
-                SetLabel(set: set, showsChevron: false)
-            }
-            if set.canRestore {
-                Button("Restore") { asksToRestore = true }
-                    .buttonStyle(.qbank(.secondary, size: .small))
-                    .disabled(isRestoring)
-                    .padding(.trailing, QBankSpacing.rowPaddingHorizontal)
-                    .accessibilityLabel("Restore the previous version of \(set.title)")
-                    .accessibilityIdentifier("course.restore")
-                    .confirmationDialog(
-                        "Restore the previous “\(set.title)”?",
-                        isPresented: $asksToRestore,
-                        titleVisibility: .visible
-                    ) {
-                        Button("Restore", action: restore)
-                        Button("Cancel", role: .cancel) {}
-                    } message: {
-                        Text("The set you are looking at stays saved. Restoring brings the previous version back, and you can swap again.")
-                    }
-            }
-        }
-    }
-}
-
-/// A set's title and status line, as the web's folder rows set them: callout over subhead.
-private struct SetLabel: View {
-    let set: PracticeSetSummary
-    let showsChevron: Bool
-
-    var body: some View {
-        HStack(spacing: QBankSpacing.space4) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(set.title)
-                    .qbankFont(.callout, weight: .semibold)
-                    .foregroundStyle(.qbank(.text1))
-                    .multilineTextAlignment(.leading)
-                Text(Wording.status(set))
-                    .qbankFont(.subheadline)
-                    .foregroundStyle(.qbank(.text2))
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            if showsChevron {
-                Image(systemName: "chevron.right")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.qbank(.text4))
-                    .accessibilityHidden(true)
-            }
-        }
-        .padding(.leading, FolderMetrics.inset)
-        .padding(.trailing, QBankSpacing.rowPaddingHorizontal)
-        .padding(.vertical, 10)
-        .frame(minHeight: QBankSpacing.rowMin)
-        .contentShape(.rect)
-        .accessibilityElement(children: .combine)
-    }
-}
-
-/// The week's exam line at the foot of its open folder: its exam bank, or that its exams use
-/// practice questions.
-private struct ExamBankLine: View {
-    let week: Week
-
-    var body: some View {
-        Label {
-            Text(FolderWording.examBank(week))
-        } icon: {
-            Image(systemName: "timer")
-                .foregroundStyle(.qbank(week.examBankCount > 0 ? .tint : .text3))
-        }
-        .qbankFont(.footnote)
-        .foregroundStyle(.qbank(.text3))
-        .padding(.leading, FolderMetrics.inset)
-        .padding(.trailing, QBankSpacing.rowPaddingHorizontal)
-        .padding(.top, 12)
-        .padding(.bottom, 14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityElement(children: .combine)
-        .accessibilityIdentifier("course.bank.\(week.label)")
     }
 }

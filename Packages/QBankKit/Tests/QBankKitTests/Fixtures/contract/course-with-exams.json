@@ -1,5 +1,5 @@
 {
-  "recordedFrom": "a1a22c1424b751417b30830ee4b96266f5519255",
+  "recordedFrom": "9fa05c0b3f85764a60f8c8afaa8ca702241aded7",
   "request": {
     "method": "GET",
     "path": "/api/courses/c0000000-0000-4000-8000-000000000101",
@@ -16,13 +16,15 @@
       "title": "Invented Nursing Basics",
       "archivedAt": null,
       "semester": {
-        "id": "42b5bb50-1cab-441d-9d0a-6179e443d3ae",
+        "id": "3d9a9957-5eb2-4949-b1f7-086f1e51ff61",
         "number": 1,
         "name": "Semester 1"
       },
-      "questionCount": 7,
-      "examQuestionCount": 7,
-      "weekCount": 3,
+      "questionCount": 9,
+      "examQuestionCount": 9,
+      "examTimeLimitSeconds": 810,
+      "weekCount": 4,
+      "folderCount": 5,
       "termCount": 0,
       "reviewCount": 0,
       "answeredCount": 2,
@@ -38,17 +40,17 @@
               "title": "Week 1 - Set 1: Invented week 1",
               "description": "Invented practice questions for week 1.",
               "questionCount": 3,
-              "importedAt": "2026-10-13T03:38:34.905Z",
-              "activeSince": "2026-10-13T03:38:34.905Z",
+              "importedAt": "2026-10-15T02:12:18.171Z",
+              "activeSince": "2026-10-15T02:12:18.171Z",
               "status": "imported",
               "canRestore": false,
-              "answeredCount": 1,
-              "fullyRightCount": 1,
-              "lastAnsweredAt": "2026-10-13T03:38:35.035Z",
+              "answeredCount": 2,
+              "fullyRightCount": 2,
+              "lastAnsweredAt": "2026-10-15T02:12:18.333Z",
               "questionIds": [
-                "9e000000-0000-4000-8000-000000020003",
-                "9e000000-0000-4000-8000-000000020001",
-                "9e000000-0000-4000-8000-000000020004"
+                "9e000000-0000-4000-8000-000000020008",
+                "9e000000-0000-4000-8000-000000020000",
+                "9e000000-0000-4000-8000-000000020002"
               ]
             }
           ],
@@ -62,15 +64,15 @@
               "title": "Week 2 - Set 1: Invented week 2",
               "description": "Invented practice questions for week 2.",
               "questionCount": 2,
-              "importedAt": "2026-10-13T03:38:34.918Z",
-              "activeSince": "2026-10-13T03:38:34.918Z",
+              "importedAt": "2026-10-15T02:12:18.200Z",
+              "activeSince": "2026-10-15T02:12:18.200Z",
               "status": "imported",
               "canRestore": false,
               "answeredCount": 0,
               "fullyRightCount": 0,
               "lastAnsweredAt": null,
               "questionIds": [
-                "9e000000-0000-4000-8000-000000020002",
+                "9e000000-0000-4000-8000-000000020007",
                 "9e000000-0000-4000-8000-000000020005"
               ]
             }
@@ -85,19 +87,157 @@
               "title": "Week 3 - Set 1: Invented week 3",
               "description": "Invented practice questions for week 3.",
               "questionCount": 2,
-              "importedAt": "2026-10-13T03:38:34.926Z",
-              "activeSince": "2026-10-13T03:38:34.926Z",
+              "importedAt": "2026-10-15T02:12:18.227Z",
+              "activeSince": "2026-10-15T02:12:18.227Z",
               "status": "imported",
               "canRestore": false,
-              "answeredCount": 1,
-              "fullyRightCount": 1,
-              "lastAnsweredAt": "2026-10-13T03:38:35.064Z",
+              "answeredCount": 0,
+              "fullyRightCount": 0,
+              "lastAnsweredAt": null,
               "questionIds": [
-                "9e000000-0000-4000-8000-000000020000",
-                "9e000000-0000-4000-8000-000000020006"
+                "9e000000-0000-4000-8000-000000020003",
+                "9e000000-0000-4000-8000-000000020004"
               ]
             }
           ],
+          "examBankCount": 0
+        },
+        {
+          "label": "Second Pass",
+          "sets": [
+            {
+              "id": "5e700000-0000-4000-8000-000000000004",
+              "title": "Week 3 - Set 2: Invented mixed review",
+              "description": "Invented practice questions for week 3.",
+              "questionCount": 2,
+              "importedAt": "2026-10-15T02:12:18.248Z",
+              "activeSince": "2026-10-15T02:12:18.248Z",
+              "status": "imported",
+              "canRestore": false,
+              "answeredCount": 0,
+              "fullyRightCount": 0,
+              "lastAnsweredAt": null,
+              "questionIds": [
+                "9e000000-0000-4000-8000-000000020006",
+                "9e000000-0000-4000-8000-000000020001"
+              ]
+            }
+          ],
+          "examBankCount": 0
+        }
+      ],
+      "folders": [
+        {
+          "id": "f0000000-0000-4000-8000-000000000001",
+          "name": "Week 1",
+          "examPageId": "ce000000-0000-4000-8000-000000000001",
+          "sortOrder": 1,
+          "sets": [
+            {
+              "id": "5e700000-0000-4000-8000-000000000001",
+              "title": "Week 1 - Set 1: Invented week 1",
+              "description": "Invented practice questions for week 1.",
+              "questionCount": 3,
+              "importedAt": "2026-10-15T02:12:18.171Z",
+              "activeSince": "2026-10-15T02:12:18.171Z",
+              "status": "imported",
+              "canRestore": false,
+              "answeredCount": 2,
+              "fullyRightCount": 2,
+              "lastAnsweredAt": "2026-10-15T02:12:18.333Z",
+              "questionIds": [
+                "9e000000-0000-4000-8000-000000020008",
+                "9e000000-0000-4000-8000-000000020000",
+                "9e000000-0000-4000-8000-000000020002"
+              ]
+            }
+          ],
+          "examBankCount": 0
+        },
+        {
+          "id": "f0000000-0000-4000-8000-000000000002",
+          "name": "Week 2",
+          "examPageId": "ce000000-0000-4000-8000-000000000001",
+          "sortOrder": 2,
+          "sets": [
+            {
+              "id": "5e700000-0000-4000-8000-000000000002",
+              "title": "Week 2 - Set 1: Invented week 2",
+              "description": "Invented practice questions for week 2.",
+              "questionCount": 2,
+              "importedAt": "2026-10-15T02:12:18.200Z",
+              "activeSince": "2026-10-15T02:12:18.200Z",
+              "status": "imported",
+              "canRestore": false,
+              "answeredCount": 0,
+              "fullyRightCount": 0,
+              "lastAnsweredAt": null,
+              "questionIds": [
+                "9e000000-0000-4000-8000-000000020007",
+                "9e000000-0000-4000-8000-000000020005"
+              ]
+            }
+          ],
+          "examBankCount": 0
+        },
+        {
+          "id": "f0000000-0000-4000-8000-000000000003",
+          "name": "Week 3",
+          "examPageId": "ce000000-0000-4000-8000-000000000002",
+          "sortOrder": 1,
+          "sets": [
+            {
+              "id": "5e700000-0000-4000-8000-000000000003",
+              "title": "Week 3 - Set 1: Invented week 3",
+              "description": "Invented practice questions for week 3.",
+              "questionCount": 2,
+              "importedAt": "2026-10-15T02:12:18.227Z",
+              "activeSince": "2026-10-15T02:12:18.227Z",
+              "status": "imported",
+              "canRestore": false,
+              "answeredCount": 0,
+              "fullyRightCount": 0,
+              "lastAnsweredAt": null,
+              "questionIds": [
+                "9e000000-0000-4000-8000-000000020003",
+                "9e000000-0000-4000-8000-000000020004"
+              ]
+            }
+          ],
+          "examBankCount": 0
+        },
+        {
+          "id": "f0000000-0000-4000-8000-000000000012",
+          "name": "Second Pass",
+          "examPageId": null,
+          "sortOrder": 1,
+          "sets": [
+            {
+              "id": "5e700000-0000-4000-8000-000000000004",
+              "title": "Week 3 - Set 2: Invented mixed review",
+              "description": "Invented practice questions for week 3.",
+              "questionCount": 2,
+              "importedAt": "2026-10-15T02:12:18.248Z",
+              "activeSince": "2026-10-15T02:12:18.248Z",
+              "status": "imported",
+              "canRestore": false,
+              "answeredCount": 0,
+              "fullyRightCount": 0,
+              "lastAnsweredAt": null,
+              "questionIds": [
+                "9e000000-0000-4000-8000-000000020006",
+                "9e000000-0000-4000-8000-000000020001"
+              ]
+            }
+          ],
+          "examBankCount": 0
+        },
+        {
+          "id": "f0000000-0000-4000-8000-000000000011",
+          "name": "Mixed review",
+          "examPageId": null,
+          "sortOrder": 2,
+          "sets": [],
           "examBankCount": 0
         }
       ],
@@ -109,6 +249,10 @@
           "weekLabels": [
             "Week 1",
             "Week 2"
+          ],
+          "folderIds": [
+            "f0000000-0000-4000-8000-000000000001",
+            "f0000000-0000-4000-8000-000000000002"
           ]
         },
         {
@@ -117,6 +261,9 @@
           "sortOrder": 2,
           "weekLabels": [
             "Week 3"
+          ],
+          "folderIds": [
+            "f0000000-0000-4000-8000-000000000003"
           ]
         }
       ]

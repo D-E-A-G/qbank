@@ -52,10 +52,10 @@ struct DebugLaunchScenarioTests {
         let app = try #require(Self.launch("signed-in"))
         let course = CourseModel(app: app, id: FakeQBankServer.mentalHealthID)
         await course.load()
-        let replaced = try #require(course.course?.weeks[1].sets.last)
+        let replaced = try #require(course.folder(FakeStudy.week2)?.sets.last)
         #expect(replaced.status == .replaced)
         await course.restore(replaced)
-        #expect(course.course?.weeks[1].sets.last?.status == .restored)
+        #expect(course.folder(FakeStudy.week2)?.sets.last?.status == .restored, "the restored version stays in its folder")
         #expect(course.problem == nil)
     }
 
@@ -143,7 +143,7 @@ struct DebugLaunchScenarioTests {
         #expect(try await app.client.recordAttempt(submission).replayed, "a repeated id is answered with the saved attempt")
 
         let course = try await app.client.course(id: FakeQBankServer.mentalHealthID)
-        let mixed = try #require(course.weeks.last?.sets.first)
+        let mixed = try #require(course.folders.first { $0.id == FakeStudy.weeks1to3 }?.sets.first)
         #expect(mixed.answeredCount == 1)
         #expect(mixed.fullyRightCount == 0)
     }
@@ -190,12 +190,12 @@ struct DebugLaunchScenarioTests {
     @Test func fakeServerServesTheSetsOfBothCourses() async throws {
         let app = try #require(Self.launch("signed-in"))
         let course = try await app.client.course(id: FakeQBankServer.fundamentalsID)
-        for set in course.weeks.flatMap(\.sets) {
+        for set in course.folders.flatMap(\.sets) {
             let practice = try await app.client.practiceSet(id: set.id)
             #expect(practice.courseID == FakeQBankServer.fundamentalsID)
             #expect(practice.questions.count == set.questionCount)
         }
-        let first = try #require(course.weeks.first?.sets.first)
+        let first = try #require(course.folders.first?.sets.first)
         let saved = try await app.client.recordAttempt(AttemptSubmission(questionID: first.questionIDs[0], response: .single(choice: 0)))
         #expect(saved.courseID == FakeQBankServer.fundamentalsID)
     }
@@ -207,44 +207,125 @@ struct DebugLaunchScenarioTests {
         let course = CourseRef(id: FakeQBankServer.mentalHealthID, code: "NURS 310", title: "Mental Health")
         let setup = ExamSetupModel(app: app, route: ExamSetupRoute(course: course))
         await setup.load()
-        #expect(setup.weeks.map(\.label) == ["Week 1", "Week 2", "Week 3", "Weeks 1-3"])
+        #expect(setup.groups.map(\.title) == ["Exam 1", "Exam 2", "On no exam page"])
+        #expect(setup.folders.map(\.name) == ["Week 1", "Week 2", "Week 3", "Weeks 1-3"])
         #expect(setup.setup?.exams.count == 3)
-        #expect(setup.setup?.exams.map(\.courseExamID) == ["c0e00000-0000-4000-8000-000000000001", nil, "c0e00000-0000-4000-8000-000000000001"])
+        #expect(setup.setup?.exams.map(\.courseExamID) == [FakeStudy.exam1, nil, FakeStudy.exam1])
         setup.wrongOnly = true
-        for week in setup.weeks.prefix(2) { setup.toggle(week) }
+        for folder in setup.folders.prefix(2) { setup.toggle(folder) }
         #expect(setup.summaryCount == "11 questions")
         let exam = try #require(await setup.start())
         #expect(exam.questions.count == 11)
         #expect(exam.practiceWeeks == ["Week 2"])
         #expect(exam.secondsLeftAtServerNow > 16 * 60)
 
-        // A week with nothing wrong is refused, as the server words it.
+        // A folder with nothing wrong is refused, as the server words it.
         let wrongOnly = try await #require(throws: QBankError.self) {
-            try await app.client.startExam(courseID: course.id, weeks: ["Week 3"], pool: .wrong)
+            try await app.client.startExam(courseID: course.id, folderIDs: [FakeStudy.week3], pool: .wrong)
         }
         #expect(wrongOnly.serverCode == .noWrongQuestions)
         #expect(Wording.problem(wrongOnly) == "Week 3 has no wrong questions. Untick it, or turn off Wrong questions only.")
     }
 
-    @Test func fakeServerKeepsCourseExamRules() async throws {
+    @Test func fakeServerKeepsExamPageRules() async throws {
         let app = try #require(Self.launch("signed-in"))
         let id = FakeQBankServer.mentalHealthID
         let taken = try await #require(throws: QBankError.self) {
-            try await app.client.createCourseExam(courseID: id, name: "Exam 3", weekLabels: ["Week 2", "Week 3"])
+            try await app.client.createCourseExam(courseID: id, name: "Exam 3", folderIDs: [FakeStudy.week1, FakeStudy.week2, FakeStudy.week3])
         }
-        #expect(Wording.problem(taken) == "Week 2 is in Exam 1. Week 3 is in Exam 2.")
-        let unknown = try await #require(throws: QBankError.self) {
-            try await app.client.createCourseExam(courseID: id, name: "Exam 3", weekLabels: ["Week 9"])
+        #expect(Wording.problem(taken) == "Week 1 and Week 2 are in Exam 1. Week 3 is in Exam 2.")
+        let named = try await #require(throws: QBankError.self) {
+            try await app.client.createCourseExam(courseID: id, name: "exam 1", folderIDs: [])
         }
-        #expect(Wording.problem(unknown) == "Week 9 is not a week in this course.")
-        let created = try await app.client.createCourseExam(courseID: id, name: " Exam 3 ", weekLabels: ["Weeks 1-3"])
+        #expect(Wording.problem(named) == "This course already has an exam named exam 1.")
+        let blank = try await #require(throws: QBankError.self) {
+            try await app.client.createCourseExam(courseID: id, name: "  ", folderIDs: [])
+        }
+        #expect(Wording.problem(blank) == "Exam name is required.")
+        let created = try await app.client.createCourseExam(courseID: id, name: " Exam 3 ", folderIDs: [FakeStudy.weeks1to3])
         #expect(created.name == "Exam 3")
         #expect(created.sortOrder == 3)
+        #expect(created.folderIDs == [FakeStudy.weeks1to3])
+        #expect(created.weekLabels == ["Weeks 1-3"])
+
+        // A page's folders are in the order sent; one it gives up goes back under Folders.
+        let reordered = try await app.client.updateCourseExam(id: FakeStudy.exam1, name: "Exam 1", folderIDs: [FakeStudy.week2, FakeStudy.week1])
+        #expect(reordered.folderIDs == [FakeStudy.week2, FakeStudy.week1])
+        try await app.client.createFolder(courseID: id, name: "Week 2")
+        let clash = try await #require(throws: QBankError.self) {
+            try await app.client.updateCourseExam(id: FakeStudy.exam1, name: "Exam 1", folderIDs: [FakeStudy.week1])
+        }
+        #expect(Wording.problem(clash) == "NURS 310 already has a folder named Week 2.", "her Folders list has a Week 2 already")
+
+        // Removing a page puts its folders back under Folders, unless one's name is taken there.
+        let held = try await #require(throws: QBankError.self) { try await app.client.deleteCourseExam(id: FakeStudy.exam1) }
+        #expect(Wording.problem(held) == "NURS 310 already has a folder named Week 2 in its Folders list. Rename one of them before removing Exam 1.")
         try await app.client.deleteCourseExam(id: created.id)
         let gone = try await #require(throws: QBankError.self) { try await app.client.deleteCourseExam(id: created.id) }
         #expect(Wording.problem(gone) == "That exam is not in the app.")
         let course = try await app.client.course(id: id)
         #expect(course.exams.map(\.name) == ["Exam 1", "Exam 2"])
+        #expect(course.folders.filter { $0.examPageID == nil }.map(\.name) == ["Week 2", "Weeks 1-3"], "its folder is back under Folders, at the end")
+    }
+
+    @Test func fakeServerKeepsFolderRules() async throws {
+        let app = try #require(Self.launch("signed-in"))
+        let id = FakeQBankServer.mentalHealthID
+        // A name is unique in its own list only.
+        let clash = try await #require(throws: QBankError.self) { try await app.client.renameFolder(id: FakeStudy.week2, name: "week 1") }
+        #expect(Wording.problem(clash) == "Exam 1 already has a folder named Week 1.")
+        let renamed = try await app.client.renameFolder(id: FakeStudy.weeks1to3, name: "Week 1")
+        #expect(renamed.name == "Week 1")
+        #expect(renamed.sets.map(\.id) == ["mixed-v1"], "a rename answers with the folder and its sets")
+        let blank = try await #require(throws: QBankError.self) { try await app.client.renameFolder(id: FakeStudy.week3, name: " ") }
+        #expect(Wording.problem(blank) == "Folder name is required.")
+
+        // A new folder lands on no exam page; a moved set brings its answers.
+        let unsorted = try await app.client.createFolder(courseID: id, name: "Unsorted")
+        #expect(unsorted.examPageID == nil)
+        let into = try await app.client.moveSet(id: "anxiety-v1", toFolder: unsorted.id)
+        #expect(into.sets.map(\.id) == ["anxiety-v1"])
+        let made = try await app.client.moveSet(id: "depression-v1", toNewFolder: "Hard ones")
+        #expect(made.name == "Hard ones")
+        let taken = try await #require(throws: QBankError.self) { try await app.client.moveSet(id: "depression-v1", toNewFolder: "hard ones") }
+        #expect(Wording.problem(taken) == "NURS 310 already has a folder named Hard ones.")
+        var course = try await app.client.course(id: id)
+        let folders = Dictionary(uniqueKeysWithValues: course.folders.map { ($0.id, $0) })
+        #expect(folders[unsorted.id]?.sets.map(\.id) == ["anxiety-v1"])
+        #expect(folders[FakeStudy.week3]?.sets.isEmpty == true)
+        #expect(folders[FakeStudy.week3]?.examBankCount == 31, "the exam bank stays with its folder")
+        #expect(course.folders.filter { $0.examPageID == nil }.map(\.name) == ["Week 1", "Unsorted", "Hard ones"])
+        #expect(course.weeks.first { $0.label == "Week 1" }?.sets.count == 2, "an older app sees same-named folders as one week")
+        #expect(course.folderCount == 6)
+
+        // Put on a page, at the end of its folders, and taken off again to the end of the Folders list.
+        let placed = try await app.client.placeFolder(id: unsorted.id, onExamPage: FakeStudy.exam2)
+        #expect(placed.examPageID == FakeStudy.exam2)
+        let samePage = try await #require(throws: QBankError.self) { try await app.client.placeFolder(id: FakeStudy.weeks1to3, onExamPage: FakeStudy.exam1) }
+        #expect(Wording.problem(samePage) == "Exam 1 already has a folder named Week 1.")
+        course = try await app.client.course(id: id)
+        #expect(course.exams.last?.folderIDs == [FakeStudy.week3, unsorted.id])
+        try await app.client.placeFolder(id: unsorted.id, onExamPage: nil)
+
+        // Her order, one list at a time.
+        course = try await app.client.course(id: id)
+        let loose = course.folders.filter { $0.examPageID == nil }.map(\.id)
+        #expect(course.folders.filter { $0.examPageID == nil }.map(\.name) == ["Week 1", "Hard ones", "Unsorted"])
+        let stale = try await #require(throws: QBankError.self) {
+            try await app.client.setFolderOrder(courseID: id, examPageID: nil, folderIDs: Array(loose.dropFirst()))
+        }
+        #expect(Wording.problem(stale) == "The folders changed since this list was shown. Reload and try again.")
+        let ordered = try await app.client.setFolderOrder(courseID: id, examPageID: nil, folderIDs: loose.reversed())
+        #expect(ordered.map(\.name) == ["Unsorted", "Hard ones", "Week 1"])
+        course = try await app.client.course(id: id)
+        #expect(course.folders.filter { $0.examPageID == nil }.map(\.name) == ["Unsorted", "Hard ones", "Week 1"])
+
+        // Terms and Review name the folder a set is in now.
+        let terms = try await app.client.terms(courseID: id)
+        #expect(terms.first { $0.term == "Serotonin" }?.folderName == "Hard ones")
+        #expect(terms.first { $0.term == "Serotonin" }?.folderID == made.id)
+        let review = try await app.client.review(courseID: id)
+        #expect(review.questions.first { $0.questionID == "rights-v1-q4" }?.folderID == FakeStudy.week1)
     }
 
     @Test func fakeServerKeepsReviewAsTheServerDoes() async throws {

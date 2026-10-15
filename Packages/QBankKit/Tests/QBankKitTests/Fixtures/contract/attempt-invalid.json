@@ -1,5 +1,5 @@
 {
-  "recordedFrom": "2b7a4291fc79877edeb8e4eb0e430209ef56fd8b",
+  "recordedFrom": "9fa05c0b3f85764a60f8c8afaa8ca702241aded7",
   "request": {
     "method": "POST",
     "path": "/api/attempts",
@@ -7,7 +7,7 @@
     "authorization": "Bearer synthetic-session-token",
     "body": {
       "clientAttemptId": "22222222-2222-4222-8222-222222222222",
-      "questionId": "0cac9fe8-9223-4442-8cf3-b930c6d6d4fa",
+      "questionId": "ac544ab7-34aa-4521-bc6a-6f36a1b6468a",
       "response": {
         "type": "sata",
         "picks": [

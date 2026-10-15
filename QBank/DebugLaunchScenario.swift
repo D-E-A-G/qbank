@@ -7,9 +7,9 @@ import QBankKit
 /// composes synthetic data and in-process fakes, never a real account or the
 /// production server: the app talks to `FakeQBankServer` and keeps its session
 /// in memory, so the Keychain is never touched. Settings kept on the phone, such
-/// as Look and the course page's open folders, live in their own defaults
-/// suite, and saved courses and unsent answers in their own folder,
-/// `Application Support/QBankUITest`; both are emptied at launch.
+/// as Look, live in their own defaults suite, and saved courses and unsent
+/// answers in their own folder, `Application Support/QBankUITest`; both are
+/// emptied at launch.
 ///
 /// Supported environment variables:
 /// - `QB_UITEST_SCENARIO`: the scenario to start in, one of `Scenario`'s raw
@@ -131,7 +131,6 @@ nonisolated enum DebugLaunchScenario {
                 sessionStore: InMemorySessionStore(session)
             ),
             look: LookStore(defaults: defaults),
-            courseMemory: CourseMemory(defaults: defaults),
             storage: storage,
             connection: connection
         )

@@ -1,161 +1,52 @@
 import QBankDesign
 import QBankKit
 import SwiftUI
+import UniformTypeIdentifiers
 
-/// A week on the course page as a folder, as the web's `WeekFolder` draws it: closed, one row with
-/// the week, its sets and how far she is, with a thin bar while it is in progress and Done, "22 of
-/// 27", or Not started at the right. Open, it holds its set rows and its exam line, lined up with
-/// the week name.
-struct WeekFolder<Content: View>: View {
-    let week: Week
-    @Binding var isOpen: Bool
-    @ViewBuilder let content: Content
-
-    var body: some View {
-        let progress = WeekProgress(week)
-        FolderCard {
-            FolderHead(
-                title: week.label,
-                meta: FolderWording.weekMeta(week, progress),
-                progress: progress,
-                state: FolderWording.state(progress),
-                isOpen: $isOpen
-            )
-            .accessibilityIdentifier("course.week.\(week.label)")
-            if isOpen {
-                VStack(spacing: 0) {
-                    Group(subviews: content) { rows in
-                        ForEach(rows) { row in
-                            row.overlay(alignment: .top) {
-                                if row.id != rows.first?.id {
-                                    Hairline().padding(.leading, FolderMetrics.inset)
-                                }
-                            }
-                        }
-                    }
-                }
-                .overlay(alignment: .top) { Hairline() }
-                .transition(.opacity)
-            }
-        }
-    }
-}
-
-/// An exam of the course as a folder: its name, its weeks, sets and questions and how many exams
-/// she took over them, and how far she is. Open, it holds its weeks as folders, her exams over
-/// them, and a Start button.
-struct ExamFolderView<Content: View>: View {
-    let folder: ExamFolder
-    @Binding var isOpen: Bool
-    @ViewBuilder let content: Content
-
-    var body: some View {
-        FolderCard {
-            FolderHead(
-                title: folder.exam.name,
-                meta: FolderWording.examMeta(folder),
-                progress: folder.progress,
-                state: FolderWording.state(folder.progress),
-                isOpen: $isOpen
-            )
-            .accessibilityIdentifier("course.exam.\(folder.exam.name)")
-            if isOpen {
-                // Its weeks sit as cards in a well, as the approved by-exam view draws them.
-                VStack(alignment: .leading, spacing: 10) {
-                    content
-                }
-                .padding(QBankSpacing.space3)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(.qbank(.bg))
-                .overlay(alignment: .top) { Hairline() }
-                .transition(.opacity)
-            }
-        }
-    }
-}
-
-/// The card around a folder, the course card's surface.
-private struct FolderCard<Content: View>: View {
-    @ViewBuilder let content: Content
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) { content }
-            .clipShape(RoundedRectangle(cornerRadius: QBankRadius.md, style: .continuous))
-            .qbankCardBackground()
-    }
-}
-
-/// A folder's measures, as the web's `.folder-head` sets them.
-enum FolderMetrics {
-    static let leading: CGFloat = 14
-    static let chevronWidth: CGFloat = 18
-    static let gap: CGFloat = 10
-    /// Where an open folder's rows start, under the folder's name: the padding, the chevron, the gap.
-    static let inset: CGFloat = leading + chevronWidth + gap
-}
-
-/// The row that opens and closes a folder.
-private struct FolderHead: View {
+/// A section's uppercase header, with an optional action at its right, such as New or Edit.
+struct SectionHead: View {
     let title: String
-    let meta: String
-    let progress: WeekProgress
-    let state: String
-    @Binding var isOpen: Bool
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    var action: String?
+    /// What VoiceOver reads for the action, which sits apart from the header: "New exam page".
+    var label: String?
+    var identifier = ""
+    var isEnabled = true
+    var perform: () -> Void = {}
 
     var body: some View {
-        Button {
-            withAnimation(reduceMotion ? nil : QBankMotion.reveal) {
-                isOpen.toggle()
+        HStack(alignment: .firstTextBaseline) {
+            QBankSectionHeader(title)
+            Spacer(minLength: QBankSpacing.space3)
+            if let action {
+                Button(action, action: perform)
+                    .buttonStyle(.qbank(.plain, size: .small))
+                    .disabled(!isEnabled)
+                    .accessibilityLabel(label ?? action)
+                    .accessibilityIdentifier(identifier)
             }
-        } label: {
-            HStack(spacing: FolderMetrics.gap) {
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.qbank(.text3))
-                    .rotationEffect(.degrees(isOpen ? 90 : 0))
-                    .frame(width: FolderMetrics.chevronWidth)
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .qbankFont(.headline)
-                        .foregroundStyle(.qbank(.text1))
-                        .multilineTextAlignment(.leading)
-                    Text(meta)
-                        .qbankFont(.footnote)
-                        .foregroundStyle(.qbank(.text2))
-                        .multilineTextAlignment(.leading)
-                    if progress.state == .started {
-                        QBankProgressBar(value: progress.fraction, height: 4, accessibilityTitle: "Answered")
-                            .frame(maxWidth: 320)
-                            .padding(.top, 6)
-                            .accessibilityHidden(true)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                if !state.isEmpty {
-                    Text(state)
-                        .qbankFont(.footnote, weight: progress.state == .fresh ? .medium : .semibold)
-                        .monospacedDigit()
-                        .foregroundStyle(.qbank(stateColor))
-                        .lineLimit(1)
-                        .fixedSize()
-                }
-            }
-            .padding(.leading, FolderMetrics.leading)
-            .padding(.trailing, QBankSpacing.space4)
-            .padding(.vertical, 12)
-            .frame(minHeight: 64)
-            .contentShape(.rect)
         }
-        .buttonStyle(.qbankRow)
-        .accessibilityElement(children: .combine)
-        .accessibilityValue(isOpen ? "Expanded" : "Collapsed")
-        .accessibilityHint(isOpen ? "Closes the folder" : "Opens the folder")
-        .accessibilityAddTraits(.isHeader)
+        .padding(.leading, QBankSpacing.space5)
+        .padding(.trailing, QBankSpacing.space1)
+    }
+}
+
+/// How far she is, at a row's right edge: Done, "22 of 27", or Not started.
+struct ProgressState: View {
+    let progress: FolderProgress
+
+    var body: some View {
+        let text = FolderWording.state(progress)
+        if !text.isEmpty {
+            Text(text)
+                .qbankFont(.footnote, weight: progress.state == .fresh ? .medium : .semibold)
+                .monospacedDigit()
+                .foregroundStyle(.qbank(color))
+                .lineLimit(1)
+                .fixedSize()
+        }
     }
 
-    private var stateColor: QBankColorToken {
+    private var color: QBankColorToken {
         switch progress.state {
         case .done: .correct
         case .fresh: .text3
@@ -164,11 +55,164 @@ private struct FolderHead: View {
     }
 }
 
-/// A hairline across a folder.
-private struct Hairline: View {
+/// An exam page on the course page: its name, its folders and questions, how far she is, and a
+/// chevron to open it.
+struct ExamPageRow: View {
+    let page: ExamPage
+
     var body: some View {
-        Rectangle()
-            .fill(.qbank(.separator))
-            .frame(height: QBankBorder.hairline)
+        QBankListRow(page.exam.name, detail: FolderWording.pageRow(page), systemImage: "square.stack.3d.up", showsChevron: true) {
+            ProgressState(progress: page.progress)
+        }
+    }
+}
+
+/// A folder in a list: its name, its sets and how far she is, and a chevron to open it.
+struct FolderRow: View {
+    let folder: Folder
+
+    var body: some View {
+        QBankListRow(folder.name, detail: FolderWording.meta(folder), systemImage: "folder", showsChevron: true) {
+            ProgressState(progress: FolderProgress(folder))
+        }
+    }
+}
+
+/// Folders as rows that open each one. While she edits the order, each row has a grip to drag it
+/// and up and down buttons, as the design system orders things on touch and with VoiceOver.
+struct FolderList: View {
+    let folders: [Folder]
+    /// Her order while she edits it, or nil.
+    @Binding var order: [String]?
+    /// The folder she lifted last. SwiftUI can ask a row for its drag item again after the drop,
+    /// so this alone does not say a drag is under way.
+    @State private var dragging: String?
+    /// The rows a drag is over now: empty once it drops or leaves the list.
+    @State private var hovered: Set<String> = []
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        QBankListGroup {
+            if let order {
+                ForEach(Array(order.enumerated()), id: \.element) { position, id in
+                    if let folder = folders.first(where: { $0.id == id }) {
+                        ReorderRow(
+                            folder: folder,
+                            canMoveUp: position > 0,
+                            canMoveDown: position < order.count - 1,
+                            move: { offset in move(id, by: offset) }
+                        )
+                        .opacity(!hovered.isEmpty && dragging == id ? 0.5 : 1)
+                        .onDrag {
+                            dragging = id
+                            return NSItemProvider(object: id as NSString)
+                        }
+                        .onDrop(of: [.text], delegate: ReorderDrop(target: id, order: $order, dragging: $dragging, hovered: $hovered, reduceMotion: reduceMotion))
+                    }
+                }
+            } else {
+                ForEach(folders) { folder in
+                    NavigationLink(value: CoursePage.folder(folder.id)) {
+                        FolderRow(folder: folder)
+                    }
+                    .buttonStyle(.qbankRow)
+                    .accessibilityIdentifier("folder.\(folder.name)")
+                }
+            }
+        }
+    }
+
+    private func move(_ id: String, by offset: Int) {
+        guard var current = order, let from = current.firstIndex(of: id) else { return }
+        let to = from + offset
+        guard current.indices.contains(to) else { return }
+        withAnimation(reduceMotion ? nil : QBankMotion.reveal) {
+            current.swapAt(from, to)
+            order = current
+        }
+    }
+}
+
+/// A folder while she puts the list in order: a grip to drag, its name, and up and down buttons.
+private struct ReorderRow: View {
+    let folder: Folder
+    let canMoveUp: Bool
+    let canMoveDown: Bool
+    let move: (Int) -> Void
+
+    var body: some View {
+        HStack(spacing: QBankSpacing.space3) {
+            Image(systemName: "line.3.horizontal")
+                .font(.body.weight(.medium))
+                .foregroundStyle(.qbank(.text3))
+                .frame(width: 24)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(folder.name)
+                    .qbankFont(.body)
+                    .foregroundStyle(.qbank(.text1))
+                QBankDetailText(FolderWording.meta(folder))
+                    .qbankFont(.footnote)
+                    .foregroundStyle(.qbank(.text3))
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityElement(children: .combine)
+            HStack(spacing: 0) {
+                arrow("chevron.up", label: "Move \(folder.name) up", enabled: canMoveUp, identifier: "reorder.up.\(folder.name)") { move(-1) }
+                arrow("chevron.down", label: "Move \(folder.name) down", enabled: canMoveDown, identifier: "reorder.down.\(folder.name)") { move(1) }
+            }
+        }
+        .padding(.leading, QBankSpacing.rowPaddingHorizontal)
+        .padding(.trailing, QBankSpacing.space2)
+        .padding(.vertical, 6)
+        .frame(minHeight: QBankSpacing.rowMin)
+        .contentShape(.rect)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("reorder.\(folder.name)")
+    }
+
+    private func arrow(_ systemImage: String, label: String, enabled: Bool, identifier: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.body.weight(.semibold))
+                .frame(width: 44, height: 44)
+                .contentShape(.rect)
+        }
+        .foregroundStyle(.qbank(enabled ? .tint : .text4))
+        .disabled(!enabled)
+        .accessibilityLabel(label)
+        .accessibilityIdentifier(identifier)
+    }
+}
+
+/// Moves a dragged folder to where another one is as she drags over it, moving the rest down.
+private struct ReorderDrop: DropDelegate {
+    let target: String
+    @Binding var order: [String]?
+    @Binding var dragging: String?
+    @Binding var hovered: Set<String>
+    let reduceMotion: Bool
+
+    func dropEntered(info: DropInfo) {
+        hovered.insert(target)
+        guard let dragging, dragging != target, var current = order,
+              let from = current.firstIndex(of: dragging), let to = current.firstIndex(of: target) else { return }
+        withAnimation(reduceMotion ? nil : QBankMotion.reveal) {
+            current.move(fromOffsets: IndexSet(integer: from), toOffset: to > from ? to + 1 : to)
+            order = current
+        }
+    }
+
+    func dropExited(info: DropInfo) {
+        hovered.remove(target)
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DropProposal(operation: .move)
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        hovered = []
+        return true
     }
 }

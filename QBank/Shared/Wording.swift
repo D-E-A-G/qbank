@@ -53,9 +53,9 @@ nonisolated enum Wording {
         return "\(count(courses.count, "course")) · updated \(time(latest, now: now))"
     }
 
-    /// The course line on Home and under the Course title: "86 questions · 3 weeks".
-    static func size(questions: Int, weeks: Int) -> String {
-        "\(count(questions, "question")) · \(count(weeks, "week"))"
+    /// The course line on Home and under the Course title: "86 questions · 3 folders".
+    static func size(questions: Int, folders: Int) -> String {
+        "\(count(questions, "question")) · \(count(folders, "folder"))"
     }
 
     /// "35 of 86 answered · 24 fully right · 61 of 92 points", or nil before her first answer.
@@ -71,7 +71,7 @@ nonisolated enum Wording {
         return Int((Double(answered) / Double(course.questionCount) * 100).rounded())
     }
 
-    /// How long an exam over every week takes: 60 minutes for 40 questions, or 1.5 minutes a
+    /// How long an exam over every folder takes: 60 minutes for 40 questions, or 1.5 minutes a
     /// question when there are fewer. "Not ready" without questions.
     static func examLength(questionCount: Int) -> String {
         guard questionCount > 0 else { return "Not ready" }
@@ -96,20 +96,13 @@ nonisolated enum Wording {
         return "\(set.answeredCount) of \(set.questionCount) answered"
     }
 
-    /// The week's exam line: its exam bank, or that its exams use practice questions.
-    static func examBank(_ week: Week) -> String {
-        week.examBankCount > 0
-            ? "Exam bank · \(count(week.examBankCount, "question"))"
-            : "No exam bank yet · exams use practice questions"
-    }
-
-    /// The weeks an exam covers, as she would say them: "Weeks 1-3", "Weeks 1-2, 4", "Week 2".
-    /// Labels that are not plain "Week N" are listed as they are.
-    static func weeks(_ labels: [String]) -> String {
-        let numbers = labels.map { label in
-            label.trimmingCharacters(in: .whitespaces).wholeMatch(of: /Week (\d+)/).flatMap { Int($0.output.1) }
+    /// The folders an exam covers, by name: "First Pass, Second Pass". Folders named plainly
+    /// "Week N" read as she would say them, as before folders: "Weeks 1-3", "Weeks 1-2, 4", "Week 2".
+    static func folders(_ names: [String]) -> String {
+        let numbers = names.map { name in
+            name.trimmingCharacters(in: .whitespaces).wholeMatch(of: /Week (\d+)/).flatMap { Int($0.output.1) }
         }
-        guard !labels.isEmpty, numbers.allSatisfy({ $0 != nil }) else { return labels.joined(separator: ", ") }
+        guard !names.isEmpty, numbers.allSatisfy({ $0 != nil }) else { return names.joined(separator: ", ") }
         let sorted = Array(Set(numbers.compactMap(\.self))).sorted()
         if sorted.count == 1 { return "Week \(sorted[0])" }
         var runs: [String] = []
@@ -135,16 +128,16 @@ nonisolated enum Wording {
         return "\(shown) \(minutes == 1 ? "minute" : "minutes")"
     }
 
-    /// Which exam weeks use practice questions because they have no exam bank:
+    /// Which of an exam's folders use practice questions because they have no exam bank:
     /// "Week 3 has no exam bank yet, so it uses its practice questions." before the exam, and
     /// "Weeks 1-2 had no exam bank, so their questions came from practice sets." after it.
-    static func practiceWeeks(_ labels: [String], before: Bool) -> String {
-        let one = labels.count == 1
-        let weeks = weeks(labels)
+    static func practiceFolders(_ names: [String], before: Bool) -> String {
+        let one = names.count == 1
+        let folders = folders(names)
         if before {
-            return "\(weeks) \(one ? "has" : "have") no exam bank yet, so \(one ? "it uses its" : "they use their") practice questions."
+            return "\(folders) \(one ? "has" : "have") no exam bank yet, so \(one ? "it uses its" : "they use their") practice questions."
         }
-        return "\(weeks) had no exam bank, so \(one ? "its" : "their") questions came from practice sets."
+        return "\(folders) had no exam bank, so \(one ? "its" : "their") questions came from practice sets."
     }
 
     /// The format line above a question: "Single answer", "Select all that apply".

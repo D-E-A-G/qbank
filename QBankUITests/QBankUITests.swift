@@ -25,9 +25,9 @@ final class QBankUITests: XCTestCase {
         signIn(app, email: nil, password: Self.password)
         dismissSavePassword(app)
         XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 10), "lands on the course she used last")
-        XCTAssertTrue(app.buttons["course.exam.Exam 1"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["course.page.Exam 1"].waitForExistence(timeout: 5))
         let summary = app.descendants(matching: .any)["course.summary"]
-        XCTAssertTrue(summary.label.hasPrefix("Mental Health · 86 questions · 3 weeks"), summary.label)
+        XCTAssertTrue(summary.label.hasPrefix("Mental Health · 86 questions · 4 folders"), summary.label)
         attach(app, "1a-4 course")
 
         let back = app.navigationBars["NURS 310"].buttons["Home"]
@@ -80,7 +80,7 @@ final class QBankUITests: XCTestCase {
     func testRestoreAsksFirstThenBringsBackThePreviousVersion() throws {
         let app = launch("signed-in")
         XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 10))
-        openFolder(app, week: "Week 2")
+        openFolder(app, "Week 2", on: "Exam 1")
         let restore = app.buttons["course.restore"]
         reveal(restore, in: app)
         XCTAssertTrue(app.staticTexts["Replaced \(Self.shortDate(daysAgo: 6)) · 12 questions"].exists)
