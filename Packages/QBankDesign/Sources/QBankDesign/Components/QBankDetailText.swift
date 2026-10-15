@@ -1,3 +1,4 @@
+#if canImport(SwiftUI)
 import SwiftUI
 
 /// A line of parts joined by " · ", such as "2 sets · 9 of 26 answered": on one line when it
@@ -19,3 +20,4 @@ public struct QBankDetailText: View {
         }
     }
 }
+#endif
