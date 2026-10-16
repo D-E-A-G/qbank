@@ -6,8 +6,8 @@ Two workflows run, with a trust boundary between them. `test/release-checks.sh` 
 
 Every pull request runs one Linux job on GitHub's `ubuntu-latest` machine:
 
-- `shellcheck` over `test/*.sh`
-- `test/release-checks.sh`: workflow pins and triggers, project settings, the Debug-only launch seam, and the frontend-only rule
+- `shellcheck` over `test/*.sh` and `scripts/*.sh`
+- `test/release-checks.sh`: workflow pins and triggers, project settings, the Debug-only launch seam, the frontend-only rule, and the TestFlight upload script's rules (the key read only in its upload step, its cleanup traps, the export options, and no key or team ID in Git)
 - `test/package-tests.sh --linux`: `swift test` in each package under `Packages/` that builds on Linux (see below)
 
 It references no secrets, reads the repository with a `contents: read` token, and never runs on a Mac. There is no `pull_request_target` workflow.
@@ -44,6 +44,6 @@ A package that needs Apple frameworks (Security, SwiftUI, UIKit) adds an empty `
 - Private vulnerability reporting is on (see `SECURITY.md`).
 - Workflows from forks wait for approval for all outside collaborators.
 
-## Not yet: TestFlight
+## TestFlight is not in CI
 
-There is no `release.yml` yet. The TestFlight upload, copied from Eddie's Wallet, is phase 2 and needs the owner's Apple Developer Program membership, an App Store Connect app record, three repository secrets (`APP_STORE_CONNECT_KEY_ID`, `APP_STORE_CONNECT_ISSUER_ID`, `APP_STORE_CONNECT_API_KEY`), and the `APPLE_TEAM_ID` variable. It will run only for `qbank-v*` tags on the same `MAC_RUNNER` selection.
+No workflow signs or uploads a build, and none holds an Apple credential. The owner's MacBook builds, signs, and uploads with `scripts/testflight-upload.sh`, which reads the App Store Connect key from Automic Vault for the upload step alone; see [release.md](release.md).
