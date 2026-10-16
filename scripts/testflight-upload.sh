@@ -156,7 +156,8 @@ check_export() {
   expect_plist "$app/Info.plist" CFBundleShortVersionString "$version"
   expect_plist "$app/Info.plist" CFBundleVersion "$build_number"
   # App Store Connect refuses a bundle without its app icon only after the upload.
-  expect_plist "$app/Info.plist" CFBundleIconName AppIcon
+  expect_plist "$app/Info.plist" CFBundleIcons.CFBundlePrimaryIcon.CFBundleIconName AppIcon
+  expect_plist "$app/Info.plist" "CFBundleIcons~ipad.CFBundlePrimaryIcon.CFBundleIconName" AppIcon
 
   profile="$work/profile.plist"
   security cms -D -i "$app/embedded.mobileprovision" >"$profile" 2>/dev/null ||
