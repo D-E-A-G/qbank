@@ -7,7 +7,7 @@ Two workflows run, with a trust boundary between them. `test/release-checks.sh` 
 Every pull request runs one Linux job on GitHub's `ubuntu-latest` machine:
 
 - `shellcheck` over `test/*.sh` and `scripts/*.sh`
-- `test/release-checks.sh`: workflow pins and triggers, project settings, the Debug-only launch seam, the frontend-only rule, and the TestFlight upload script's rules (the key read only in its upload step, its cleanup traps, the export options, and no key or team ID in Git)
+- `test/release-checks.sh`: workflow pins and triggers, project settings, the privacy manifest (it exists, lints, matches [privacy-manifest.md](privacy-manifest.md), and the app target's synchronized `QBank` group includes it), the Debug-only launch seam, the frontend-only rule, and the TestFlight upload script's rules (the key read only in its upload step, its cleanup traps, the export options, and no key or team ID in Git)
 - `test/package-tests.sh --linux`: `swift test` in each package under `Packages/` that builds on Linux (see below)
 
 It references no secrets, reads the repository with a `contents: read` token, and never runs on a Mac. There is no `pull_request_target` workflow.
