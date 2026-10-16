@@ -203,8 +203,152 @@ fi
 
 require_grep 'PRODUCT_BUNDLE_IDENTIFIER = com\.dimitrygallego\.qbank;' "$PBXPROJ" "app bundle id is com.dimitrygallego.qbank"
 require_grep 'INFOPLIST_KEY_CFBundleDisplayName = QBank;' "$PBXPROJ" "app display name is QBank"
-# The Apple team id is a repository variable, never committed.
+# The Apple team id comes from the uploader's shell, never from Git.
 forbid_grep 'DEVELOPMENT_TEAM = [^";]' "$PBXPROJ" "no Apple team id is committed in the project"
+
+# --- TestFlight upload script ---------------------------------------------------
+#
+# scripts/testflight-upload.sh runs on the owner's Mac and is the only thing
+# that reads the App Store Connect key. These checks read its text; they never
+# run it.
+
+UPLOAD=scripts/testflight-upload.sh
+EXPORT_OPTIONS=scripts/ExportOptions.plist
+
+if [ -x "$UPLOAD" ] && bash -n "$UPLOAD" 2>/dev/null; then
+  pass "$UPLOAD is executable and parses (bash -n)"
+else
+  fail "$UPLOAD is executable and parses (bash -n)"
+fi
+require_grep 'shellcheck test/\*\.sh scripts/\*\.sh' "$CI" "ci.yml runs shellcheck over test/ and scripts/"
+
+# Joins backslash-continued lines, drops comment-only lines, and finds function
+# bodies, so the checks below see each command whole.
+SCRIPT_RUBY='
+  lines = File.read(ARGV[0]).lines.map(&:chomp)
+  logical = []
+  buf = nil
+  first = nil
+  lines.each_with_index do |line, i|
+    next if buf.nil? && line =~ /^\s*#/
+    if buf then buf << " " << line.strip else buf = line.strip.dup; first = i end
+    if buf.end_with?("\\") then buf.chop!.rstrip! else logical << [first, buf]; buf = nil end
+  end
+  body = lambda do |name|
+    s = lines.index("#{name}() {") or abort "no #{name}() function"
+    e = (s + 1...lines.size).find { |i| lines[i] == "}" } or abort "#{name}() never closes"
+    (s + 1...e)
+  end
+  line_in = lambda { |range, text| range.find { |i| lines[i].strip == text } }
+'
+
+ruby_check "$UPLOAD uploads only inside upload_inside_vault(), through API_PRIVATE_KEYS_DIR" "$UPLOAD" "$SCRIPT_RUBY"'
+  hits = logical.select { |_, t| t =~ /\baltool\b/ }
+  abort "altool runs #{hits.size} times, expected once" unless hits.size == 1
+  i, t = hits[0]
+  abort "altool runs outside upload_inside_vault()" unless body.call("upload_inside_vault").cover?(i)
+  abort "not xcrun altool --upload-app with --apiKey and --apiIssuer: #{t}" unless t.include?("xcrun altool --upload-app") && t.include?("--apiKey") && t.include?("--apiIssuer")
+  abort "altool does not find the key through API_PRIVATE_KEYS_DIR" unless t.start_with?(%q{API_PRIVATE_KEYS_DIR="$key_dir" })
+'
+ruby_check "$UPLOAD reads the vault only in upload_with_vault(), through av inject --mode=fd" "$UPLOAD" "$SCRIPT_RUBY"'
+  avs = logical.select { |_, t| t =~ /\bav inject\b/ }
+  abort "av inject runs #{avs.size} times, expected once" unless avs.size == 1
+  i, t = avs[0]
+  abort "av inject runs outside upload_with_vault()" unless body.call("upload_with_vault").cover?(i)
+  want = "av inject --mode=fd +APP_STORE_CONNECT_KEY_ID:3 +APP_STORE_CONNECT_ISSUER_ID:4 +APP_STORE_CONNECT_API_KEY_P8:5 -- \"$SELF\" --inside-vault "
+  abort "av inject is not: #{want}..." unless t.include?(want)
+  selfs = logical.select { |_, l| l.include?(%q{"$SELF" --inside-vault}) }
+  abort "the script runs its --inside-vault step outside av inject" unless selfs.size == 1
+  dispatch = logical.index { |_, l| l == %q{if [ "${1:-}" = "--inside-vault" ]; then} } or abort "no --inside-vault dispatch"
+  calls = logical.each_index.select { |k| logical[k][1] =~ /^upload_inside_vault\b/ && logical[k][1] !~ /\(\) \{$/ }
+  abort "upload_inside_vault() runs other than from the --inside-vault dispatch" unless calls == [dispatch + 2]
+'
+ruby_check "$UPLOAD checks the export, then stops for --no-upload, before the vault step" "$UPLOAD" "$SCRIPT_RUBY"'
+  main = body.call("main")
+  gate = line_in.call(main, %q{if [ "$upload" = no ]; then}) or abort "main() has no --no-upload gate"
+  gate_end = (gate + 1...main.end).find { |i| lines[i].strip == "fi" }
+  abort "the --no-upload gate does not exit 0" unless (gate + 1...gate_end).any? { |i| lines[i].strip == "exit 0" }
+  check = main.find { |i| lines[i] =~ /^\s*check_export "/ } or abort "main() never runs check_export"
+  abort "check_export runs after the --no-upload gate" unless check < gate
+  uploads = logical.select { |_, t| t =~ /^upload_with_vault "/ }
+  abort "upload_with_vault runs #{uploads.size} times, expected once" unless uploads.size == 1
+  abort "upload_with_vault runs before the --no-upload gate" unless uploads[0][0] > gate_end && main.cover?(uploads[0][0])
+'
+ruby_check "$UPLOAD removes its temporary directory and the key on every exit path" "$UPLOAD" "$SCRIPT_RUBY"'
+  traps = ["trap '"'"'exit 130'"'"' INT", "trap '"'"'exit 143'"'"' TERM", "trap '"'"'exit 129'"'"' HUP"]
+  main = body.call("main")
+  made = main.find { |i| lines[i].include?(%q{work="$(mktemp -d }) } or abort "main() makes no temporary directory"
+  (["trap cleanup EXIT"] + traps).each do |t|
+    i = line_in.call(main, t) or abort "main() does not set #{t}"
+    abort "main() sets #{t} after making the temporary directory" unless i < made
+  end
+  cleanup = body.call("cleanup")
+  [%q{rm -rf "$work/asc-key"}, %q{rm -rf "$work"}].each do |rm|
+    abort "cleanup() does not run #{rm}" unless cleanup.any? { |i| lines[i].include?(rm) }
+  end
+  inside = body.call("upload_inside_vault")
+  key_dir = inside.find { |i| lines[i].include?(%q{mkdir -m 700 "$2"}) } or abort "upload_inside_vault() makes no mode-700 key directory"
+  (["trap remove_key EXIT"] + traps).each do |t|
+    i = line_in.call(inside, t) or abort "upload_inside_vault() does not set #{t}"
+    abort "upload_inside_vault() sets #{t} after making the key directory" unless i < key_dir
+  end
+  abort "remove_key() does not remove the key directory" unless body.call("remove_key").any? { |i| lines[i].include?(%q{rm -rf "$key_dir"}) }
+  [%q{key_file="$key_dir/AuthKey_$key_id.p8"}, %q{(umask 077 && printf '"'"'%s\n'"'"' "$p8" >"$key_file")}, %q{chmod 600 "$key_file"}].each do |l|
+    abort "upload_inside_vault() does not have: #{l}" unless line_in.call(inside, l)
+  end
+'
+ruby_check "$UPLOAD never prints a vault value" "$UPLOAD" "$SCRIPT_RUBY"'
+  secret = /\$\{?(p8|key_id|issuer_id)\b/
+  key_write = %q{(umask 077 && printf '"'"'%s\n'"'"' "$p8" >"$key_file")}
+  logical.each do |i, t|
+    next if t == key_write
+    t.scan(/(?:^|[;&|(]\s*|\s)(?:echo|printf|log|die)\s(.*)$/) do |(rest)|
+      abort "line #{i + 1} may print a vault value: #{t}" if rest =~ secret
+    end
+  end
+'
+forbid_grep '(^|[;&|[:space:]])set[[:space:]]+-[[:alnum:]]*x|xtrace' "$UPLOAD" "$UPLOAD never turns on xtrace"
+require_grep 'CODE_SIGN_STYLE=Automatic' "$UPLOAD" "$UPLOAD archives with automatic signing"
+require_grep '-allowProvisioningUpdates' "$UPLOAD" "$UPLOAD lets the Xcode account provision the archive"
+forbid_grep '-authenticationKey(Path|ID|IssuerID)' "$UPLOAD" "$UPLOAD signs through the Xcode account, never an API key"
+require_grep 'DEVELOPMENT_TEAM="\$team_id"' "$UPLOAD" "$UPLOAD takes the team id from --team-id or APPLE_TEAM_ID"
+require_grep 'die "no Apple team ID' "$UPLOAD" "$UPLOAD fails when the team id is missing"
+require_grep '^  out="\$repo_root/build/testflight/\$build_number"$' "$UPLOAD" "$UPLOAD logs to build/testflight/"
+require_grep '^build/$' .gitignore "build/ is ignored, so upload logs stay out of Git"
+
+ruby_check "$EXPORT_OPTIONS exports for App Store Connect with automatic signing and no team id" "$EXPORT_OPTIONS" '
+  plist = File.read(ARGV[0])
+  {
+    "method" => "<string>app-store-connect</string>",
+    "destination" => "<string>export</string>",
+    "signingStyle" => "<string>automatic</string>",
+    "manageAppVersionAndBuildNumber" => "<false/>",
+  }.each do |key, value|
+    abort "#{key} is not #{value}" unless plist =~ /<key>#{key}<\/key>\s*#{Regexp.escape(value)}/
+  end
+  abort "teamID is committed; the script adds it to a temporary copy" if plist.include?("<key>teamID</key>")
+'
+
+# --- No key material or team id in Git -------------------------------------------
+
+ruby_check "no private key is committed" "$UPLOAD" '
+  files = `git ls-files -z`.split("\0")
+  abort "git ls-files failed" unless $?.success?
+  files.each do |path|
+    next unless File.file?(path)
+    text = File.binread(path)
+    next if text.include?("\0")
+    if text =~ /-----BEGIN [A-Z ]*PRIVATE KEY-----\r?\n[A-Za-z0-9+\/=]{16,}/
+      abort "#{path} holds a PEM private key"
+    end
+  end
+'
+team_ids="$(git grep -nE '(DEVELOPMENT_TEAM|APPLE_TEAM_ID|teamID)[[:space:]]*[=:][[:space:]]*"?[A-Z0-9]{10}([^A-Za-z0-9_]|$)' || true)"
+if [ -n "$team_ids" ]; then
+  fail "no Apple team id is committed: $team_ids"
+else
+  pass "no Apple team id is committed"
+fi
 
 # --- Debug-only launch seam -----------------------------------------------------
 

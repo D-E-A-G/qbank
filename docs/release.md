@@ -1,93 +1,103 @@
 # Release: TestFlight (phase 2)
 
-How a QBank build gets from `main` to Khine's iPhone, and the checklist that sets it up. It follows the plan's phase 2 and copies the shape of Kun's Eddie's Wallet pipeline (`kunchenguid/eddies-wallet`, `docs/release.md`), without its App Review automation, StoreKit, or self-hosted Mac mini.
+How a QBank build gets from `main` to Khine's iPhone, and the checklist that sets it up. Builds are made, signed, and uploaded on the owner's MacBook by `scripts/testflight-upload.sh`. No CI job signs or uploads anything, and no GitHub machine ever holds an Apple credential.
 
-Phase 2 is done when builds reach TestFlight by themselves, the first one at parity with the web app, and Khine uses it for a week the way she uses the web app.
+Phase 2 is done when a build uploaded this way reaches Khine's iPhone through TestFlight, the first one at parity with the web app, and Khine uses it for a week the way she uses the web app.
 
-## How a release works, once set up
+## How an upload works
 
-1. Pull requests merge to `main` with conventional commit titles (`feat:`, `fix:`, ...).
-2. release-please opens or updates a **release PR** that bumps the version and writes the changelog.
-3. **The owner merges the release PR.** That is the release trigger. No agent or automation merges, auto-merges, or approves a release PR.
-4. Merging creates a GitHub Release and a tag `qbank-vX.Y.Z` (the first is `qbank-v0.1.0`).
-5. `release.yml` runs for that tag on `${{ vars.MAC_RUNNER || 'macos-26' }}`: it checks out exactly the tag, archives the Release build with App Store Connect cloud signing, exports an IPA, uploads it to App Store Connect, and deletes the API key from the machine in a step that always runs.
-6. Apple processes the build (usually 5 to 30 minutes). With automatic distribution on, it appears in the TestFlight app for the internal testers with an **Install** or **Update** button. Internal builds need no review.
+`scripts/testflight-upload.sh` runs on the owner's MacBook, where Xcode is signed in with his Apple Account. He is the team's Account Holder, so Xcode can create the distribution certificate and the App Store profile itself.
 
-Versions and build numbers, as in Eddie's Wallet:
+1. It fetches `origin`, resolves the ref it was given (default `origin/main`), refuses a commit that is on no origin branch, and clones that exact commit into a fresh temporary directory. Edits in the checkout it runs from never ship. The commit is recorded in the run's `build.txt`.
+2. It archives the `QBank` scheme in Release with `CODE_SIGN_STYLE=Automatic` and `-allowProvisioningUpdates`. Signing goes through the Xcode account on the Mac. The App Store Connect key plays no part in it: an App Manager key cannot cloud-sign.
+3. It exports an IPA with `scripts/ExportOptions.plist` (method `app-store-connect`, destination `export`), the team ID written only into a temporary copy. Then it checks the IPA: the bundle ID, the version and build number, an App Store profile for the team (no device list, `get-task-allow` false), and a distribution signature.
+4. Only then, as a separate last step, it uploads the IPA with `xcrun altool --upload-app`. Automic Vault asks the owner to **Allow** the three key entries, and they reach that step alone.
+5. Apple processes the build (usually 5 to 30 minutes). With automatic distribution on, it appears in the TestFlight app for the internal testers with an **Install** or **Update** button. Internal builds need no review.
 
-- The marketing version comes from the tag, a zero patch trimmed: `qbank-v0.1.0` builds as `0.1`, `qbank-v0.1.2` as `0.1.2`.
-- The build number is `GITHUB_RUN_NUMBER.GITHUB_RUN_ATTEMPT`, so every upload is unique and a rerun uploads the next number instead of colliding.
-- Settings shows both (for example "QBank 0.1 (12.1)"), so anyone can tell which build Khine has.
+### Running it
 
-A TestFlight build expires **90 days** after upload. If nothing has shipped for about 80 days, a worker opens a small release PR so the owner can merge a fresh build before hers stops opening.
+The team ID is on developer.apple.com > Account > Membership details. It stays out of Git: pass `--team-id`, or set `APPLE_TEAM_ID` in the shell (for example in `~/.zprofile` on the Mac).
+
+```sh
+export APPLE_TEAM_ID=REPLACE_WITH_TEAM_ID
+
+# Everything except the upload: proves signing and the export, reads nothing from the vault.
+scripts/testflight-upload.sh --no-upload
+
+# Build origin/main and upload it.
+scripts/testflight-upload.sh
+
+# Build and upload a release tag, or any commit that is on origin.
+scripts/testflight-upload.sh qbank-v0.1.0
+```
+
+Run it from any checkout of this repository on the Mac; it builds the ref's commit, never the checkout's files. Each run keeps its logs in `build/testflight/<build number>/` (`build.txt`, `archive.log`, `export.log`, `upload.log`), which Git ignores. A worker may start a run for the owner; the upload still waits for his Allow.
+
+### Versions and build numbers
+
+- **Version** (`CFBundleShortVersionString`): from the tag when the ref is a `qbank-vX.Y.Z` tag, otherwise from the project's `MARKETING_VERSION`. Either way a zero patch is trimmed: `qbank-v0.1.0` and the project's `0.1.0` build as `0.1`, `qbank-v0.1.2` as `0.1.2`. The project's version changes in an ordinary pull request.
+- **Build number** (`CFBundleVersion`): the Unix time in seconds when the run started, for example `1792156600` (`date -r 1792156600` turns it back into a date). Every run gets a new, higher number, so a re-upload of the same ref never collides with an earlier upload. Two runs on the Mac never share a second: the later one waits for the next.
+- Settings shows both (for example "QBank 0.1 (1792156600)"), so anyone can tell which build Khine has; that run's `build.txt` names its commit.
+
+A TestFlight build expires **90 days** after upload. If nothing has been uploaded for about 80 days, a worker asks the owner for an upload so Khine's build keeps opening.
 
 ## Who does what
 
-The owner does only what needs his Apple account, his money, his machine, or his merge. Workers do everything else and walk him through each owner step when it comes up.
+The owner does only what needs his Apple account, his money, his Mac, or his Allow. Workers do everything else and walk him through each owner step. A separate walkthrough page guides him through steps 4 to 9.
 
 ### Only the owner
 
-Each step is done once unless it says otherwise. Steps 1 to 3 come before phase 1 can run on a phone; 4 to 9 come before the first TestFlight build.
+Steps 4 to 9 come before the first upload. Each is done once unless it says otherwise.
 
-- [ ] **1. Install Xcode** from the Mac App Store, open it once, and let it install the iOS platform. Needed to run the app on his own iPhone; CI does not need it on his Mac.
-- [ ] **2. Join the Apple Developer Program** ($99 a year, individual) with his Apple Account, and wait for the approval email (a day or two). TestFlight is impossible without it; the free Personal Team cannot upload.
-- [ ] **3. Sign in to Xcode** (Settings > Accounts) with that Apple Account, so the paid team appears and automatic signing works on his iPhone.
-- [ ] **4. Create the app record** in [App Store Connect](https://appstoreconnect.apple.com) > Apps > + > New App: platform iOS, name **QBank** (fallback **QBank Nursing** if the name is taken), primary language English (U.S.), bundle ID `com.dimitrygallego.qbank`, SKU `qbank-ios`, user access Full. If the bundle ID is not in the list, register it first under Certificates, Identifiers & Profiles > Identifiers > App IDs, with no extra capabilities.
-- [ ] **5. Create the App Store Connect API key**: Users and Access > Integrations > App Store Connect API > Team Keys > +, name `qbank-release`, access **Admin** (Kun's guide allows App Manager or Admin; Admin avoids signing-permission errors with cloud signing). Write down the **Key ID** and the **Issuer ID** shown above the table, and download the `.p8` file. Apple offers the download **once**: keep it in his password manager, never in a repository, chat, or issue.
-- [ ] **6. Store the key as repository secrets and the team ID as a variable**, from his own Mac, in Terminal. The values never appear on screen or in a file:
+- [x] **1. Install Xcode** from the Mac App Store, open it once, and let it install the iOS platform.
+- [x] **2. Join the Apple Developer Program** ($99 a year, individual) with his Apple Account. TestFlight is impossible without it; the free Personal Team cannot upload.
+- [ ] **3. Sign in to Xcode** (Settings > Accounts) with that Apple Account, and check that the paid team, not only the Personal Team, shows under it. The upload's signing depends on this sign-in.
+- [ ] **4. Accept the agreements** waiting in App Store Connect (Business) and on developer.apple.com. A free app needs no Paid Applications agreement.
+- [ ] **5. Create the app record** in [App Store Connect](https://appstoreconnect.apple.com) > Apps > + > New App: platform iOS, name **QBank** (fallback **QBank Nursing** if the name is taken), primary language English (U.S.), bundle ID `com.dimitrygallego.qbank`, SKU `qbank-ios`, user access Full. If the bundle ID is not in the list, register it first under Certificates, Identifiers & Profiles > Identifiers > App IDs, with no extra capabilities.
+- [ ] **6. Invite Khine and make the tester group.** Users and Access > + with her Apple Account email, a low role such as Marketing, access to QBank only; she accepts the email. If she is not offered when adding testers, change her role, as Apple's help says. Then QBank > TestFlight > Internal Testing > +, name `Home`, tick **Enable automatic distribution**, and add himself and Khine.
+- [ ] **7. Khine installs the TestFlight app** from the App Store on her iPhone and taps the invitation email, signed in with the same Apple Account.
+- [ ] **8. Create the App Store Connect API key**, at his Mac: Users and Access > Integrations > App Store Connect API > Team Keys > +, any name (for example `qbank-testflight`), access **App Manager**, not Admin. Note the **Key ID** and the **Issuer ID** shown above the keys table, and download the `.p8` file. Apple offers the download **once**.
+- [ ] **9. Save the key in Automic Vault**, in Terminal on the same Mac. The values never appear on screen or in chat:
 
   ```sh
-  REPO=D-E-A-G/qbank
-  KEY_ID=REPLACE_WITH_KEY_ID
-  ISSUER_ID=REPLACE_WITH_ISSUER_ID
-  P8_PATH=~/Downloads/AuthKey_${KEY_ID}.p8
-  TEAM_ID=REPLACE_WITH_TEAM_ID   # developer.apple.com > Account > Membership details
-
-  printf '%s' "$KEY_ID" | gh secret set APP_STORE_CONNECT_KEY_ID --repo "$REPO"
-  printf '%s' "$ISSUER_ID" | gh secret set APP_STORE_CONNECT_ISSUER_ID --repo "$REPO"
-  base64 -i "$P8_PATH" | gh secret set APP_STORE_CONNECT_API_KEY --repo "$REPO"
-  gh variable set APPLE_TEAM_ID --repo "$REPO" --body "$TEAM_ID"
+  av save APP_STORE_CONNECT_KEY_ID      # hidden prompt: paste the Key ID
+  av save APP_STORE_CONNECT_ISSUER_ID   # hidden prompt: paste the Issuer ID
+  av save --stdin APP_STORE_CONNECT_API_KEY_P8 < ~/Downloads/AuthKey_REPLACE_WITH_KEY_ID.p8
+  av list                               # shows the three names, never the values
   ```
 
-  Then move the `.p8` from Downloads into the password manager and delete the file.
-- [ ] **7. Invite Khine to App Store Connect**: Users and Access > + with her Apple Account email, a low role such as Marketing or Customer Support, access to QBank only. She accepts the email. If she is not offered when adding testers, change her role, as Apple's help says.
-- [ ] **8. Make the tester group**: QBank > TestFlight > Internal Testing > +, name `Home`, tick **Enable automatic distribution**, add himself and Khine.
-- [ ] **9. Khine installs the TestFlight app** from the App Store on her iPhone and taps the invitation email, signed in with the same Apple Account.
-- [ ] **10. Merge each release PR** when he wants a build to go out. This repeats for every release.
-- [ ] **Later, when he wants the MacBook Pro 14 to run the Mac jobs:** set it up as a self-hosted runner (plugged in, Remote Login, Tailscale, no sleep, Xcode installed, a dedicated macOS user, runner registered with label `macbook-14` and installed as a service, fork workflows require approval for all outside collaborators). Until then GitHub's hosted Mac runs everything, free on a public repository.
+  Then delete the `.p8` from Downloads and empty the Trash. The vault holds the only copy; if it is lost, revoke the key and make a new one under the same names.
+- [ ] **10. Allow each upload** when Automic Vault asks. This repeats for every upload.
 - [ ] **Later, before the App Store (phase 4):** decide to submit, fill in the privacy contact in [privacy-policy.md](privacy-policy.md), answer App Privacy in App Store Connect from [privacy-manifest.md](privacy-manifest.md), make the demo account in [app-review.md](app-review.md), confirm with Khine whether her questions may appear in public screenshots, and press **Submit for Review**.
 
 ### Workers
 
-- [ ] **Phase-0 project and CI** (in flight in its own PR): Xcode project with bundle ID `com.dimitrygallego.qbank`, iOS 18, `ci.yml` running Linux checks on pull requests with no secrets, macOS build and tests on `main` pushes and tags only.
-- [ ] **Release pipeline PR**, copied from Eddie's Wallet and adapted:
-  - `release-please-config.json` and `.release-please-manifest.json` with tag prefix `qbank-v`, seed `0.0.0`, `initial-version` `0.1.0`, and the "only the owner merges this" warning in the release PR header;
-  - `release.yml`: triggered only by `qbank-v*` tags, published releases, and tag dispatches, never by pull requests; `runs-on: ${{ vars.MAC_RUNNER || 'macos-26' }}`; restores the base64 `.p8` into the runner's temp folder with mode 600; archives with `-allowProvisioningUpdates`, API-key authentication and `CODE_SIGN_STYLE=Automatic`; writes `APPLE_TEAM_ID` into a temp copy of `ExportOptions.plist`; uploads with `xcrun altool --upload-app`; removes every copy of the key in an `always()` step; uploads logs and the IPA as run artifacts; one concurrency group per tag; every action pinned to a full commit SHA;
-  - `.github/scripts/resolve_release_version.sh` for the version and build number rules above;
-  - `test/release-checks.sh` asserting all of it, run by `ci.yml` on every pull request with no credentials or network.
-  - The pipeline must fail clearly, not silently skip, when the secrets are missing.
-- [ ] **Privacy manifest and Info.plist**: add `PrivacyInfo.xcprivacy` to the app target from [privacy-manifest.md](privacy-manifest.md) and set `ITSAppUsesNonExemptEncryption` to `NO`.
-- [ ] **Version in Settings**: show the marketing version and build number at the bottom of Settings, as in the approved wireframe.
+- [x] **Upload path**: `scripts/testflight-upload.sh`, `scripts/ExportOptions.plist`, and their rules in `test/release-checks.sh`, which `ci.yml` runs on every pull request with no credentials or network.
+- [x] **Version in Settings**: the version and build number at the bottom of Settings.
+- [ ] **Privacy manifest**: add `PrivacyInfo.xcprivacy` to the app target from [privacy-manifest.md](privacy-manifest.md) before the first upload. `ITSAppUsesNonExemptEncryption` is already `NO` in the project.
 - [ ] **Privacy policy check**: before Khine's first build, re-read every claim in [privacy-policy.md](privacy-policy.md) against the app and the server, fix what differs, and set "Last reviewed against the code".
 - [ ] **Server follow-up in qbank-web** (optional, small): stop recording the IP address and user agent on sessions, which QBank never uses; then drop that line from the policy and the manifest notes.
-- [ ] **Walk the owner through steps 4 to 9** when the release pipeline PR is ready, one step at a time, and confirm each one (for example `gh secret list -R D-E-A-G/qbank` shows the three names; values are never read back).
-- [ ] **Release-PR setting**: release-please needs "Allow GitHub Actions to create and approve pull requests" (Settings > Actions > General) on the repository, and on the D-E-A-G organization if the organization blocks it. A worker sets it through the API if its token has admin rights; otherwise the owner ticks the box.
-- [ ] **After every release**: confirm App Store Connect accepted the exact build (processing or ready in TestFlight), not just a green upload step, and tell the owner the build is on Khine's phone. A worker can add Kun's read-only `asc-build-status.yml` for this.
-- [ ] **When the MacBook runner is registered**: set `MAC_RUNNER=macbook-14`; deleting the variable falls back to `macos-26` at once.
+- [ ] **Walk the owner through steps 3 to 9**, one step at a time, and confirm each one (for example `av list` on his Mac shows the three names; values are never read back).
+- [ ] **First upload, attended**: `scripts/testflight-upload.sh --no-upload` first, then the upload with his Allow.
+- [ ] **After every upload**: confirm App Store Connect accepted the exact build (the version and build number, processing or ready in TestFlight), not just a script that finished, and tell the owner the build is on Khine's phone.
 
 ## Security boundaries
 
-- Pull requests, including forks, run only Linux checks with `contents: read` and no secrets. No workflow uses `pull_request_target`. No macOS job runs for a pull request, so a stranger's code never runs on the owner's Mac.
-- The App Store Connect key is reachable only from `qbank-v*` tags, published releases, and tag dispatches, all of which need write access to the repository.
-- The key lives on the runner only for the length of one job and is deleted even when the job fails or is cancelled.
-- The Apple team ID stays out of Git; `release.yml` reads it from the `APPLE_TEAM_ID` variable.
-- Nothing in this pipeline submits for App Review or publishes to the App Store. It ends at TestFlight.
+- The App Store Connect key lives only in Automic Vault, as `APP_STORE_CONNECT_KEY_ID`, `APP_STORE_CONNECT_ISSUER_ID`, and `APP_STORE_CONNECT_API_KEY_P8` (the `.p8` PEM text). Only the upload step reads them, through `av inject --mode=fd` after the owner's Allow. Nothing before that step, and nothing in a `--no-upload` run, touches the vault.
+- On disk the key exists only as `AuthKey_<KEY_ID>.p8` (mode 600) in a mode-700 directory inside the run's temporary directory, while altool runs. Traps remove it, and the whole temporary directory, on every exit: success, failure, Ctrl-C, or a termination signal. Only `kill -9` or a power cut can skip them; then delete the `qbank-testflight.*` directory in `$TMPDIR` by hand.
+- The script never prints or logs a vault value and never puts the `.p8` on a command line. altool receives the Key ID and Issuer ID as arguments, which name the key without unlocking it, and finds the `.p8` through `API_PRIVATE_KEYS_DIR`.
+- The key has the **App Manager** role, not Admin: it can upload builds and run TestFlight, but cannot manage users or keys. If it leaks, revoke it in App Store Connect (Users and Access > Integrations) and save a new one under the same vault names.
+- Signing uses the owner's Xcode sign-in on his Mac. No signing certificate, profile, or key is in this repository or in CI.
+- The Apple team ID stays out of Git. It comes from `--team-id` or `APPLE_TEAM_ID`, and only a temporary copy of `ExportOptions.plist` holds it.
+- No CI job holds Apple credentials: pull requests run only Linux checks with no secrets, and `xcode.yml` (pushes to `main`, `qbank-v*` tags, manual runs) builds Release without signing. See [ci.md](ci.md).
+- An upload builds only a commit that is on origin, from a fresh clone, so local edits never reach TestFlight.
+- Nothing here submits for App Review or publishes to the App Store. It ends at TestFlight.
 - The repository holds no backend code, server credentials, deployment files, or infrastructure configuration; those stay in the private server repository.
 
 ## When something fails
 
-- Every failing step fails the run visibly, with the archive and export logs attached.
-- Rerun a failed upload from the run page, or dispatch `release.yml` for the same tag. The tag fixes the source; the build number advances with each attempt.
-- If the failure was in the workflow itself and its fix is now on `main`: `gh workflow run release.yml --ref main -f tag_name=<tag>` runs main's workflow on the tagged source.
-- "No profiles for 'com.dimitrygallego.qbank' were found" or an authentication-looking error with correct secrets usually means a capability was added in code but not enabled on the App ID in the developer portal. Any change that adds a capability (passkeys' Associated Domains in phase 3, for example) needs that portal step before its release, which is an owner step.
+- The script stops at the first failing step and prints the end of that step's log. Every log is in `build/testflight/<build number>/`.
+- Run it again. It rebuilds with a new build number, so a retry never collides with an earlier upload.
+- If Automic Vault refused or named a missing entry, nothing was uploaded: check that `av list` shows the three names, then run again.
+- "No Accounts", "No signing certificate", or "No profiles for 'com.dimitrygallego.qbank' were found" means Xcode on the Mac is not signed in to the paid team, or a capability was added in code but not enabled on the App ID in the developer portal. Any change that adds a capability (passkeys' Associated Domains, for example) needs that portal step before its upload, which is an owner step.
 - An upload that succeeded but stays in processing is waited on, not re-uploaded.

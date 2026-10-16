@@ -26,7 +26,7 @@ jobs:
           persist-credentials: false
 
       - name: Shell scripts pass shellcheck
-        run: shellcheck test/*.sh
+        run: shellcheck test/*.sh scripts/*.sh
 
       - name: Repository and pipeline rules
         run: ./test/release-checks.sh
