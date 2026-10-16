@@ -74,7 +74,7 @@ Steps 4 to 9 come before the first upload. Each is done once unless it says othe
 
 - [x] **Upload path**: `scripts/testflight-upload.sh`, `scripts/ExportOptions.plist`, and their rules in `test/release-checks.sh`, which `ci.yml` runs on every pull request with no credentials or network.
 - [x] **Version in Settings**: the version and build number at the bottom of Settings.
-- [ ] **Privacy manifest**: add `PrivacyInfo.xcprivacy` to the app target from [privacy-manifest.md](privacy-manifest.md) before the first upload. `ITSAppUsesNonExemptEncryption` is already `NO` in the project.
+- [x] **Privacy manifest**: `QBank/PrivacyInfo.xcprivacy` in the app target, from [privacy-manifest.md](privacy-manifest.md). `test/release-checks.sh` checks that it exists, lints, and belongs to the app target. `ITSAppUsesNonExemptEncryption` is already `NO` in the project.
 - [ ] **Privacy policy check**: before Khine's first build, re-read every claim in [privacy-policy.md](privacy-policy.md) against the app and the server, fix what differs, and set "Last reviewed against the code".
 - [ ] **Server follow-up in qbank-web** (optional, small): stop recording the IP address and user agent on sessions, which QBank never uses; then drop that line from the policy and the manifest notes.
 - [ ] **Walk the owner through steps 3 to 9**, one step at a time, and confirm each one (for example `av list` on his Mac shows the three names; values are never read back).

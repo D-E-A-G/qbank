@@ -47,9 +47,9 @@ Answer these in App Store Connect exactly this way: "Yes, we collect data from t
 | Q Make questions (the accounts the server allows) | shipped: **Photos or Videos** and **Other User Content** (notes, files) declared above; the policy names Anthropic. |
 | 4 Free on this phone | data in on-phone mode is never sent anywhere and is not collected; the signed-in mode keeps the answers above. |
 
-## Draft `PrivacyInfo.xcprivacy`
+## `PrivacyInfo.xcprivacy`
 
-The app target (owned by the phase-0 Xcode project) should carry this file, added to the app target's resources so it lands in the app bundle. Kun's Eddie's Wallet ships the same shape at `EddysWallet/PrivacyInfo.xcprivacy`.
+The app target carries this file at `QBank/PrivacyInfo.xcprivacy`. The project's folder-synchronized `QBank` group copies it into the app bundle; the test targets and the packages do not. Kun's Eddie's Wallet ships the same shape at `EddysWallet/PrivacyInfo.xcprivacy`.
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -151,6 +151,8 @@ Apple rejects an upload that calls one of these API groups without a declared re
 | Active keyboards | no | | |
 
 The exam timer is ruled by the server's clock (`serverNow`), so it should not need the boot-time group.
+
+A search of the app and of `Packages/QBankKit` and `Packages/QBankDesign` finds `UserDefaults` only, in the look setting and the Face ID lock. The manifest declares that group with `CA92.1` and no other required-reason group.
 
 ## Related build settings
 

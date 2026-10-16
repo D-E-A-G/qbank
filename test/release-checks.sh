@@ -206,6 +206,157 @@ require_grep 'INFOPLIST_KEY_CFBundleDisplayName = QBank;' "$PBXPROJ" "app displa
 # The Apple team id comes from the uploader's shell, never from Git.
 forbid_grep 'DEVELOPMENT_TEAM = [^";]' "$PBXPROJ" "no Apple team id is committed in the project"
 
+# --- Privacy manifest -----------------------------------------------------------
+#
+# The app target's folder-synchronized QBank group is the file's membership.
+# A file under QBank/ joins that target and no other, so project.pbxproj does
+# not name PrivacyInfo.xcprivacy. plutil is the lint on a Mac; Linux CI has no
+# plutil, and the ruby check below is the lint there.
+
+MANIFEST=QBank/PrivacyInfo.xcprivacy
+if [ -f "$MANIFEST" ]; then
+  pass "privacy manifest exists at $MANIFEST"
+else
+  fail "privacy manifest exists at $MANIFEST"
+fi
+
+if command -v plutil >/dev/null 2>&1; then
+  if plutil -lint "$MANIFEST" >/dev/null; then
+    pass "plutil -lint accepts the privacy manifest"
+  else
+    fail "plutil -lint accepts the privacy manifest"
+  fi
+fi
+
+ruby_check "privacy manifest lints and matches docs/privacy-manifest.md" "$MANIFEST" '
+  require "rexml/document"
+  raw = File.read(ARGV[0])
+  abort "#{ARGV[0]} is empty" if raw.empty?
+  begin
+    doc = REXML::Document.new(raw)
+  rescue REXML::ParseException => e
+    abort "privacy manifest is not well-formed XML: #{e.message.lines.first}"
+  end
+  plist = doc.root
+  abort "root element is #{plist&.name.inspect}, expected plist" unless plist&.name == "plist"
+  abort "plist version is #{plist.attributes["version"].inspect}" unless plist.attributes["version"] == "1.0"
+
+  def elements_of(node)
+    node.elements.to_a
+  end
+
+  def expect_dict(node, where)
+    abort "#{where} is #{node&.name.inspect}, expected dict" unless node&.name == "dict"
+    list = elements_of(node)
+    abort "#{where} has an odd number of children" unless list.size.even?
+    pairs = {}
+    list.each_slice(2) do |key, value|
+      abort "#{where} key is #{key.name.inspect}" unless key.name == "key" && key.text && !key.text.empty?
+      abort "#{where} repeats #{key.text}" if pairs.key?(key.text)
+      pairs[key.text] = value
+    end
+    pairs
+  end
+
+  root_dict = elements_of(plist)
+  abort "plist has #{root_dict.size} elements, expected one dict" unless root_dict.size == 1
+  root = expect_dict(root_dict[0], "plist")
+  abort "NSPrivacyTracking is not false" unless root["NSPrivacyTracking"]&.name == "false"
+  domains = root["NSPrivacyTrackingDomains"]
+  abort "NSPrivacyTrackingDomains is not an empty array" unless domains&.name == "array" && elements_of(domains).empty?
+
+  collected = root["NSPrivacyCollectedDataTypes"]
+  abort "NSPrivacyCollectedDataTypes is missing" unless collected&.name == "array"
+  expected_types = %w[
+    NSPrivacyCollectedDataTypeEmailAddress
+    NSPrivacyCollectedDataTypeUserID
+    NSPrivacyCollectedDataTypePhotosorVideos
+    NSPrivacyCollectedDataTypeOtherUserContent
+    NSPrivacyCollectedDataTypeProductInteraction
+  ]
+  types = elements_of(collected)
+  names = types.map { |entry| expect_dict(entry, "collected type")["NSPrivacyCollectedDataType"]&.text }
+  abort "collected types are #{names.inspect}" unless names == expected_types
+  types.each do |entry|
+    item = expect_dict(entry, "collected type")
+    abort "#{item["NSPrivacyCollectedDataType"]&.text} is not linked" unless item["NSPrivacyCollectedDataTypeLinked"]&.name == "true"
+    abort "#{item["NSPrivacyCollectedDataType"]&.text} is marked for tracking" unless item["NSPrivacyCollectedDataTypeTracking"]&.name == "false"
+    purposes = elements_of(item["NSPrivacyCollectedDataTypePurposes"] || REXML::Element.new("array"))
+    abort "#{item["NSPrivacyCollectedDataType"]&.text} purposes are #{purposes.map(&:text).inspect}" unless purposes.map(&:text) == ["NSPrivacyCollectedDataTypePurposeAppFunctionality"]
+  end
+
+  accessed = root["NSPrivacyAccessedAPITypes"]
+  abort "NSPrivacyAccessedAPITypes is missing" unless accessed&.name == "array"
+  apis = elements_of(accessed)
+  abort "accessed API count is #{apis.size}, expected 1" unless apis.size == 1
+  api = expect_dict(apis[0], "accessed API")
+  abort "accessed API is #{api["NSPrivacyAccessedAPIType"]&.text.inspect}" unless api["NSPrivacyAccessedAPIType"]&.text == "NSPrivacyAccessedAPICategoryUserDefaults"
+  reasons = elements_of(api["NSPrivacyAccessedAPITypeReasons"] || REXML::Element.new("array")).map(&:text)
+  abort "UserDefaults reasons are #{reasons.inspect}" unless reasons == ["CA92.1"]
+
+  fence = File.read("docs/privacy-manifest.md")[/```xml\n(.*?)```/m, 1]
+  abort "docs/privacy-manifest.md has no ```xml fence" unless fence
+  abort "QBank/PrivacyInfo.xcprivacy differs from the plist in docs/privacy-manifest.md" unless raw == fence
+'
+
+ruby_check "privacy manifest belongs only to the QBank app target" "$PBXPROJ" '
+  def each_object(text)
+    lines = text.lines
+    index = 0
+    while index < lines.size
+      unless lines[index] =~ /^\t\t([0-9A-F]{24}) \/\* (.*) \*\/ = \{$/
+        index += 1
+        next
+      end
+      id = Regexp.last_match(1)
+      depth = 1
+      body = +""
+      index += 1
+      while index < lines.size && depth.positive?
+        depth += lines[index].count("{")
+        depth -= lines[index].count("}")
+        body << lines[index] if depth.positive?
+        index += 1
+      end
+      yield id, body
+    end
+  end
+
+  groups = {}
+  targets = {}
+  each_object(File.read(ARGV[0])) do |id, body|
+    if body.include?("isa = PBXFileSystemSynchronizedRootGroup;")
+      groups[id] = body[/^\t\t\tpath = ([^;]+);$/, 1]
+    elsif body.include?("isa = PBXNativeTarget;")
+      name = body[/^\t\t\tname = ([^;]+);$/, 1]
+      sync = body[/fileSystemSynchronizedGroups = \((.*?)\);/m, 1].to_s
+      targets[name] = {
+        groups: sync.scan(/[0-9A-F]{24}/),
+        product: body[/productType = "([^"]+)";/, 1],
+        body: body,
+      }
+    end
+  end
+
+  qbank = groups.select { |_, path| path == "QBank" }
+  abort "expected one synchronized root named QBank, found #{qbank.size}" unless qbank.size == 1
+  group_id, = qbank.first
+  app = targets["QBank"] or abort "no QBank target"
+  abort "QBank is not an application target" unless app[:product] == "com.apple.product-type.application"
+  abort "the QBank target does not synchronize the QBank group" unless app[:groups] == [group_id]
+  %w[QBankTests QBankUITests].each do |name|
+    target = targets[name] or abort "no #{name} target"
+    abort "#{name} synchronizes the app group" if target[:groups].include?(group_id)
+  end
+
+  text = File.read(ARGV[0])
+  if text.include?("PrivacyInfo.xcprivacy")
+    abort "project.pbxproj names PrivacyInfo.xcprivacy; the synchronized QBank group already includes it"
+  end
+  extras = Dir.glob("**/*PrivacyInfo.xcprivacy").reject { |path| path == "QBank/PrivacyInfo.xcprivacy" }
+  abort "privacy manifest is outside the app target: #{extras.join(", ")}" unless extras.empty?
+'
+
 # --- TestFlight upload script ---------------------------------------------------
 #
 # scripts/testflight-upload.sh runs on the owner's Mac and is the only thing
