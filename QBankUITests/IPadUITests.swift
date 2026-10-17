@@ -92,6 +92,21 @@ final class IPadUITests: XCTestCase {
         }
     }
 
+    /// The offer to save a passkey after a password sign-in, in the middle of the iPad's screen.
+    @MainActor
+    func testPasskeyOfferAfterAPasswordSignIn() throws {
+        let app = launch("signed-out")
+        XCTAssertTrue(app.staticTexts["signIn.title"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["signIn.passkey"].exists)
+        signIn(app, email: "student@example.com", password: "synthetic-pass-1")
+        dismissSavePassword(app)
+        _ = passkeyOffer(app)
+        XCTAssertTrue(app.staticTexts["Save a passkey for this iPad?"].exists)
+        attachLooks(app, "ipad passkey offer")
+        declinePasskeyOffer(app)
+        XCTAssertTrue(app.buttons["course.page.Exam 1"].waitForExistence(timeout: 10))
+    }
+
     /// Every screen, in both orientations and both looks, for a look by eye in the test results.
     @MainActor
     func testScreensInBothOrientationsLightAndDark() throws {
@@ -118,6 +133,11 @@ final class IPadUITests: XCTestCase {
                 XCTAssertTrue(app.textFields["semester.name"].waitForExistence(timeout: 5))
                 attach(app, "ipad semester, \(tag)")
                 goBack(app, from: "Semester 1")
+                XCTAssertTrue(app.buttons["settings.changePassword"].waitForExistence(timeout: 5))
+                tapVisible(app.buttons["settings.passkeys"], in: app)
+                expectReadingColumn(app.buttons["passkeys.save"])
+                attach(app, "ipad passkeys, \(tag)")
+                goBack(app, from: "Passkeys")
                 XCTAssertTrue(app.buttons["settings.changePassword"].waitForExistence(timeout: 5))
 
                 openTab(app, "Add")

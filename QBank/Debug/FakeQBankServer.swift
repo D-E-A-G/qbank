@@ -98,6 +98,8 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary {
     private let study: FakeStudy
     /// Make questions, for `maker` only.
     private let questionMaker: FakeQuestionMaker
+    /// Passkey sign-in and Settings' passkeys. The student has one, saved on her Mac.
+    private let passkeys: FakePasskeys
 
     /// Without signal, every call fails before it reaches the server, as on a phone with no network.
     var isOffline: Bool {
@@ -117,6 +119,7 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary {
         self.now = now
         study = FakeStudy(now: now)
         questionMaker = FakeQuestionMaker(allowed: [Self.maker.email], isSetUp: makerIsSetUp, seededFor: Self.maker.email, now: now)
+        passkeys = FakePasskeys(studentEmail: Self.student.email, now: now)
         state = Mutex(State(
             accounts: [
                 Account(id: "fake-student", email: Self.student.email, name: "Sam Student", password: Self.student.password, mustChangePassword: false),
@@ -161,18 +164,40 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary {
         let url = request.url ?? URL(string: "https://fake.invalid")!
         let query = (URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? [])
             .reduce(into: [String: String]()) { $0[$1.name] = $1.value ?? "" }
-        let (status, body) = answer(
-            method: request.httpMethod ?? "GET",
-            path: url.path(),
-            query: query,
-            token: request.value(forHTTPHeaderField: "Authorization")?.replacingOccurrences(of: "Bearer ", with: ""),
-            body: request.httpBody.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] } ?? [:],
-            rawBody: request.httpBody
-        )
+        let method = request.httpMethod ?? "GET"
+        let token = request.value(forHTTPHeaderField: "Authorization")?.replacingOccurrences(of: "Bearer ", with: "")
+        let fields = request.httpBody.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] } ?? [:]
+        var headers = ["Content-Type": "application/json"]
+        let status: Int
+        let body: [String: Any]
+        if FakePasskeys.handles(url.path()) {
+            let cookie = request.value(forHTTPHeaderField: "Cookie")
+            (status, body, headers) = passkeyAnswer(method: method, path: url.path(), token: token, cookie: cookie, body: fields, headers: headers)
+        } else {
+            (status, body) = answer(method: method, path: url.path(), query: query, token: token, body: fields, rawBody: request.httpBody)
+        }
         // A 204 has no body, as the server sends it.
         let data = status == 204 ? Data() : try JSONSerialization.data(withJSONObject: body)
-        let response = HTTPURLResponse(url: url, statusCode: status, httpVersion: "HTTP/1.1", headerFields: ["Content-Type": "application/json"])!
+        let response = HTTPURLResponse(url: url, statusCode: status, httpVersion: "HTTP/1.1", headerFields: headers)!
         return (data, response)
+    }
+
+    /// The passkey routes, which answer with a challenge cookie and, for a sign-in, a new session.
+    private func passkeyAnswer(
+        method: String, path: String, token: String?, cookie: String?, body: [String: Any], headers: [String: String]
+    ) -> (Int, [String: Any], [String: String]) {
+        let account = token.flatMap(account(for:))
+        let answer = passkeys.answer(
+            method: method, path: path, email: account?.email, mustChangePassword: account?.mustChangePassword ?? false,
+            cookie: cookie, body: body
+        )
+        switch answer {
+        case .reply(let status, let body, let extra):
+            return (status, body, headers.merging(extra) { _, new in new })
+        case .signIn(let email):
+            let (status, body) = startSession { $0.email == email }
+            return (status, body, headers)
+        }
     }
 
     private typealias Reply = (Int, [String: Any])
@@ -263,8 +288,13 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary {
 
     private func signIn(email: String, password: String) -> Reply {
         let normalized = email.lowercased()
+        return startSession { $0.email == normalized && $0.password == password }
+    }
+
+    /// A new session for the account that matches, as a sign-in answers it.
+    private func startSession(for matches: (Account) -> Bool) -> Reply {
         let signedIn = state.withLock { state -> (String, Account)? in
-            guard let account = state.accounts.first(where: { $0.email == normalized && $0.password == password }) else { return nil }
+            guard let account = state.accounts.first(where: matches) else { return nil }
             state.tokenCount += 1
             let token = state.tokenCount == 1 ? Self.sessionToken : "\(Self.sessionToken)-\(state.tokenCount)"
             state.sessions[token] = account.email

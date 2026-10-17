@@ -26,6 +26,7 @@ final class QBankUITests: XCTestCase {
 
         signIn(app, email: nil, password: Self.password)
         dismissSavePassword(app)
+        declinePasskeyOffer(app)
         XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 10), "lands on the course she used last")
         XCTAssertTrue(app.buttons["course.page.Exam 1"].waitForExistence(timeout: 5))
         let summary = app.descendants(matching: .any)["course.summary"]
@@ -75,6 +76,7 @@ final class QBankUITests: XCTestCase {
         newPassword.typeText("-and-longer")
         app.buttons["choosePassword.save"].tap()
         dismissSavePassword(app)
+        declinePasskeyOffer(app)
         XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 10))
     }
 
@@ -286,33 +288,6 @@ final class QBankUITests: XCTestCase {
     private func type(_ field: XCUIElement, _ text: String) {
         field.tap()
         field.typeText(text)
-    }
-
-    /// Fills the sign-in form and presses Sign in. A nil email keeps what is in the field.
-    @MainActor
-    private func signIn(_ app: XCUIApplication, email: String?, password: String) {
-        if let email {
-            let field = app.textFields["signIn.email"]
-            field.tap()
-            field.typeText(email)
-        }
-        let field = app.secureTextFields["signIn.password"]
-        field.tap()
-        field.typeText(password)
-        app.buttons["signIn.submit"].tap()
-    }
-
-    /// iOS offers to save the password after a sign-in; the tests decline, as she may.
-    @MainActor
-    private func dismissSavePassword(_ app: XCUIApplication) {
-        let notNow = app.buttons["Not Now"]
-        guard notNow.waitForExistence(timeout: 4) else { return }
-        // A tap while the prompt is still animating in does not register: tap until it is gone.
-        for _ in 0..<5 {
-            if notNow.isHittable { notNow.tap() }
-            if notNow.waitForNonExistence(timeout: 2) { return }
-        }
-        XCTFail("The Save Password prompt did not go away")
     }
 
     @MainActor

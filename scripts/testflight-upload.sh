@@ -27,6 +27,8 @@ set -euo pipefail
 
 SCHEME="QBank"
 BUNDLE_ID="com.dimitrygallego.qbank"
+# The app's one entitlement, for passkeys: the web domain's webcredentials.
+ASSOCIATED_DOMAIN="webcredentials:qbank.dimitrygallego.com"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 SELF="$SCRIPT_DIR/$(basename "${BASH_SOURCE[0]}")"
 
@@ -146,7 +148,7 @@ expect_plist() {
 # Proves the IPA is the build this run meant to make, signed for App Store
 # Connect distribution, before anything is uploaded.
 check_export() {
-  local ipa="$1" version="$2" build_number="$3" team_id="$4" app profile signature
+  local ipa="$1" version="$2" build_number="$3" team_id="$4" app profile signature entitlements
   [ -f "$ipa" ] || die "the export made no $(basename "$ipa"); see $out/export.log"
   unzip -q "$ipa" -d "$work/ipa"
   app="$work/ipa/Payload/$SCHEME.app"
@@ -169,13 +171,23 @@ check_export() {
     die "the provisioning profile is not an App Store profile"
   fi
 
+  # Passkeys work only in an app signed with the web domain's webcredentials, under a
+  # profile whose App ID has Associated Domains (automatic signing adds it; see docs/release.md).
+  /usr/libexec/PlistBuddy -c 'Print :Entitlements:com.apple.developer.associated-domains' "$profile" >/dev/null 2>&1 ||
+    die "the provisioning profile does not allow Associated Domains; see docs/release.md"
+  entitlements="$work/entitlements.plist"
+  codesign -d --entitlements - --xml "$app" >"$entitlements" 2>/dev/null ||
+    die "could not read the entitlements of $SCHEME.app"
+  [ "$(/usr/libexec/PlistBuddy -c 'Print :com.apple.developer.associated-domains:0' "$entitlements" 2>/dev/null)" = "$ASSOCIATED_DOMAIN" ] ||
+    die "$SCHEME.app is not signed with $ASSOCIATED_DOMAIN, so passkeys would not work"
+
   codesign --verify --deep --strict "$app" || die "$SCHEME.app fails codesign --verify"
   signature="$(codesign -d --verbose=2 "$app" 2>&1)" || die "could not read the signature of $SCHEME.app"
   case "$signature" in
     *"Authority=Apple Distribution: "* | *"Authority=iPhone Distribution: "*) ;;
     *) die "$SCHEME.app is not signed with a distribution certificate" ;;
   esac
-  log "export check passed: $BUNDLE_ID $version ($build_number), App Store profile and distribution signature for team $team_id"
+  log "export check passed: $BUNDLE_ID $version ($build_number), App Store profile and distribution signature for team $team_id, $ASSOCIATED_DOMAIN"
 }
 
 upload_with_vault() {

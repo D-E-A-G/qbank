@@ -30,6 +30,10 @@ final class AppModel {
     let lock: AppLock
     /// Whether the phone has a network path.
     let connection: Connection
+    /// The device's passkeys, for signing in and for saving one on her account.
+    let passkeys: PasskeyAuthenticator
+    /// The offer to save a passkey after a password sign-in.
+    let passkeyOffer: PasskeyOffer
     /// Saved courses and unsent answers for the account on this phone. Nil when signed out.
     private(set) var offline: OfflineStore?
 
@@ -42,13 +46,17 @@ final class AppModel {
         lock: AppLock = AppLock(),
         storage: PhoneStorage,
         connection: Connection = Connection(),
-        networkWatcher: NetworkWatcher? = nil
+        networkWatcher: NetworkWatcher? = nil,
+        passkeys: PasskeyAuthenticator = SystemPasskeyAuthenticator(),
+        passkeyOffer: PasskeyOffer = PasskeyOffer()
     ) {
         self.client = client
         self.look = look
         self.lock = lock
         self.storage = storage
         self.connection = connection
+        self.passkeys = passkeys
+        self.passkeyOffer = passkeyOffer
         self.networkWatcher = networkWatcher
         let stored = try? client.storedSession()
         route = stored?.account.map(Self.route(for:)) ?? .signedOut
@@ -83,19 +91,43 @@ final class AppModel {
         await lock.becameActive()
     }
 
-    /// After a password sign-in.
-    func signedIn(_ signedIn: SignedIn, password: String) {
+    /// After a sign-in with her password, or with a passkey (`password` nil). A password sign-in
+    /// offers to save a passkey, as the web does.
+    func signedIn(_ signedIn: SignedIn, password: String?) {
         signedOutReason = nil
         hasLanded = false
         lock.signedIn()
         temporaryPassword = signedIn.user.mustChangePassword ? password : nil
         route = Self.route(for: signedIn.user)
+        if password != nil, !signedIn.user.mustChangePassword {
+            offerPasskey(to: signedIn.user)
+        }
     }
 
-    /// After she chose a new password.
+    /// After she chose a new password: in place of the owner's temporary one, which offers to save
+    /// a passkey as a password sign-in does, or in Settings, which does not.
     func passwordChosen(_ signedIn: SignedIn) {
+        let replacedTemporary = if case .choosingPassword = route { true } else { false }
         temporaryPassword = nil
         route = Self.route(for: signedIn.user)
+        if replacedTemporary {
+            offerPasskey(to: signedIn.user)
+        }
+    }
+
+    /// A device without a passcode cannot keep a passkey, so it is not offered one.
+    private func offerPasskey(to account: Account) {
+        guard lock.method != nil else { return }
+        passkeyOffer.open(for: account)
+    }
+
+    /// Saves a passkey for her account on this device, named for it ("iPhone"), as Settings and the
+    /// offer after a password sign-in do. Throws `QBankError`, or `PasskeyFailure` from the device.
+    @discardableResult
+    func savePasskey() async throws -> Passkey {
+        let options = try await client.passkeyRegistrationOptions()
+        let registration = try await passkeys.save(options)
+        return try await client.savePasskey(registration, answering: options, name: Device.model)
     }
 
     /// Ends the session on the server and on this phone. The phone forgets it even without signal,
@@ -145,6 +177,7 @@ final class AppModel {
         signedOutReason = reason
         temporaryPassword = nil
         hasLanded = false
+        passkeyOffer.close()
         route = .signedOut
     }
 

@@ -5,6 +5,7 @@ import SwiftUI
 /// Where a Settings row leads.
 enum SettingsRoute: Hashable {
     case changePassword
+    case passkeys
     case semester(String)
     case course(String)
     case savedForOffline
@@ -15,6 +16,7 @@ enum SettingsRoute: Hashable {
 struct SettingsView: View {
     let app: AppModel
     @State private var catalog: CatalogModel
+    @State private var passkeys: PasskeysModel
     @State private var path = NavigationPath()
     @State private var isSigningOut = false
     @State private var asksToSignOut = false
@@ -23,6 +25,7 @@ struct SettingsView: View {
     init(app: AppModel) {
         self.app = app
         _catalog = State(initialValue: CatalogModel(app: app))
+        _passkeys = State(initialValue: PasskeysModel(app: app))
     }
 
     var body: some View {
@@ -49,11 +52,16 @@ struct SettingsView: View {
             .qbankScreenBackground()
             .navigationTitle("Settings")
             .screenColumnTitle()
-            .refreshable { await catalog.load() }
+            .refreshable {
+                await catalog.load()
+                await passkeys.load()
+            }
             .navigationDestination(for: SettingsRoute.self) { route in
                 switch route {
                 case .changePassword:
                     ChangePasswordView(app: app)
+                case .passkeys:
+                    PasskeysView(model: passkeys, lock: app.lock)
                 case .semester(let id):
                     SemesterView(catalog: catalog, id: id)
                 case .course(let id):
@@ -66,6 +74,9 @@ struct SettingsView: View {
         .task {
             guard catalog.isEditable else { return }
             await catalog.load()
+        }
+        .task {
+            await passkeys.load()
         }
         .task(id: app.offline?.savedRevision) {
             savedCourses = await app.offline?.savedCourses()
@@ -92,9 +103,11 @@ struct SettingsView: View {
             }
             .buttonStyle(.qbankRow)
             .accessibilityIdentifier("settings.changePassword")
-            QBankListRow("Passkeys", detail: "Coming in a later update", showsChevron: true)
-                .opacity(0.4)
-                .accessibilityIdentifier("settings.passkeys")
+            NavigationLink(value: SettingsRoute.passkeys) {
+                QBankListRow("Passkeys", value: passkeys.count, showsChevron: true)
+            }
+            .buttonStyle(.qbankRow)
+            .accessibilityIdentifier("settings.passkeys")
             Button {
                 if app.offline?.waiting.isEmpty == false {
                     asksToSignOut = true

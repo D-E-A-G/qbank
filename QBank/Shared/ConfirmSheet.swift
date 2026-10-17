@@ -31,13 +31,18 @@ extension View {
     }
 }
 
-private struct ConfirmSheet: View {
+/// The sheet `confirmSheet` shows. Shown by itself, it can also stay open while its action runs,
+/// with a problem line when the action fails, as the offer to save a passkey does.
+struct ConfirmSheet: View {
     let title: String
     let message: String
     let confirm: String
-    let isDestructive: Bool
-    let cancel: String
+    var isDestructive = true
+    var cancel = "Cancel"
     let identifier: String
+    /// True while the action runs: the buttons wait, and the sheet stays.
+    var isBusy = false
+    var problem: String?
     let answer: (Bool) -> Void
     @State private var height: CGFloat = 280
 
@@ -54,13 +59,29 @@ private struct ConfirmSheet: View {
                 .foregroundStyle(.qbank(.text2))
                 .multilineTextAlignment(.center)
                 .padding(.bottom, QBankSpacing.space3)
-            Button(confirm) { answer(true) }
-                .buttonStyle(.qbank(isDestructive ? .destructive : .primary, size: .large, fullWidth: true))
-                .accessibilityIdentifier("\(identifier).confirm")
+            if let problem {
+                ProblemText(text: problem)
+                    .padding(.bottom, QBankSpacing.space2)
+            }
+            Button {
+                answer(true)
+            } label: {
+                if isBusy {
+                    ProgressView()
+                        .tint(QBankColor(.textOnTint))
+                        .accessibilityLabel(confirm)
+                } else {
+                    Text(confirm)
+                }
+            }
+            .buttonStyle(.qbank(isDestructive ? .destructive : .primary, size: .large, fullWidth: true))
+            .accessibilityIdentifier("\(identifier).confirm")
             Button(cancel) { answer(false) }
                 .buttonStyle(.qbank(.quiet, size: .large, fullWidth: true))
                 .accessibilityIdentifier("\(identifier).cancel")
         }
+        .disabled(isBusy)
+        .interactiveDismissDisabled(isBusy)
         .fixedSize(horizontal: false, vertical: true)
         .padding(.horizontal, QBankSpacing.gutterPhone)
         .padding(.top, 28)

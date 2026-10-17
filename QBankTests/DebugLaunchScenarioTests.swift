@@ -47,6 +47,50 @@ struct DebugLaunchScenarioTests {
         #expect(hub.inProgress.count == (isSetUp ? 2 : 0))
     }
 
+    @Test func passkeysAreTheSystemsUnlessTheTestSetsThemUp() {
+        #expect(DebugLaunchScenario.passkeysKind(in: [:]) == nil)
+        #expect(DebugLaunchScenario.passkeysKind(in: [DebugLaunchScenario.passkeysKey: "synced"]) == .synced)
+        let app = Self.launch([DebugLaunchScenario.scenarioKey: "signed-out"])
+        #expect(app?.passkeys is SystemPasskeyAuthenticator)
+    }
+
+    @Test func fakeServerSignsInWithThePasskeyFromHerMac() async throws {
+        let app = try #require(Self.launch([DebugLaunchScenario.scenarioKey: "signed-out", DebugLaunchScenario.passkeysKey: "synced"]))
+        let model = SignInModel(app: app)
+        await model.signInWithPasskey()
+        #expect(model.problem == nil)
+        #expect(app.account?.email == FakeQBankServer.student.email)
+        #expect(app.passkeyOffer.isOpen == false)
+    }
+
+    @Test func fakeServerSavesListsAndRemovesPasskeys() async throws {
+        let app = try #require(Self.launch([DebugLaunchScenario.scenarioKey: "signed-in", DebugLaunchScenario.passkeysKey: "none"]))
+        let passkeys = PasskeysModel(app: app)
+        await passkeys.load()
+        #expect(passkeys.passkeys?.map(\.name) == ["MacBook Air"])
+        await passkeys.save()
+        #expect(passkeys.problem == nil)
+        #expect(passkeys.passkeys?.map(\.name) == ["MacBook Air", Device.model])
+
+        // The passkey just saved signs her in again.
+        await app.signOut()
+        let signIn = SignInModel(app: app)
+        await signIn.signInWithPasskey()
+        #expect(signIn.problem == nil)
+        #expect(app.account?.email == FakeQBankServer.student.email)
+
+        await passkeys.remove(try #require(passkeys.passkeys?.first))
+        await passkeys.load()
+        #expect(passkeys.passkeys?.map(\.name) == [Device.model])
+    }
+
+    @Test func fakeServerKnowsTheSyncedPasskeyIsOnTheDevice() async throws {
+        let app = try #require(Self.launch([DebugLaunchScenario.scenarioKey: "signed-in", DebugLaunchScenario.passkeysKey: "synced"]))
+        let passkeys = PasskeysModel(app: app)
+        await passkeys.save()
+        #expect(passkeys.problem == "This \(Device.model) already has a passkey for your account.")
+    }
+
     @Test func fakeServerSignsInAndRefusesWrongPasswords() async throws {
         let app = try #require(Self.launch("signed-out"))
         let model = SignInModel(app: app)

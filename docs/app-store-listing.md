@@ -63,6 +63,7 @@ Study without signal
 
 Private by design
 - No ads, no tracking, no third-party analytics.
+- Sign in with a passkey instead of your password.
 - Lock QBank with Face ID, Touch ID or your passcode.
 - Export your answers and progress as a file whenever you like.
 
