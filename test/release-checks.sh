@@ -194,12 +194,39 @@ fi
 # An iPad app that shares the screen must support every orientation.
 require_grep 'INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";' "$PBXPROJ" "the iPad supports every orientation"
 require_grep 'INFOPLIST_KEY_NSFaceIDUsageDescription = "[^"]+";' "$PBXPROJ" "the app says why it asks for Face ID"
-# The captain installs with a free Personal Team, which cannot sign capabilities.
-if git ls-files | grep -qE '\.entitlements$' || grep -qE 'CODE_SIGN_ENTITLEMENTS' "$PBXPROJ"; then
-  fail "the app needs no entitlements, so a free Personal Team can sign it"
+# Passkeys need the web domain's webcredentials, and that is the app's one
+# entitlement. Associated Domains needs the paid team (a free Personal Team
+# cannot sign it), and every capability needs its App ID step in
+# docs/release.md, so no other one comes in unnoticed.
+ENTITLEMENTS=QBank/QBank.entitlements
+entitlement_files="$(git ls-files | grep -E '\.entitlements$' || true)"
+if [ "$entitlement_files" = "$ENTITLEMENTS" ]; then
+  pass "$ENTITLEMENTS is the only entitlements file"
 else
-  pass "the app needs no entitlements, so a free Personal Team can sign it"
+  fail "$ENTITLEMENTS is the only entitlements file (found: ${entitlement_files:-none})"
 fi
+entitlement_settings="$(grep -oE 'CODE_SIGN_ENTITLEMENTS = [^;]+;' "$PBXPROJ" | sort | uniq -c | sed 's/^ *//')"
+if [ "$entitlement_settings" = "2 CODE_SIGN_ENTITLEMENTS = $ENTITLEMENTS;" ]; then
+  pass "the app's Debug and Release builds sign with $ENTITLEMENTS"
+else
+  fail "the app's Debug and Release builds sign with $ENTITLEMENTS (found: ${entitlement_settings:-none})"
+fi
+if command -v plutil >/dev/null 2>&1; then
+  if plutil -lint "$ENTITLEMENTS" >/dev/null; then
+    pass "plutil -lint accepts $ENTITLEMENTS"
+  else
+    fail "plutil -lint accepts $ENTITLEMENTS"
+  fi
+fi
+ruby_check "the app's only entitlement is webcredentials:qbank.dimitrygallego.com" "$ENTITLEMENTS" '
+  require "rexml/document"
+  doc = REXML::Document.new(File.read(ARGV[0]))
+  dict = doc.root&.elements&.[]("dict") or abort "#{ARGV[0]} has no dict"
+  keys = dict.get_elements("key").map(&:text)
+  abort "the entitlements are #{keys.inspect}" unless keys == ["com.apple.developer.associated-domains"]
+  domains = dict.get_elements("array").first.get_elements("string").map(&:text)
+  abort "the associated domains are #{domains.inspect}" unless domains == ["webcredentials:qbank.dimitrygallego.com"]
+'
 
 require_grep 'PRODUCT_BUNDLE_IDENTIFIER = com\.dimitrygallego\.qbank;' "$PBXPROJ" "app bundle id is com.dimitrygallego.qbank"
 require_grep 'INFOPLIST_KEY_CFBundleDisplayName = QBank;' "$PBXPROJ" "app display name is QBank"
@@ -477,6 +504,7 @@ ruby_check "$UPLOAD never prints a vault value" "$UPLOAD" "$SCRIPT_RUBY"'
 forbid_grep '(^|[;&|[:space:]])set[[:space:]]+-[[:alnum:]]*x|xtrace' "$UPLOAD" "$UPLOAD never turns on xtrace"
 require_grep 'CODE_SIGN_STYLE=Automatic' "$UPLOAD" "$UPLOAD archives with automatic signing"
 require_grep '-allowProvisioningUpdates' "$UPLOAD" "$UPLOAD lets the Xcode account provision the archive"
+require_grep '^ASSOCIATED_DOMAIN="webcredentials:qbank\.dimitrygallego\.com"$' "$UPLOAD" "$UPLOAD checks the IPA is signed for passkeys"
 forbid_grep '-authenticationKey(Path|ID|IssuerID)' "$UPLOAD" "$UPLOAD signs through the Xcode account, never an API key"
 require_grep 'DEVELOPMENT_TEAM="\$team_id"' "$UPLOAD" "$UPLOAD takes the team id from --team-id or APPLE_TEAM_ID"
 require_grep 'die "no Apple team ID' "$UPLOAD" "$UPLOAD fails when the team id is missing"

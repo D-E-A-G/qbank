@@ -5,19 +5,22 @@ extension XCTestCase {
     /// `keepPhoneSettings` keeps the settings an earlier launch saved on the phone, and
     /// `keepPhoneData` the courses it saved and the answers it left waiting. `online: false`
     /// starts without a network. `deviceOwner` is how the device answers the Face ID lock, such as
-    /// `face-id` (`QB_UITEST_DEVICE_OWNER`); every launch gets a fake one, so the simulator's own
-    /// Face ID never plays a part.
+    /// `face-id` (`QB_UITEST_DEVICE_OWNER`), and `passkeys` what passkeys it has, such as `synced`
+    /// (`QB_UITEST_PASSKEYS`); every launch gets fakes of both, so the simulator's own Face ID and
+    /// passkey sheet never play a part.
     @MainActor
     func launch(
         _ scenario: String,
         keepPhoneSettings: Bool = false,
         keepPhoneData: Bool = false,
         online: Bool = true,
-        deviceOwner: String = "face-id"
+        deviceOwner: String = "face-id",
+        passkeys: String = "none"
     ) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchEnvironment["QB_UITEST_SCENARIO"] = scenario
         app.launchEnvironment["QB_UITEST_DEVICE_OWNER"] = deviceOwner
+        app.launchEnvironment["QB_UITEST_PASSKEYS"] = passkeys
         if keepPhoneSettings {
             app.launchEnvironment["QB_UITEST_KEEP_PHONE_SETTINGS"] = "1"
         }
@@ -157,6 +160,49 @@ extension XCTestCase {
         let bar = app.navigationBars[title]
         bar.buttons.firstMatch.tap()
         XCTAssertTrue(bar.waitForNonExistence(timeout: 5), "still on \(title)")
+    }
+
+    /// Fills the sign-in form and presses Sign in. A nil email keeps what is in the field.
+    @MainActor
+    func signIn(_ app: XCUIApplication, email: String?, password: String) {
+        if let email {
+            let field = app.textFields["signIn.email"]
+            field.tap()
+            field.typeText(email)
+        }
+        let field = app.secureTextFields["signIn.password"]
+        field.tap()
+        field.typeText(password)
+        app.buttons["signIn.submit"].tap()
+    }
+
+    /// iOS offers to save the password after a sign-in; the tests decline, as she may.
+    @MainActor
+    func dismissSavePassword(_ app: XCUIApplication) {
+        let notNow = app.buttons["Not Now"]
+        guard notNow.waitForExistence(timeout: 4) else { return }
+        // A tap while the prompt is still animating in does not register: tap until it is gone.
+        for _ in 0..<5 {
+            if notNow.isHittable { notNow.tap() }
+            if notNow.waitForNonExistence(timeout: 2) { return }
+        }
+        XCTFail("The Save Password prompt did not go away")
+    }
+
+    /// QBank's offer to save a passkey after a password sign-in, once it is on screen.
+    @MainActor
+    func passkeyOffer(_ app: XCUIApplication) -> XCUIElement {
+        let offer = app.descendants(matching: .any)["passkeyOffer"]
+        XCTAssertTrue(offer.waitForExistence(timeout: 10), "no passkey offer")
+        return offer
+    }
+
+    /// Answers QBank's passkey offer with Not now, and waits until it has gone.
+    @MainActor
+    func declinePasskeyOffer(_ app: XCUIApplication) {
+        let offer = passkeyOffer(app)
+        tapWhenStill(app.buttons["passkeyOffer.cancel"])
+        XCTAssertTrue(offer.waitForNonExistence(timeout: 5), "the passkey offer stayed")
     }
 
     /// Opens a folder from the course page, through its exam page when it is on one.

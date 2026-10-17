@@ -9,8 +9,9 @@ final class StubServer: HTTPTransport {
     struct Reply: Sendable {
         let status: Int
         let body: String
+        var headers: [String: String] = [:]
 
-        static func ok(_ body: String) -> Reply { Reply(status: 200, body: body) }
+        static func ok(_ body: String, headers: [String: String] = [:]) -> Reply { Reply(status: 200, body: body, headers: headers) }
 
         static func error(_ status: Int, _ code: String, _ message: String) -> Reply {
             Reply(status: status, body: #"{"error":"\#(code)","message":"\#(message)"}"#)
@@ -84,7 +85,7 @@ final class StubServer: HTTPTransport {
             for await _ in gate {}
         }
         if reply.status < 0 { throw URLError(.notConnectedToInternet) }
-        let response = HTTPURLResponse(url: request.url!, statusCode: reply.status, httpVersion: nil, headerFields: nil)!
+        let response = HTTPURLResponse(url: request.url!, statusCode: reply.status, httpVersion: nil, headerFields: reply.headers)!
         return (Data(reply.body.utf8), response)
     }
 }
@@ -99,12 +100,16 @@ enum TestApp {
     ///     same storage finds what this one left, as a relaunch does.
     ///   - connection: The phone's network path, online unless a test turns it off.
     ///   - lock: The Face ID lock, off on a device with Face ID unless a test gives another.
+    ///   - passkeys: The device's passkeys, none for QBank unless a test gives another.
+    ///   - defaults: Where the phone keeps its settings, empty and the test's own unless it gives one.
     static func make(
         _ server: StubServer,
         account: Account? = nil,
         storage: PhoneStorage = .memory(),
         connection: Connection = Connection(),
-        lock: AppLock? = nil
+        lock: AppLock? = nil,
+        passkeys: PasskeyAuthenticator = DebugPasskeyAuthenticator(.none),
+        defaults: UserDefaults = TestApp.freshDefaults()
     ) -> (AppModel, InMemorySessionStore) {
         let store = InMemorySessionStore(account.map { StoredSession(token: token, expiresAt: nil, account: $0) })
         let client = QBankClient(
@@ -112,13 +117,14 @@ enum TestApp {
             transport: server,
             sessionStore: store
         )
-        let defaults = freshDefaults()
         let app = AppModel(
             client: client,
             look: LookStore(defaults: defaults),
             lock: lock ?? AppLock(defaults: defaults, owner: DebugDeviceOwner(.faceID)),
             storage: storage,
-            connection: connection
+            connection: connection,
+            passkeys: passkeys,
+            passkeyOffer: PasskeyOffer(defaults: defaults)
         )
         return (app, store)
     }
@@ -181,6 +187,27 @@ enum Bodies {
     static func decodeSemesters(_ body: String) throws -> [Semester] {
         struct Response: Decodable { let semesters: [Semester] }
         return try QBankJSON.decoder.decode(Response.self, from: Data(body.utf8)).semesters
+    }
+
+    /// The challenge cookie a passkey options answer sets.
+    static let passkeyCookie = ["Set-Cookie": "__Secure-better-auth.better-auth-passkey=synthetic-ticket.c2lnbmVk%3D; Max-Age=300; Path=/; HttpOnly; Secure; SameSite=Lax"]
+
+    static func passkeySignInOptions() -> String {
+        #"{"rpId":"qbank.dimitrygallego.com","challenge":"c3ludGhldGljLWNoYWxsZW5nZQ","timeout":60000,"userVerification":"preferred"}"#
+    }
+
+    /// `excluding` names the account's passkeys by credential id, as text.
+    static func passkeyRegistrationOptions(excluding: [String] = []) -> String {
+        let excluded = excluding.map { #"{"id":"\#(Base64URL.encode(Data($0.utf8)))","type":"public-key"}"# }.joined(separator: ",")
+        return #"{"challenge":"c3ludGhldGljLWNoYWxsZW5nZQ","rp":{"name":"Qbank","id":"qbank.dimitrygallego.com"},"user":{"id":"c3ludGhldGljLXVzZXI","name":"student@example.com","displayName":"student@example.com"},"excludeCredentials":[\#(excluded)],"authenticatorSelection":{"residentKey":"preferred","userVerification":"preferred"}}"#
+    }
+
+    static func passkey(id: String = "p1", name: String? = "iPhone") -> String {
+        #"{"id":"\#(id)","name":\#(name.map { "\"\($0)\"" } ?? "null"),"createdAt":"2026-10-16T12:00:00.000Z","deviceType":"multiDevice"}"#
+    }
+
+    static func passkeys(_ passkeys: [String]) -> String {
+        #"{"passkeys":[\#(passkeys.joined(separator: ","))]}"#
     }
 
     static func place(_ courseID: String?) -> String {

@@ -20,15 +20,16 @@ Today every QBank account is made by the owner, and the app has no sign-up (pick
 
 The reviewer needs to understand this, so the review notes below say it in short.
 
-1. The app opens on **Sign in**: email and password fields and a **Sign in** button. There is no **Sign up** button; accounts are made by the server's owner on the QBank web app.
+1. The app opens on **Sign in**: email and password fields, a **Sign in** button, and **Sign in with a passkey**. There is no **Sign up** button; accounts are made by the server's owner on the QBank web app.
 2. The app sends the email and password over HTTPS to the QBank server, `https://qbank.dimitrygallego.com`, which answers with a session token. The app keeps the token in the iOS Keychain and sends it with every request. The password is never stored on the phone.
 3. After 5 wrong passwords the server locks that email for a short time and says how long; the app shows that message.
 4. **Forgot password?** explains that the app sends no email: the owner sets a temporary password from his admin account, and the student chooses a new one at the next sign-in (the **Choose a new password** screen).
 5. Signed in, the app opens on Home (courses by semester) and stays signed in for months unless the student signs out in Settings.
+6. After a password sign-in the app offers once to save a passkey for that device (**Not now** declines). A passkey is saved with the iOS passkey sheet, signs in through the same sheet with Face ID, Touch ID or the passcode, and is listed and removed in **Settings > Passkeys**. The app sends the server only the passkey's public key and signatures, never a biometric.
 
 Login rules this meets:
 
-- **Guideline 4.8 (Sign in with Apple)** does not apply: QBank uses only its own account system, no third-party or social login.
+- **Guideline 4.8 (Sign in with Apple)** does not apply: QBank uses only its own account system, no third-party or social login. Passkeys are a way into that same account.
 - **Guideline 5.1.1(v), account deletion:** required only for apps that let people create an account. QBank's app does not; accounts are made and removed by the owner, and the privacy policy says how to ask for deletion. If a later version adds sign-up in the app, it must add **Delete account** in the app too, which needs a new server endpoint.
 - **Guideline 2.1, demo account:** required because the app has a login; see below. The server must be up during review.
 

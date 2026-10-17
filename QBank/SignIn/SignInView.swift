@@ -82,9 +82,21 @@ struct SignInView: View {
                 }
             }
             .buttonStyle(.qbank(.primary, size: .large, fullWidth: true))
-            .disabled(model.isSigningIn)
+            .disabled(model.isBusy)
             .accessibilityIdentifier("signIn.submit")
             .padding(.top, 2)
+
+            Button(action: signInWithPasskey) {
+                if model.isUsingPasskey {
+                    ProgressView()
+                        .accessibilityLabel("Signing in with a passkey")
+                } else {
+                    Label("Sign in with a passkey", systemImage: "faceid")
+                }
+            }
+            .buttonStyle(.qbank(.secondary, size: .large, fullWidth: true))
+            .disabled(model.isBusy)
+            .accessibilityIdentifier("signIn.passkey")
 
             forgotPassword
         }
@@ -111,6 +123,11 @@ struct SignInView: View {
     private func signIn() {
         focus = nil
         Task { await model.signIn() }
+    }
+
+    private func signInWithPasskey() {
+        focus = nil
+        Task { await model.signInWithPasskey() }
     }
 }
 

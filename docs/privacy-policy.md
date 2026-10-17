@@ -24,6 +24,7 @@ QBank is an iPhone and iPad app for practicing nursing exam questions (NCLEX sty
 ### 1. Your account
 
 - **Email address and password.** You sign in with the email address and password of your QBank account. The server stores the email address and a one-way hash of the password, never the password itself. The app sends your password only to the QBank server, over HTTPS, at sign-in, and does not store it. iOS may offer to save it in your own Passwords app; that is Apple's feature and under your control.
+- **Passkeys.** You can save a passkey for your account, in the app or on the web, and sign in with it instead of your password. The passkey's private key stays in your Passwords app, or the passkey app you chose, and never leaves your devices; iOS checks your face, fingerprint, or passcode before using it. When you save one, the server keeps its public key and id, a name (in the app, the device it was saved on, such as "iPhone"), when it was saved, and what the device reported about it (whether it syncs between your devices, and how it can be used). Signing in sends only a signature over a one-time challenge. Settings lists your passkeys and removes them; a removed passkey no longer signs you in, and its copy in your Passwords app stays until you delete it there.
 - **Display name.** Your account has a name, set by the owner when the account is made. The app may show it; it does not ask you for one.
 - **Account role.** Whether the account is a student or the owner's admin account, and whether you must choose a new password at your next sign-in.
 
@@ -56,7 +57,7 @@ Your answers and progress are yours alone among students: other students cannot 
 ### 5. What stays on your device
 
 - **Saved for offline.** So you can practice without a signal, the app keeps a copy of the courses on your Home screen, with their sets and questions, and your recent progress, plus the Review list and terms of each course you open, in its own storage on the device. It saves them by itself while it is online. Answers you give without a connection are scored on the device and wait there until they can be sent. The server ignores an answer it already has, so nothing is counted twice. Exams need a connection and are not kept for offline use.
-- **Settings on the device.** Your light or dark look choice, and whether the Face ID lock is on, are stored on the device.
+- **Settings on the device.** Your light or dark look choice, whether the Face ID lock is on, and whether you answered the offer to save a passkey are stored on the device.
 - **The Face ID lock.** When you turn it on, iOS checks your face, fingerprint, or passcode and tells the app only whether it matched. The app never receives or stores any biometric data, and nothing about the lock is sent to the server.
 - **Signing out** removes the session token, the offline copy, and any answers still waiting to send. The app warns you before it removes answers that have not been sent.
 - Deleting the app removes everything it stored on that device.
@@ -93,9 +94,8 @@ QBank is made for nursing students preparing for licensing exams. It is not dire
 
 ## Features that will change this policy
 
-These are planned and are not in the app yet. Each one updates this policy before it ships:
+This is planned and is not in the app yet. It updates this policy before it ships:
 
-- **Passkeys sign-in:** the server would keep each passkey's public key, name, and creation date (it already does for the web app); the private key never leaves your Apple device.
 - **Using the app on this device without an account:** courses, answers, and progress would stay only on the device and nothing would be sent to the server.
 
 ## Contact

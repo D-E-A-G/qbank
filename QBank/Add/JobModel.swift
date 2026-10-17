@@ -84,7 +84,9 @@ final class JobModel {
     private func loadDetails(of next: QuestionJob) async throws(QBankError) {
         switch (next.status, next.waitingFor) {
         case (.waiting, .samples?):
-            if samples == nil || job?.updatedAt != next.updatedAt {
+            // A set that comes back to her samples after running again has new ones, even when
+            // both of its updates fell in the same millisecond.
+            if samples == nil || job?.waitingFor != .samples || job?.updatedAt != next.updatedAt {
                 take(try await app.client.questionSamples(jobID: id))
             }
         case (.waiting, .copies?):

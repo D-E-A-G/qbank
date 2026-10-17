@@ -1,0 +1,22 @@
+{
+  "recordedFrom": "fe9f73e7ea2e798593f98c2d269999405105c662",
+  "request": {
+    "method": "GET",
+    "path": "/api/sign-in/passkey/options",
+    "query": {},
+    "authorization": null,
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Set-Cookie": "__Secure-better-auth.better-auth-passkey=aVMdf5cfdXPWBHmpZwCuuU-6oLqyXord.wEtfjhNgznupCj03deRFK3rC7mRtkCIfIFj0ZHXLWY0%3D; Max-Age=300; Path=/; HttpOnly; Secure; SameSite=Lax"
+    },
+    "body": {
+      "rpId": "qbank.dimitrygallego.com",
+      "challenge": "MVVLzKUxrSNJ-IyTJLSKq6WIVLV6z11KJQROUO-WHmw",
+      "timeout": 60000,
+      "userVerification": "preferred"
+    }
+  }
+}

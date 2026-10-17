@@ -1,0 +1,54 @@
+{
+  "recordedFrom": "fe9f73e7ea2e798593f98c2d269999405105c662",
+  "request": {
+    "method": "GET",
+    "path": "/api/passkeys/options",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Set-Cookie": "__Secure-better-auth.better-auth-passkey=JDyimoWNU00HWBP9K3GCLOdJdhgpMa6w.%2FldIM%2FWDOEiW94uCpWyGzLgp%2FkTiKXG2RB3jYGTUtEE%3D; Max-Age=300; Path=/; HttpOnly; Secure; SameSite=Lax"
+    },
+    "body": {
+      "challenge": "6Tt-MPrO5Enp5dAgQ46HbsoyLxj52GBBNJkGwcAZcog",
+      "rp": {
+        "name": "Qbank",
+        "id": "qbank.dimitrygallego.com"
+      },
+      "user": {
+        "id": "OTVxM3VycGJkOGNueWhyZDkxdmJ1eGlhNWM4dXY2NWs",
+        "name": "student@example.com",
+        "displayName": "student@example.com"
+      },
+      "pubKeyCredParams": [
+        {
+          "alg": -8,
+          "type": "public-key"
+        },
+        {
+          "alg": -7,
+          "type": "public-key"
+        },
+        {
+          "alg": -257,
+          "type": "public-key"
+        }
+      ],
+      "timeout": 60000,
+      "attestation": "none",
+      "excludeCredentials": [],
+      "authenticatorSelection": {
+        "residentKey": "preferred",
+        "userVerification": "preferred",
+        "requireResidentKey": false
+      },
+      "extensions": {
+        "credProps": true
+      },
+      "hints": []
+    }
+  }
+}
