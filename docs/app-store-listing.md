@@ -8,8 +8,7 @@ The copy describes only what the build does. Apple rejects a listing that promis
 
 | Field | Value | Limit |
 |---|---|---|
-| Name | **QBank** | 30 characters |
-| Fallback name | **QBank Nursing**, used only if "QBank" is already taken (App Store names are unique worldwide; App Store Connect says so when the record is created) | 30 |
+| Name | **My QBank**, as the app record was created on 2026-10-16 (App Store names are unique worldwide). The name under the icon on the home screen stays **QBank**, from the app's `CFBundleDisplayName`. The App Store name can still change before the first submission. | 30 characters |
 | Subtitle | **NCLEX practice and exams** | 30 |
 | Fallback subtitle | **Nursing practice questions**, if App Review objects to "NCLEX" (see trademark note) | 30 |
 | Bundle ID | `com.dimitrygallego.qbank` (set in the Xcode project) | |

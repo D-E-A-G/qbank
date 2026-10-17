@@ -9,10 +9,10 @@ Phase 2 is done when a build uploaded this way reaches Khine's iPhone through Te
 `scripts/testflight-upload.sh` runs on the owner's MacBook, where Xcode is signed in with his Apple Account. He is the team's Account Holder, so Xcode can create the distribution certificate and the App Store profile itself.
 
 1. It fetches `origin`, resolves the ref it was given (default `origin/main`), refuses a commit that is on no origin branch, and clones that exact commit into a fresh temporary directory. Edits in the checkout it runs from never ship. The commit is recorded in the run's `build.txt`.
-2. It archives the `QBank` scheme in Release with `CODE_SIGN_STYLE=Automatic` and `-allowProvisioningUpdates`. Signing goes through the Xcode account on the Mac. The App Store Connect key plays no part in it: an App Manager key cannot cloud-sign.
-3. It exports an IPA with `scripts/ExportOptions.plist` (method `app-store-connect`, destination `export`), the team ID written only into a temporary copy. Then it checks the IPA: the bundle ID, the version and build number, an App Store profile for the team (no device list, `get-task-allow` false), and a distribution signature.
-4. Only then, as a separate last step, it uploads the IPA with `xcrun altool --upload-app`. Automic Vault asks the owner to **Allow** the three key entries, and they reach that step alone.
-5. Apple processes the build (usually 5 to 30 minutes). With automatic distribution on, it appears in the TestFlight app for the internal testers with an **Install** or **Update** button. Internal builds need no review.
+2. It archives the `QBank` scheme in Release with `CODE_SIGN_STYLE=Automatic` and `-allowProvisioningUpdates`. Signing goes through the Xcode account on the Mac. The App Store Connect key plays no part in it: an App Manager key cannot cloud-sign. The archive is signed for development ("Apple Development" and the "iOS Team Provisioning Profile").
+3. It exports an IPA with `scripts/ExportOptions.plist` (method `app-store-connect`, destination `export`), the team ID written only into a temporary copy. The export re-signs it with a cloud-managed "Apple Distribution" certificate, which never lands in the Mac's keychain, and the "iOS Team Store Provisioning Profile" that Xcode creates on the first run. Neither step raises a Keychain prompt. Then it checks the IPA: the bundle ID, the version and build number, the app icon (`CFBundleIconName` under `CFBundleIcons` and `CFBundleIcons~ipad`), an App Store profile for the team (no device list, `get-task-allow` false), and a distribution signature.
+4. Only then, as a separate last step, it uploads the IPA with `xcrun altool --upload-app`. Automic Vault asks the owner to **Allow** the three key entries (one prompt per run), and they reach that step alone. altool prints `UPLOAD SUCCEEDED` and a **Delivery UUID**, or `UPLOAD FAILED` with Apple's error codes and a non-zero exit (31 for a refused bundle), which fails the run.
+5. Apple processes the build (usually 5 to 30 minutes; the first one was done within 3). `xcrun altool --build-status --delivery-id <Delivery UUID> --output-format json`, with the same key, reports `"build-status" : "VALID"` and `"is-on-app-store-connect" : true` once it is processed, and the build number as `version`. Like the upload, it reads the key through the vault and needs his Allow. With automatic distribution on, it appears in the TestFlight app for the internal testers with an **Install** or **Update** button. Internal builds need no review.
 
 ### Running it
 
@@ -51,13 +51,13 @@ Steps 4 to 9 come before the first upload. Each is done once unless it says othe
 
 - [x] **1. Install Xcode** from the Mac App Store, open it once, and let it install the iOS platform.
 - [x] **2. Join the Apple Developer Program** ($99 a year, individual) with his Apple Account. TestFlight is impossible without it; the free Personal Team cannot upload.
-- [ ] **3. Sign in to Xcode** (Settings > Accounts) with that Apple Account, and check that the paid team, not only the Personal Team, shows under it. The upload's signing depends on this sign-in.
-- [ ] **4. Accept the agreements** waiting in App Store Connect (Business) and on developer.apple.com. A free app needs no Paid Applications agreement.
-- [ ] **5. Create the app record** in [App Store Connect](https://appstoreconnect.apple.com) > Apps > + > New App: platform iOS, name **QBank** (fallback **QBank Nursing** if the name is taken), primary language English (U.S.), bundle ID `com.dimitrygallego.qbank`, SKU `qbank-ios`, user access Full. If the bundle ID is not in the list, register it first under Certificates, Identifiers & Profiles > Identifiers > App IDs, with no extra capabilities.
-- [ ] **6. Invite Khine and make the tester group.** Users and Access > + with her Apple Account email, a low role such as Marketing, access to QBank only; she accepts the email. If she is not offered when adding testers, change her role, as Apple's help says. Then QBank > TestFlight > Internal Testing > +, name `Home`, tick **Enable automatic distribution**, and add himself and Khine.
+- [x] **3. Sign in to Xcode** (Settings > Accounts) with that Apple Account, and check that the paid team, not only the Personal Team, shows under it. The upload's signing depends on this sign-in.
+- [x] **4. Accept the agreements** waiting in App Store Connect (Business) and on developer.apple.com. A free app needs no Paid Applications agreement.
+- [x] **5. Create the app record** in [App Store Connect](https://appstoreconnect.apple.com) > Apps > + > New App: platform iOS, name **My QBank** (see [app-store-listing.md](app-store-listing.md)), primary language English (U.S.), bundle ID `com.dimitrygallego.qbank`, SKU `qbank-ios`, user access Full. If the bundle ID is not in the list, register it first under Certificates, Identifiers & Profiles > Identifiers > App IDs, with no extra capabilities.
+- [x] **6. Invite Khine and make the tester group.** Users and Access > + with her Apple Account email, a low role such as Marketing, access to QBank only; she accepts the email. If she is not offered when adding testers, change her role, as Apple's help says. Then QBank > TestFlight > Internal Testing > +, name `Home`, tick **Enable automatic distribution**, and add himself and Khine.
 - [ ] **7. Khine installs the TestFlight app** from the App Store on her iPhone and taps the invitation email, signed in with the same Apple Account.
-- [ ] **8. Create the App Store Connect API key**, at his Mac: Users and Access > Integrations > App Store Connect API > Team Keys > +, any name (for example `qbank-testflight`), access **App Manager**, not Admin. Note the **Key ID** and the **Issuer ID** shown above the keys table, and download the `.p8` file. Apple offers the download **once**.
-- [ ] **9. Save the key in Automic Vault**, in Terminal on the same Mac. The values never appear on screen or in chat:
+- [x] **8. Create the App Store Connect API key**, at his Mac: Users and Access > Integrations > App Store Connect API > Team Keys > +, any name (for example `qbank-testflight`), access **App Manager**, not Admin. Note the **Key ID** and the **Issuer ID** shown above the keys table, and download the `.p8` file. Apple offers the download **once**.
+- [x] **9. Save the key in Automic Vault**, in Terminal on the same Mac. The values never appear on screen or in chat:
 
   ```sh
   av save APP_STORE_CONNECT_KEY_ID      # hidden prompt: paste the Key ID
@@ -78,7 +78,8 @@ Steps 4 to 9 come before the first upload. Each is done once unless it says othe
 - [ ] **Privacy policy check**: before Khine's first build, re-read every claim in [privacy-policy.md](privacy-policy.md) against the app and the server, fix what differs, and set "Last reviewed against the code".
 - [ ] **Server follow-up in qbank-web** (optional, small): stop recording the IP address and user agent on sessions, which QBank never uses; then drop that line from the policy and the manifest notes.
 - [ ] **Walk the owner through steps 3 to 9**, one step at a time, and confirm each one (for example `av list` on his Mac shows the three names; values are never read back).
-- [ ] **First upload, attended**: `scripts/testflight-upload.sh --no-upload` first, then the upload with his Allow.
+- [x] **App icon**: `QBank/Assets.xcassets/AppIcon.appiconset`, direction A (Q on accent) of the QBank design system in the default Dusk palette, with dark and tinted variants. `test/release-checks.sh` requires each slot to hold a 1024x1024 PNG.
+- [x] **First upload, attended** (2026-10-16): `--no-upload` passed, then QBank 0.1 (1792194900) uploaded with his Allow, built from commit b217465 on the branch that added the icon, and Apple reported it VALID. An earlier attempt was refused because the app had no icon.
 - [ ] **After every upload**: confirm App Store Connect accepted the exact build (the version and build number, processing or ready in TestFlight), not just a script that finished, and tell the owner the build is on Khine's phone.
 
 ## Security boundaries
@@ -100,4 +101,5 @@ Steps 4 to 9 come before the first upload. Each is done once unless it says othe
 - Run it again. It rebuilds with a new build number, so a retry never collides with an earlier upload.
 - If Automic Vault refused or named a missing entry, nothing was uploaded: check that `av list` shows the three names, then run again.
 - "No Accounts", "No signing certificate", or "No profiles for 'com.dimitrygallego.qbank' were found" means Xcode on the Mac is not signed in to the paid team, or a capability was added in code but not enabled on the App ID in the developer portal. Any change that adds a capability (passkeys' Associated Domains, for example) needs that portal step before its upload, which is an owner step.
+- `UPLOAD FAILED` with codes 90022, 90023, or 90713 means the bundle has no app icon. The export check now stops such a build before the vault is read; if it fires, check that every slot in `AppIcon.appiconset` has an image.
 - An upload that succeeded but stays in processing is waited on, not re-uploaded.

@@ -203,6 +203,22 @@ fi
 
 require_grep 'PRODUCT_BUNDLE_IDENTIFIER = com\.dimitrygallego\.qbank;' "$PBXPROJ" "app bundle id is com.dimitrygallego.qbank"
 require_grep 'INFOPLIST_KEY_CFBundleDisplayName = QBank;' "$PBXPROJ" "app display name is QBank"
+# App Store Connect refuses an upload whose bundle has no app icon (90022,
+# 90023, 90713), so every slot of the icon set must name an image that exists.
+require_grep 'ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;' "$PBXPROJ" "app icon set is AppIcon"
+ruby_check "every AppIcon slot names a 1024x1024 PNG that exists" QBank/Assets.xcassets/AppIcon.appiconset/Contents.json '
+  require "json"
+  dir = File.dirname(ARGV[0])
+  images = JSON.parse(File.read(ARGV[0]))["images"]
+  abort "the icon set has no images" if images.empty?
+  images.each do |image|
+    name = image["filename"] or abort "the #{image.dig("appearances", 0, "value") || "default"} slot has no image"
+    png = File.binread(File.join(dir, name)) rescue abort("#{name} is missing")
+    abort "#{name} is not a PNG" unless png.start_with?("\x89PNG\r\n\x1A\n".b)
+    width, height = png[16, 8].unpack("NN")
+    abort "#{name} is #{width}x#{height}, not 1024x1024" unless [width, height] == [1024, 1024]
+  end
+'
 # The Apple team id comes from the uploader's shell, never from Git.
 forbid_grep 'DEVELOPMENT_TEAM = [^";]' "$PBXPROJ" "no Apple team id is committed in the project"
 
