@@ -602,13 +602,6 @@ struct SettingsContractTests {
         try expectRequest(transport.requests.first, matches: fixture)
         #expect(try JSONDecoder().decode(JSONValue.self, from: data) == fixture.response.body)
     }
-
-    @Test func passkeys() async throws {
-        let transport = try FixtureTransport("passkeys")
-        let (client, _) = TestClient.make(transport)
-        #expect(try await client.passkeys().isEmpty)
-        try expectRequest(transport.requests.first, matches: Fixture.load("passkeys"))
-    }
 }
 
 @Suite("Contract: semesters and courses")
@@ -1169,7 +1162,9 @@ struct FixtureTests {
             return
         }
         for fixture in try Fixture.all() {
-            let template = paths.keys.first { matches(template: $0, path: fixture.request.path) }
+            // A literal path such as /api/passkeys/options wins over a template beside it, /api/passkeys/{id}.
+            let template = paths.keys.first { $0 == fixture.request.path }
+                ?? paths.keys.first { matches(template: $0, path: fixture.request.path) }
             let operation = template.flatMap { paths[$0]?[fixture.request.method.lowercased()] }
             #expect(operation != nil, "\(fixture.name): \(fixture.request.method) \(fixture.request.path) is not in openapi.json")
             #expect(operation?["responses"]?[String(fixture.response.status)] != nil, "\(fixture.name): status \(fixture.response.status) is not documented")

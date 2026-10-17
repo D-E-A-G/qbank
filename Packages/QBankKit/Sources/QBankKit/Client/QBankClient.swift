@@ -6,7 +6,8 @@ import FoundationNetworking
 /// The QBank API as the iPhone app uses it.
 ///
 /// Sign-in stores the bearer token in the `SessionStore`; every later call sends it as
-/// `Authorization: Bearer`. The client holds no API key and keeps no cookies.
+/// `Authorization: Bearer`. The client holds no API key and keeps no cookies: a passkey's
+/// challenge cookie travels inside its options and goes back once, with the device's answer.
 public struct QBankClient: Sendable {
     public let configuration: APIConfiguration
     public let sessionStore: any SessionStore
@@ -35,6 +36,28 @@ public struct QBankClient: Sendable {
     public func signIn(email: String, password: String) async throws(QBankError) -> SignedIn {
         let body = PasswordSignInRequest(email: email, password: password)
         let signedIn: SignedIn = try await send(Request(.post, "/api/sign-in/password", body: body, authenticated: false))
+        try store(signedIn)
+        return signedIn
+    }
+
+    /// Starts a passkey sign-in: the challenge for the device's passkey sheet.
+    public func passkeySignInOptions() async throws(QBankError) -> PasskeySignInOptions {
+        let call = Request(.get, "/api/sign-in/passkey/options", authenticated: false)
+        let (data, status, response) = try await exchange(call)
+        let body = try decode(PasskeyRequestOptionsBody.self, from: data, status: status, for: call)
+        let ticket = try Self.requireTicket(from: response, status: status)
+        guard let options = body.options(ticket: ticket) else {
+            throw .unexpectedResponse(status: status, detail: "The passkey options' challenge or credentials are not base64url")
+        }
+        return options
+    }
+
+    /// Finishes a passkey sign-in with the passkey's answer and stores the session, as a password
+    /// sign-in does. A passkey the server does not accept is a 401 `invalid_passkey`.
+    @discardableResult
+    public func signIn(with assertion: PasskeyAssertion, answering options: PasskeySignInOptions) async throws(QBankError) -> SignedIn {
+        let call = Request(.post, "/api/sign-in/passkey", body: PasskeySignInRequest(assertion), authenticated: false, cookie: options.ticket)
+        let signedIn: SignedIn = try await send(call)
         try store(signedIn)
         return signedIn
     }
@@ -127,7 +150,7 @@ public struct QBankClient: Sendable {
     /// whose message is its first error.
     public func importSet(_ request: ImportRequest) async throws(QBankError) -> ImportOutcome {
         let call = Request(.post, "/api/imports", body: ImportSetRequest(request: request))
-        let (data, status) = try await exchange(call, accepting: [409])
+        let (data, status, _) = try await exchange(call, accepting: [409])
         if status == 409 {
             return .conflict(try decode(ImportConflict.self, from: data, status: status, for: call))
         }
@@ -377,6 +400,26 @@ public struct QBankClient: Sendable {
         return response.passkeys
     }
 
+    /// Starts saving a passkey for her account: the challenge for the device's passkey sheet.
+    public func passkeyRegistrationOptions() async throws(QBankError) -> PasskeyRegistrationOptions {
+        let call = Request(.get, "/api/passkeys/options")
+        let (data, status, response) = try await exchange(call)
+        let body = try decode(PasskeyCreationOptionsBody.self, from: data, status: status, for: call)
+        let ticket = try Self.requireTicket(from: response, status: status)
+        guard let options = body.options(ticket: ticket) else {
+            throw .unexpectedResponse(status: status, detail: "The passkey options' challenge, user, or credentials are not base64url")
+        }
+        return options
+    }
+
+    /// Saves the new passkey on her account under `name`, as Settings lists it. A passkey the
+    /// server does not accept is a 400 `invalid_passkey`.
+    @discardableResult
+    public func savePasskey(_ registration: PasskeyRegistration, answering options: PasskeyRegistrationOptions, name: String) async throws(QBankError) -> Passkey {
+        try await send(Request(.post, "/api/passkeys", body: PasskeyRegistrationRequest(registration, name: name), cookie: options.ticket))
+    }
+
+    /// Removes a passkey from her account, so it no longer signs her in. The device keeps its copy.
     public func removePasskey(id: String) async throws(QBankError) {
         let _: StatusResponse = try await send(Request(.delete, "/api/passkeys/\(id)"))
     }
@@ -404,7 +447,7 @@ public struct QBankClient: Sendable {
     }
 
     private func send<Response: Decodable>(_ request: Request) async throws(QBankError) -> Response {
-        let (data, status) = try await exchange(request)
+        let (data, status, _) = try await exchange(request)
         return try decode(Response.self, from: data, status: status, for: request)
     }
 
@@ -420,9 +463,9 @@ public struct QBankClient: Sendable {
         try await exchange(request).data
     }
 
-    /// Sends the request and returns the answer's body and status. A status outside 2xx is thrown as
-    /// the server's error, unless the route answers it with its own body (`accepting`).
-    private func exchange(_ request: Request, accepting: Set<Int> = []) async throws(QBankError) -> (data: Data, status: Int) {
+    /// Sends the request and returns the answer's body, status, and headers. A status outside 2xx
+    /// is thrown as the server's error, unless the route answers it with its own body (`accepting`).
+    private func exchange(_ request: Request, accepting: Set<Int> = []) async throws(QBankError) -> (data: Data, status: Int, response: HTTPURLResponse) {
         var token: String?
         if request.authenticated {
             guard let session = try loadSession() else { throw .notSignedIn }
@@ -444,7 +487,33 @@ public struct QBankClient: Sendable {
         guard (200..<300).contains(status) || accepting.contains(status) else {
             throw Self.failure(status: status, data: data, response: response)
         }
-        return (data, status)
+        return (data, status, response)
+    }
+
+    /// The cookies a passkey options response set, as a `Cookie` header: each one's `name=value`,
+    /// without its attributes. Several `Set-Cookie` headers arrive joined by commas, and an
+    /// `Expires` date holds one too, so a new cookie starts only where a name and `=` come first.
+    static func ticket(from response: HTTPURLResponse) -> String? {
+        guard let header = response.value(forHTTPHeaderField: "Set-Cookie") else { return nil }
+        var cookies: [String] = []
+        for piece in header.split(separator: ",", omittingEmptySubsequences: false) {
+            let pair = piece.prefix { $0 != ";" }.trimmingCharacters(in: .whitespaces)
+            guard let equals = pair.firstIndex(of: "="), !pair[..<equals].isEmpty, !pair[..<equals].contains(" ") else { continue }
+            // An empty value is a cookie being deleted.
+            if pair.index(after: equals) < pair.endIndex {
+                cookies.append(pair)
+            }
+        }
+        return cookies.isEmpty ? nil : cookies.joined(separator: "; ")
+    }
+
+    /// The ticket of a passkey options response. Without it the server would refuse the answer,
+    /// so this fails before the device's passkey sheet asks her for anything.
+    private static func requireTicket(from response: HTTPURLResponse, status: Int) throws(QBankError) -> String {
+        guard let ticket = ticket(from: response) else {
+            throw .unexpectedResponse(status: status, detail: "The passkey options set no challenge cookie")
+        }
+        return ticket
     }
 
     static func failure(status: Int, data: Data, response: HTTPURLResponse) -> QBankError {
@@ -477,19 +546,23 @@ struct Request {
     let query: [(String, String)]
     let body: (any Encodable & Sendable)?
     let authenticated: Bool
+    /// A passkey's challenge cookie, the only cookie the client ever sends.
+    let cookie: String?
 
     init(
         _ method: Method,
         _ path: String,
         query: [(String, String)] = [],
         body: (any Encodable & Sendable)? = nil,
-        authenticated: Bool = true
+        authenticated: Bool = true,
+        cookie: String? = nil
     ) {
         self.method = method
         self.path = path
         self.query = query
         self.body = body
         self.authenticated = authenticated
+        self.cookie = cookie
     }
 
     func urlRequest(configuration: APIConfiguration, token: String?) throws(QBankError) -> URLRequest {
@@ -510,6 +583,9 @@ struct Request {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         if let token {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        if let cookie {
+            request.setValue(cookie, forHTTPHeaderField: "Cookie")
         }
         if let body {
             do {

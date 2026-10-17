@@ -86,6 +86,9 @@ public struct ServerError: Error, Sendable, Equatable {
         public static let samePassword: Code = "same_password"
         public static let authFailed: Code = "auth_failed"
         public static let authUnavailable: Code = "auth_unavailable"
+        // Passkeys: an answer the server does not accept, and options it could not make.
+        public static let invalidPasskey: Code = "invalid_passkey"
+        public static let passkeyFailed: Code = "passkey_failed"
         // Any request whose fields do not meet the route's rules, such as a new password under 8 characters.
         public static let invalidRequest: Code = "invalid_request"
         // Content.

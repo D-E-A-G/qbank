@@ -1,0 +1,17 @@
+{
+  "recordedFrom": "fe9f73e7ea2e798593f98c2d269999405105c662",
+  "request": {
+    "method": "DELETE",
+    "path": "/api/passkeys/6BjAaHEBnvoQXlTVe9WaN4VRBfr6R5H4",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "status": "removed"
+    }
+  }
+}
