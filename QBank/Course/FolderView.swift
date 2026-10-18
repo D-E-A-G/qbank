@@ -63,6 +63,10 @@ struct FolderView: View {
             }
         }
         .practiceCover(app: app, model: model, route: $practicing)
+        .onChange(of: app.deletions.revision) {
+            // Deleted here, or brought back with Undo while this screen is open.
+            Task { await model.load() }
+        }
         .deleteSheet(app: app, request: $deleting) { target in
             if case .folder = target {
                 isDeleted = true
@@ -195,7 +199,6 @@ struct FolderView: View {
                         .qbankFont(.footnote)
                         .foregroundStyle(.qbank(.text3))
                         .padding(.horizontal, QBankSpacing.space5)
-                        .accessibilityHidden(true)
                 }
             }
         }

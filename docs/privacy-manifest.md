@@ -47,6 +47,7 @@ Answer these in App Store Connect exactly this way: "Yes, we collect data from t
 | 3 Import | shipped: an imported question file becomes shared course content; it is not personal data, so no new type. Re-check if the file can carry personal notes. |
 | Q Make questions (the accounts the server allows) | shipped: **Photos or Videos** and **Other User Content** (notes, files) declared above; the policy names Anthropic. |
 | Q Exam twins (the same accounts) | shipped: nothing new is collected. The app sends the course, the ticked folders and the pool, the exam picks under Other User Content; the server sends those practice questions, already shared course content, to Anthropic, which the policy says. |
+| Q Delete and Undo | shipped: nothing new is collected. Deleting a set, a folder or a past exam hides it on the server, where it stays with her answers until the account is deleted, which the policy says. |
 | 4 Free on this phone | data in on-phone mode is never sent anywhere and is not collected; the signed-in mode keeps the answers above. |
 
 ## `PrivacyInfo.xcprivacy`

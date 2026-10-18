@@ -125,7 +125,8 @@ nonisolated final class FakeStudy: Sendable {
     private let state: Mutex<State>
     private let now: Date
 
-    init(now: Date) {
+    /// - Parameter examInProgress: She left an exam over Weeks 1-2 going, started five minutes ago.
+    init(now: Date, examInProgress: Bool = false) {
         self.now = now
         let day: TimeInterval = 86_400
         let mentalHealth = FakeQBankServer.mentalHealthID, fundamentals = FakeQBankServer.fundamentalsID
@@ -161,6 +162,12 @@ nonisolated final class FakeStudy: Sendable {
             ]
         ))
         seedPastExams()
+        if examInProgress {
+            _ = begin(
+                courseID: FakeQBankServer.mentalHealthID, folderIDs: [Self.week1, Self.week2], pool: .all,
+                at: now.addingTimeInterval(-5 * 60), endingRunning: false
+            )
+        }
     }
 
     /// Her exams before this run: Weeks 1-2 three days ago (Exam 1), Week 1 when time ran out

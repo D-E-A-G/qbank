@@ -213,7 +213,7 @@ struct DeletionContractTests {
         #expect(folder.examPageID == Self.exam1)
         #expect(folder.sets.map(\.title) == ["Heart A", "Heart B", "Heart C", "Heart A exam"])
         #expect(folder.undoRefusal == nil)
-        #expect(folder.undoUntil.timeIntervalSince(folder.deletedAt) == 30 * 86_400)
+        #expect(abs(folder.undoUntil.timeIntervalSince(folder.deletedAt) - 30 * 86_400) < 0.001)
         // A set that went with its folder is under it; one deleted on its own is listed by itself.
         // Kidneys was deleted 31 days ago, so it is not listed.
         #expect(deleted.sets.map(\.id) == [Self.lungs])

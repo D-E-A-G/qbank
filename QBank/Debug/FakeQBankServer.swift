@@ -116,12 +116,13 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary, Fak
     ///   - account: Who is signed in: `student`, or `maker` to make questions.
     ///   - makerIsSetUp: False: the server has no Claude key, so making questions is not set up yet.
     ///   - place: The course she used last, or nil for none.
+    ///   - examInProgress: She left an exam over Mental Health's Weeks 1-2 going.
     init(
         signedIn: Bool, as account: Credentials = FakeQBankServer.student, makerIsSetUp: Bool = true,
-        place: String? = FakeQBankServer.mentalHealthID, now: Date = .now
+        place: String? = FakeQBankServer.mentalHealthID, examInProgress: Bool = false, now: Date = .now
     ) {
         self.now = now
-        study = FakeStudy(now: now)
+        study = FakeStudy(now: now, examInProgress: examInProgress)
         questionMaker = FakeQuestionMaker(allowed: [Self.maker.email], isSetUp: makerIsSetUp, seededFor: Self.maker.email, now: now)
         twinJobs = FakeTwinJobs(maker: questionMaker, study: study)
         passkeys = FakePasskeys(studentEmail: Self.student.email, now: now)

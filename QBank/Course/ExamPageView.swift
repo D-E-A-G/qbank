@@ -42,6 +42,10 @@ struct ExamPageView: View {
             Task { await model.load() }
         }
         .examCover(app: app, model: model, route: $exam) { dismiss() }
+        .onChange(of: app.deletions.revision) {
+            // A folder or exam deleted, or brought back with Undo while this page is open.
+            Task { await model.load() }
+        }
         .deleteSheet(app: app, request: $deleting)
         .sheet(isPresented: $editsPage, onDismiss: {
             // A removed page leaves once the sheet is down.
