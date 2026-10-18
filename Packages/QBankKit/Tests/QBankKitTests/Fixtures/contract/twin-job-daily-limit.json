@@ -1,0 +1,25 @@
+{
+  "recordedFrom": "b87a25e9f36c45e17ef72d88e45df6fc04717cb5",
+  "request": {
+    "method": "POST",
+    "path": "/api/twin-jobs",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": {
+      "courseId": "c0000000-0000-4000-8000-000000000501",
+      "folderIds": [
+        "f0000000-0000-4000-8000-000000000502"
+      ],
+      "pool": "all"
+    }
+  },
+  "response": {
+    "status": 429,
+    "headers": {},
+    "body": {
+      "error": "daily_limit",
+      "message": "You have started 3 sets in the last 24 hours, the most for one day. You can start another in 24 hours.",
+      "availableAt": "2026-10-19T18:48:20.931Z"
+    }
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "recordedFrom": "b87a25e9f36c45e17ef72d88e45df6fc04717cb5",
+  "request": {
+    "method": "GET",
+    "path": "/api/twin-jobs/a0b00000-0000-4000-8000-000000000503",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "id": "a0b00000-0000-4000-8000-000000000503",
+      "status": "failed",
+      "step": "twins",
+      "steps": [
+        {
+          "key": "read",
+          "label": "Read your questions",
+          "state": "done",
+          "done": null,
+          "total": null
+        },
+        {
+          "key": "twins",
+          "label": "Exam twins",
+          "state": "failed",
+          "done": null,
+          "total": null
+        },
+        {
+          "key": "file",
+          "label": "File the twins",
+          "state": "todo",
+          "done": null,
+          "total": null
+        }
+      ],
+      "course": {
+        "id": "c0000000-0000-4000-8000-000000000501",
+        "code": "NURS 406",
+        "title": "Invented Mental Health"
+      },
+      "level": "exam",
+      "pool": "wrong",
+      "folders": [
+        {
+          "id": "f0000000-0000-4000-8000-000000000501",
+          "name": "Week 5",
+          "questionCount": 4,
+          "twinCount": 1,
+          "alreadyTwinned": 3
+        }
+      ],
+      "twinCount": 1,
+      "note": "QBank writes exam twins of 1 wrong question in Week 5. 3 questions already have one and stay as they are.",
+      "sets": [],
+      "exam": null,
+      "createdAt": "2026-10-18 18:48:21.121+00",
+      "updatedAt": "2026-10-18 18:48:21.127+00",
+      "finishedAt": "2026-10-18 18:48:21.127+00",
+      "failure": "The model did not answer.",
+      "warnings": [],
+      "usage": {
+        "calls": 1,
+        "inputTokens": 1000,
+        "outputTokens": 200,
+        "cacheReadTokens": 800,
+        "cacheWriteTokens": 100
+      }
+    }
+  }
+}

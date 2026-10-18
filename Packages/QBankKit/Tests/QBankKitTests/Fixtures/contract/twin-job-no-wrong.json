@@ -1,0 +1,24 @@
+{
+  "recordedFrom": "b87a25e9f36c45e17ef72d88e45df6fc04717cb5",
+  "request": {
+    "method": "POST",
+    "path": "/api/twin-jobs",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": {
+      "courseId": "c0000000-0000-4000-8000-000000000501",
+      "folderIds": [
+        "f0000000-0000-4000-8000-000000000502"
+      ],
+      "pool": "wrong"
+    }
+  },
+  "response": {
+    "status": 400,
+    "headers": {},
+    "body": {
+      "error": "invalid_request",
+      "message": "Week 6 has no wrong questions, so there is nothing to twin."
+    }
+  }
+}

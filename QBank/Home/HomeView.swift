@@ -201,14 +201,15 @@ struct HomeView: View {
 }
 
 extension View {
-    /// The screens a course leads to, on Home's navigation stack: Review, Terms, the Exam, and
-    /// Saved for offline.
+    /// The screens a course leads to, on Home's navigation stack: Review, Terms, the Exam, its exam
+    /// twins, and Saved for offline.
     func studyDestinations(app: AppModel) -> some View {
         navigationDestination(for: StudyRoute.self) { route in
             switch route {
             case .review(let course): ReviewView(app: app, course: course)
             case .terms(let course): TermsView(app: app, course: course)
             case .exam(let setup): ExamSetupView(app: app, route: setup)
+            case .twinJob(let job): TwinJobView(app: app, route: job)
             }
         }
         .navigationDestination(for: SavedForOfflineRoute.self) { _ in

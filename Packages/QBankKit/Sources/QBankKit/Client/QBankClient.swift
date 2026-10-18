@@ -219,6 +219,32 @@ public struct QBankClient: Sendable {
         try await send(Request(.post, "/api/question-jobs/\(id)/cancel"))
     }
 
+    // MARK: Exam twins
+
+    /// Her recent twin jobs, newest first, over every course. Refused like `questionJobs()` for an
+    /// account the server does not allow and on a server without its Claude key.
+    public func twinJobs() async throws(QBankError) -> [TwinJob] {
+        let list: TwinJobList = try await send(Request(.get, "/api/twin-jobs"))
+        return list.jobs
+    }
+
+    /// Starts exam twins of the questions in these folders and pool, and answers at once; QBank
+    /// works on them in the background. Refused with a sentence when there is nothing to twin, too
+    /// much at once, a folder another twin job is still twinning, or past the daily limit.
+    public func startTwinJob(_ job: NewTwinJob) async throws(QBankError) -> TwinJob {
+        try await send(Request(.post, "/api/twin-jobs", body: job))
+    }
+
+    /// A twin job, as far as it got.
+    public func twinJob(id: String) async throws(QBankError) -> TwinJob {
+        try await send(Request(.get, "/api/twin-jobs/\(id)"))
+    }
+
+    /// Stops a twin job that is still going. Nothing more is written or filed; sets already filed stay.
+    public func cancelTwinJob(id: String) async throws(QBankError) -> TwinJob {
+        try await send(Request(.post, "/api/twin-jobs/\(id)/cancel"))
+    }
+
     // MARK: Folders
 
     /// Adds an empty folder to the course, on no exam page, at the end of that list. A name the
@@ -364,6 +390,12 @@ public struct QBankClient: Sendable {
     /// answered not fully right; a ticked folder with none is refused with 400 `no_wrong_questions`.
     public func startExam(courseID: String, folderIDs: [String], pool: ExamPool = .all) async throws(QBankError) -> Exam {
         try await send(Request(.post, "/api/courses/\(courseID)/exams", body: StartExamRequest(folderIds: folderIDs, pool: pool)))
+    }
+
+    /// Starts the exam a finished twin job names, on its twins, sending its body as the server
+    /// wrote it. A running exam of hers ends first, as with `startExam(courseID:folderIDs:pool:)`.
+    public func startExam(courseID: String, on twins: TwinJob.Exam) async throws(QBankError) -> Exam {
+        try await send(Request(.post, "/api/courses/\(courseID)/exams", body: twins))
     }
 
     /// One exam. An exam whose time ran out is ended first.

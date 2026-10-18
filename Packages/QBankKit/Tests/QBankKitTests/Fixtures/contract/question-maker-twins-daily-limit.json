@@ -1,0 +1,60 @@
+{
+  "recordedFrom": "b87a25e9f36c45e17ef72d88e45df6fc04717cb5",
+  "request": {
+    "method": "GET",
+    "path": "/api/question-maker",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "available": false,
+      "reason": "You have started 3 sets in the last 24 hours, the most for one day.",
+      "dailyLimit": 3,
+      "startedToday": 3,
+      "nextAvailableAt": "2026-10-19T18:48:20.931Z",
+      "levels": [
+        {
+          "level": "exam",
+          "minCount": 10,
+          "maxCount": 15,
+          "defaultCount": 15
+        },
+        {
+          "level": "course",
+          "minCount": 12,
+          "maxCount": 16,
+          "defaultCount": 15
+        },
+        {
+          "level": "board",
+          "minCount": 12,
+          "maxCount": 16,
+          "defaultCount": 15
+        }
+      ],
+      "defaultLevel": "exam",
+      "sampleSize": 5,
+      "limits": {
+        "photos": 20,
+        "photoBytes": 3750000,
+        "fileBytes": 20000000,
+        "textCharacters": 400000
+      },
+      "imageTypes": [
+        "image/jpeg",
+        "image/png",
+        "image/gif",
+        "image/webp"
+      ],
+      "fileTypes": [
+        "application/pdf",
+        "text/plain",
+        "text/markdown"
+      ]
+    }
+  }
+}

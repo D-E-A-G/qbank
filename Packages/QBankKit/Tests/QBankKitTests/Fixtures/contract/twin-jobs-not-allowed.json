@@ -1,0 +1,18 @@
+{
+  "recordedFrom": "b87a25e9f36c45e17ef72d88e45df6fc04717cb5",
+  "request": {
+    "method": "GET",
+    "path": "/api/twin-jobs",
+    "query": {},
+    "authorization": "Bearer synthetic-other-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 403,
+    "headers": {},
+    "body": {
+      "error": "not_allowed",
+      "message": "Making questions is not available on this account. Import works on every account."
+    }
+  }
+}

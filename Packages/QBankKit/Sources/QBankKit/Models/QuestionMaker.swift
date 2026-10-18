@@ -207,7 +207,7 @@ public struct QuestionJob: Codable, Sendable, Equatable, Identifiable {
         }
     }
 
-    public struct Course: Codable, Sendable, Equatable {
+    public struct Course: Codable, Sendable, Hashable {
         public let id: String
         public let code: String
         public let title: String

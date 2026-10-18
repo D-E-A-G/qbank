@@ -16,7 +16,8 @@ enum ExamExit {
 }
 
 /// Exam setup: Resume her running exam, Wrong questions only, the folders to tick by exam page,
-/// the summary of what Start draws, Start exam, and her past exams.
+/// the summary of what Start draws, Start exam, Write exam twins and her twin jobs for the account
+/// that may make questions, and her past exams.
 struct ExamSetupView: View {
     let app: AppModel
     @State private var model: ExamSetupModel
@@ -89,6 +90,9 @@ struct ExamSetupView: View {
                 if model.isStudent {
                     summary
                 }
+            }
+            if let jobs = model.twinJobs, !jobs.isEmpty {
+                twinJobs(jobs)
             }
             if !setup.folders.isEmpty {
                 pastExams(setup.exams)
@@ -223,9 +227,54 @@ struct ExamSetupView: View {
                     }
                 }
                 .buttonStyle(.qbank(.primary, size: .large, fullWidth: true))
-                .disabled(model.picked.isEmpty || model.isStarting || model.needsConnection)
+                .disabled(model.picked.isEmpty || model.isStarting || model.isTwinning || model.needsConnection)
                 .padding(.top, QBankSpacing.space1)
                 .accessibilityIdentifier("exam.start")
+                if model.canTwin {
+                    twinOffer
+                }
+            }
+        }
+    }
+
+    /// Write exam twins: instead of an exam on these questions, QBank writes their exam twins.
+    @ViewBuilder
+    private var twinOffer: some View {
+        Text(Twins.offer(wrongOnly: model.wrongOnly))
+            .qbankFont(.footnote)
+            .foregroundStyle(.qbank(.text3))
+            .padding(.top, QBankSpacing.space1)
+            .accessibilityIdentifier("exam.twins.offer")
+        if let problem = model.twinProblem {
+            ProblemText(text: problem)
+        }
+        Button {
+            Task {
+                if let job = await model.writeTwins() {
+                    navigator?.open(StudyRoute.twinJob(TwinJobRoute(course: model.course, jobID: job.id, seed: job)))
+                }
+            }
+        } label: {
+            ButtonLabel(text: "Write exam twins", isBusy: model.isTwinning)
+        }
+        .buttonStyle(.qbank(.secondary, size: .large, fullWidth: true))
+        .disabled(model.picked.isEmpty || model.isStarting || model.isTwinning || model.needsConnection)
+        .accessibilityIdentifier("exam.twins.write")
+    }
+
+    /// Her exam twins over this course, newest first, so a job is found again after she leaves it.
+    private func twinJobs(_ jobs: [TwinJob]) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            QBankSectionHeader("Exam twins")
+                .padding(.horizontal, QBankSpacing.space5)
+            QBankListGroup {
+                ForEach(jobs) { job in
+                    NavigationLink(value: StudyRoute.twinJob(TwinJobRoute(course: model.course, jobID: job.id, seed: job))) {
+                        TwinJobRow(job: job)
+                    }
+                    .buttonStyle(.qbankRow)
+                    .accessibilityIdentifier("exam.twins.\(job.id)")
+                }
             }
         }
     }
@@ -323,6 +372,48 @@ private struct FolderPickRow: View {
         .disabled(!isStudent || !canTick)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(isTicked ? .isSelected : [])
+    }
+}
+
+/// A twin job: its folders and date, its count and pool, and what it is doing or how it ended.
+private struct TwinJobRow: View {
+    let job: TwinJob
+
+    var body: some View {
+        HStack(spacing: QBankSpacing.space4) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(Twins.rowTitle(job))
+                    .qbankFont(.body)
+                    .foregroundStyle(.qbank(.text1))
+                QBankDetailText(Twins.meta(job))
+                    .qbankFont(.footnote)
+                    .foregroundStyle(.qbank(.text3))
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            if let state = Twins.state(job) {
+                Text(state)
+                    .qbankFont(.subheadline, weight: .semibold)
+                    .foregroundStyle(.qbank(tone))
+            }
+            Image(systemName: "chevron.right")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.qbank(.text4))
+                .accessibilityHidden(true)
+        }
+        .padding(.horizontal, QBankSpacing.rowPaddingHorizontal)
+        .padding(.vertical, 11)
+        .frame(minHeight: QBankSpacing.rowMin)
+        .contentShape(.rect)
+        .accessibilityElement(children: .combine)
+    }
+
+    /// Set like an exam's score: in the tint, a failure in red, a cancelled job quiet.
+    private var tone: QBankColorToken {
+        switch job.status {
+        case .failed: .wrong
+        case .cancelled: .text3
+        default: .tint
+        }
     }
 }
 

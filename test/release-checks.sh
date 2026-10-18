@@ -396,7 +396,9 @@ ruby_check "privacy manifest belongs only to the QBank app target" "$PBXPROJ" '
   if text.include?("PrivacyInfo.xcprivacy")
     abort "project.pbxproj names PrivacyInfo.xcprivacy; the synchronized QBank group already includes it"
   end
-  extras = Dir.glob("**/*PrivacyInfo.xcprivacy").reject { |path| path == "QBank/PrivacyInfo.xcprivacy" }
+  # The files Git would commit, so a build under the ignored build/ or DerivedData/ is not counted.
+  files = `git ls-files --cached --others --exclude-standard`.split("\n")
+  extras = files.select { |path| path.end_with?("PrivacyInfo.xcprivacy") }.reject { |path| path == "QBank/PrivacyInfo.xcprivacy" }
   abort "privacy manifest is outside the app target: #{extras.join(", ")}" unless extras.empty?
 '
 
