@@ -42,6 +42,11 @@ struct ConfirmSheet: View {
     let identifier: String
     /// True while the action runs: the buttons wait, and the sheet stays.
     var isBusy = false
+    /// True while what the message says is still being read: a spinner stands in for it.
+    var isLoading = false
+    /// False while the action cannot be done, such as a delete the server refuses for now. The way
+    /// out stays.
+    var canConfirm = true
     var problem: String?
     let answer: (Bool) -> Void
     @State private var height: CGFloat = 280
@@ -54,11 +59,18 @@ struct ConfirmSheet: View {
                 .multilineTextAlignment(.center)
                 .accessibilityAddTraits(.isHeader)
                 .accessibilityIdentifier("\(identifier).title")
-            Text(message)
-                .qbankFont(.subheadline)
-                .foregroundStyle(.qbank(.text2))
-                .multilineTextAlignment(.center)
-                .padding(.bottom, QBankSpacing.space3)
+            if isLoading {
+                ProgressView()
+                    .frame(minHeight: 44)
+                    .padding(.bottom, QBankSpacing.space3)
+            } else {
+                Text(message)
+                    .qbankFont(.subheadline)
+                    .foregroundStyle(.qbank(.text2))
+                    .multilineTextAlignment(.center)
+                    .padding(.bottom, QBankSpacing.space3)
+                    .accessibilityIdentifier("\(identifier).message")
+            }
             if let problem {
                 ProblemText(text: problem)
                     .padding(.bottom, QBankSpacing.space2)
@@ -75,6 +87,7 @@ struct ConfirmSheet: View {
                 }
             }
             .buttonStyle(.qbank(isDestructive ? .destructive : .primary, size: .large, fullWidth: true))
+            .disabled(isLoading || !canConfirm)
             .accessibilityIdentifier("\(identifier).confirm")
             Button(cancel) { answer(false) }
                 .buttonStyle(.qbank(.quiet, size: .large, fullWidth: true))

@@ -24,6 +24,8 @@ struct ExamSetupView: View {
     @State private var running: ExamRoute?
     @State private var exit: ExamExit?
     @State private var asksToReplace = false
+    /// The past exam she asked to delete, while its warning is open.
+    @State private var deleting: DeleteRequest?
     @Environment(HomeNavigator.self) private var navigator: HomeNavigator?
 
     init(app: AppModel, route: ExamSetupRoute) {
@@ -60,6 +62,11 @@ struct ExamSetupView: View {
         .refreshable { await model.load() }
         .reloadsWithConnection(app) { await model.load() }
         .task { await model.load() }
+        .onChange(of: app.deletions.revision) {
+            // A past exam deleted here or brought back with Undo, or a folder deleted: the lists change.
+            Task { await model.load() }
+        }
+        .deleteSheet(app: app, request: $deleting)
         .sensoryFeedback(.selection, trigger: model.ticked)
         .confirmSheet(
             isPresented: $asksToReplace,
@@ -289,7 +296,7 @@ struct ExamSetupView: View {
                     systemImage: "timer"
                 )
             } else {
-                QBankListGroup {
+                QBankListGroup(footer: model.isStudent && !model.needsConnection ? "Touch and hold an exam to delete it." : nil) {
                     ForEach(exams) { exam in
                         Button {
                             running = ExamRoute(id: exam.id)
@@ -297,6 +304,9 @@ struct ExamSetupView: View {
                             PastExamRow(exam: exam)
                         }
                         .buttonStyle(.qbankRow)
+                        .deletable("exam", isEnabled: model.isStudent && !model.needsConnection) {
+                            deleting = DeleteRequest(target: .exam(id: exam.id))
+                        }
                         .accessibilityIdentifier("exam.past.\(exam.id)")
                     }
                 }

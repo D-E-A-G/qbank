@@ -1,0 +1,18 @@
+{
+  "recordedFrom": "db503743c7b9d7da7341ef62ed67adcb110da862",
+  "request": {
+    "method": "DELETE",
+    "path": "/api/folders/f0000000-0000-4000-8000-000000000701",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 409,
+    "headers": {},
+    "body": {
+      "error": "confirmation_required",
+      "message": "Week 1 still has 3 sets. Deleting it deletes them too, so look at what goes and confirm it first."
+    }
+  }
+}

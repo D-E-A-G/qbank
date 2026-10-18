@@ -7,7 +7,7 @@ import Synchronization
 /// app's calls with invented accounts, courses and questions, the way the real routes answer them,
 /// and scores answers with the server's rules, so the app runs end to end through `QBankClient`
 /// without a network or a real account.
-nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary {
+nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary, FakeDeletionLibrary {
     struct Credentials {
         let email: String
         let password: String
@@ -102,6 +102,8 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary {
     private let twinJobs: FakeTwinJobs
     /// Passkey sign-in and Settings' passkeys. The student has one, saved on her Mac.
     private let passkeys: FakePasskeys
+    /// Deleting her sets, folders and past exams, and Undo.
+    private let deletions: FakeDeletions
 
     /// Without signal, every call fails before it reaches the server, as on a phone with no network.
     var isOffline: Bool {
@@ -123,6 +125,7 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary {
         questionMaker = FakeQuestionMaker(allowed: [Self.maker.email], isSetUp: makerIsSetUp, seededFor: Self.maker.email, now: now)
         twinJobs = FakeTwinJobs(maker: questionMaker, study: study)
         passkeys = FakePasskeys(studentEmail: Self.student.email, now: now)
+        deletions = FakeDeletions(study: study)
         state = Mutex(State(
             accounts: [
                 Account(id: "fake-student", email: Self.student.email, name: "Sam Student", password: Self.student.password, mustChangePassword: false),
@@ -230,6 +233,9 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary {
             return reply
         }
         if let reply = twinJobs.answer(method: method, path: path, body: body, email: account.email, library: self) {
+            return reply
+        }
+        if let reply = deletions.answer(method: method, path: path, query: query, isStudent: true, library: self) {
             return reply
         }
         switch (method, path) {
@@ -575,11 +581,14 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary {
         ]
     }
 
-    /// A folder as the server sends it, with its sets.
+    /// A folder as the server sends it, with its sets and its exam bank's sets.
     private func folderJSON(_ folder: FakeStudy.Folder) -> [String: Any] {
         [
             "id": folder.id, "name": folder.name, "examPageId": json(folder.examPageID), "sortOrder": folder.sortOrder,
             "sets": folder.sets.map(set), "examBankCount": folder.bank.count,
+            "examSets": FakeStudy.examSets(folder)
+                .map { ["id": $0.id, "title": examSetTitle($0.id), "questionCount": $0.questionIDs.count] }
+                .sorted { ($0["title"] as? String ?? "").localizedCompare($1["title"] as? String ?? "") == .orderedAscending },
         ]
     }
 
@@ -894,6 +903,25 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary {
 
     private func failure(_ status: Int, _ code: String, _ message: String) -> Reply {
         (status, ["error": code, "message": message])
+    }
+
+    // MARK: Deleting's library
+
+    /// The invented exam banks' titles, by the start of their questions' ids.
+    private static let examBanks = ["bank1": "Rights and Communication Exam", "bank3": "Depression and Anxiety Exam"]
+
+    func deletionSet(_ id: String) -> (title: String, questionCount: Int, answeredCount: Int, versionCount: Int)? {
+        guard let entry = summary(of: id) else { return nil }
+        let answered = set(id)["answeredCount"] as? Int ?? 0
+        return (entry.title, entry.questions, answered, entry.canRestore ? 2 : 1)
+    }
+
+    func examSetTitle(_ id: String) -> String {
+        Self.examBanks[id] ?? summary(of: id)?.title ?? "Exam set"
+    }
+
+    func folderReply(_ folder: FakeStudy.Folder) -> [String: Any] {
+        folderJSON(folder)
     }
 
     // MARK: Make questions' library

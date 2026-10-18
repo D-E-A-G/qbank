@@ -1,0 +1,249 @@
+import Foundation
+import Observation
+import QBankKit
+
+/// Something she can delete: a set (a practice set, or an exam set of a folder's exam bank), a
+/// folder with every set in it, or one of her past exams.
+enum DeleteTarget: Hashable {
+    case set(id: String, title: String)
+    case folder(id: String, name: String)
+    case exam(id: String)
+
+    /// Brings it back as it was, within its 30 days.
+    func undo(with client: QBankClient) async throws(QBankError) {
+        switch self {
+        case .set(let id, _): try await client.undoDeletePracticeSet(id: id)
+        case .folder(let id, _): try await client.undoDeleteFolder(id: id)
+        case .exam(let id): try await client.undoDeleteExam(id: id)
+        }
+    }
+}
+
+/// A delete she asked for, while its warning is open.
+struct DeleteRequest: Identifiable {
+    let id = UUID()
+    let target: DeleteTarget
+}
+
+/// The lines a delete shows, around the server's own warning.
+nonisolated enum DeleteWording {
+    /// The warning split for the confirmation: its question as the title ("Delete Week 1?"), and
+    /// the rest, what goes with it and Undo, as the message, both in the server's words.
+    static func split(_ message: String) -> (title: String, message: String)? {
+        guard let end = message.range(of: "? ") else { return nil }
+        let title = String(message[..<end.lowerBound]) + "?"
+        let rest = message[end.upperBound...].trimmingCharacters(in: .whitespaces)
+        return rest.isEmpty ? nil : (title, rest)
+    }
+
+    /// The confirmation's title before the warning arrives: "Delete Week 1?", "Delete this exam?".
+    static func question(_ target: DeleteTarget) -> String {
+        switch target {
+        case .set(_, let title): "Delete \(title)?"
+        case .folder(_, let name): "Delete \(name)?"
+        case .exam: "Delete this exam?"
+        }
+    }
+
+    /// The Undo bar's line once it is deleted: "Heart B deleted.", "Week 1 and its 3 sets deleted.",
+    /// "Exam deleted."
+    static func deleted(_ target: DeleteTarget, setCount: Int = 0) -> String {
+        switch target {
+        case .set(_, let title): "\(title) deleted."
+        case .folder(_, let name): "\(name)\(withSets(setCount)) deleted."
+        case .exam: "Exam deleted."
+        }
+    }
+
+    /// The Undo bar's line once Undo brought it back: "Heart B is back.", "Week 1 and its 3 sets
+    /// are back."
+    static func back(_ target: DeleteTarget, setCount: Int = 0) -> String {
+        switch target {
+        case .set(_, let title): "\(title) is back."
+        case .folder(_, let name): setCount == 0 ? "\(name) is back." : "\(name)\(withSets(setCount)) are back."
+        case .exam: "The exam is back."
+        }
+    }
+
+    private static func withSets(_ count: Int) -> String {
+        switch count {
+        case 0: ""
+        case 1: " and its set"
+        default: " and its \(Wording.count(count, "set"))"
+        }
+    }
+}
+
+/// One delete, from its warning to its end: reads what goes, shows it as the server words it, and
+/// deletes exactly that with the preview's `confirm`. When what goes changed since the warning,
+/// nothing is deleted: it reads the warning again and says why, so she confirms what goes now.
+@Observable
+final class DeleteModel {
+    /// The warning, as the confirmation shows it.
+    struct Warning: Equatable {
+        let title: String
+        let message: String
+        /// Why it cannot be deleted right now, in the server's words; Delete waits while it is set.
+        let refusal: String?
+        let confirm: String
+        /// What the Undo bar says once it is deleted, and once Undo brought it back.
+        let deleted: String
+        let back: String
+    }
+
+    let target: DeleteTarget
+    private(set) var warning: Warning?
+    private(set) var isDeleting = false
+    /// What went wrong, in the server's words when it sent some.
+    private(set) var problem: String?
+
+    private let app: AppModel
+
+    init(app: AppModel, target: DeleteTarget) {
+        self.app = app
+        self.target = target
+    }
+
+    /// The title before the warning arrives, then the warning's own question.
+    var title: String {
+        warning?.title ?? DeleteWording.question(target)
+    }
+
+    var canDelete: Bool {
+        warning != nil && warning?.refusal == nil && !isDeleting
+    }
+
+    /// Reads what deleting it takes.
+    func load() async {
+        do {
+            warning = try await preview()
+            problem = nil
+        } catch {
+            report(error)
+        }
+    }
+
+    /// Deletes what the warning named and offers Undo. True once it is deleted.
+    func delete() async -> Bool {
+        guard let warning, canDelete else { return false }
+        isDeleting = true
+        defer { isDeleting = false }
+        do {
+            try await send(confirm: warning.confirm)
+        } catch {
+            if error.serverCode == .deletionChanged {
+                // What goes is not what she was warned of: she reads it again before anything goes.
+                do {
+                    self.warning = try await preview()
+                } catch let again {
+                    report(again)
+                    return false
+                }
+            }
+            report(error)
+            return false
+        }
+        problem = nil
+        app.deletions.deleted(target, line: warning.deleted, back: warning.back)
+        return true
+    }
+
+    private func preview() async throws(QBankError) -> Warning {
+        let preview: any DeletionPreview
+        var setCount = 0
+        switch target {
+        case .set(let id, _):
+            preview = try await app.client.practiceSetDeletion(id: id)
+        case .folder(let id, _):
+            let folder = try await app.client.folderDeletion(id: id)
+            setCount = folder.setCount
+            preview = folder
+        case .exam(let id):
+            preview = try await app.client.examDeletion(id: id)
+        }
+        let split = DeleteWording.split(preview.message)
+        return Warning(
+            title: split?.title ?? DeleteWording.question(target),
+            message: split?.message ?? preview.message,
+            refusal: preview.refusal,
+            confirm: preview.confirm,
+            deleted: DeleteWording.deleted(target, setCount: setCount),
+            back: DeleteWording.back(target, setCount: setCount)
+        )
+    }
+
+    private func send(confirm: String) async throws(QBankError) {
+        switch target {
+        case .set(let id, _): try await app.client.deletePracticeSet(id: id, confirm: confirm)
+        case .folder(let id, _): try await app.client.deleteFolder(id: id, confirm: confirm)
+        case .exam(let id): try await app.client.deleteExam(id: id, confirm: confirm)
+        }
+    }
+
+    private func report(_ error: QBankError) {
+        guard !app.handle(error) else { return }
+        problem = Wording.problem(error) ?? "Something went wrong. Try again."
+    }
+}
+
+/// The app's last delete, offered for Undo in a bar at the bottom of Home for a few seconds, and
+/// a count the screens follow so they read again after a delete or an Undo.
+@Observable
+final class Deletions {
+    struct Offer: Identifiable, Equatable {
+        enum State: Equatable {
+            case offered
+            case undoing
+            /// Brought back: the line says so.
+            case undone
+            /// Undo was refused, in the server's words.
+            case failed(String)
+        }
+
+        let id = UUID()
+        let target: DeleteTarget
+        let line: String
+        let back: String
+        var state = State.offered
+    }
+
+    private(set) var offer: Offer?
+    /// Counts each delete and each Undo, so the screens that list what changed read it again.
+    private(set) var revision = 0
+
+    /// It was deleted: Undo is offered at once.
+    func deleted(_ target: DeleteTarget, line: String, back: String) {
+        offer = Offer(target: target, line: line, back: back)
+        revision += 1
+    }
+
+    /// Undo from the bar.
+    func undo(with app: AppModel) async {
+        guard var offer, offer.state == .offered else { return }
+        offer.state = .undoing
+        self.offer = offer
+        do {
+            try await offer.target.undo(with: app.client)
+            offer.state = .undone
+            revision += 1
+        } catch {
+            if app.handle(error) {
+                self.offer = nil
+                return
+            }
+            offer.state = .failed(Wording.problem(error) ?? "Something went wrong. Try again.")
+        }
+        // Only the bar still showing this delete changes.
+        if self.offer?.id == offer.id { self.offer = offer }
+    }
+
+    /// Brought back from Recently deleted: the bar about it, if still showing, goes.
+    func broughtBack(_ target: DeleteTarget) {
+        if offer?.target == target { offer = nil }
+        revision += 1
+    }
+
+    func dismiss(_ id: UUID) {
+        if offer?.id == id { offer = nil }
+    }
+}

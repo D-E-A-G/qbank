@@ -221,19 +221,38 @@ public struct Folder: Codable, Sendable, Equatable, Identifiable {
     public let sets: [PracticeSetSummary]
     /// Exam-bank questions in this folder, asked only on exams. 0 without an exam bank.
     public let examBankCount: Int
+    /// Its exam sets (its exam bank), by title, each asked only on exams. Empty without an exam
+    /// bank. One can be deleted on its own.
+    public let examSets: [ExamSetSummary]
 
-    public init(id: String, name: String, examPageID: String?, sortOrder: Int, sets: [PracticeSetSummary], examBankCount: Int) {
+    public init(
+        id: String, name: String, examPageID: String?, sortOrder: Int, sets: [PracticeSetSummary], examBankCount: Int,
+        examSets: [ExamSetSummary] = []
+    ) {
         self.id = id
         self.name = name
         self.examPageID = examPageID
         self.sortOrder = sortOrder
         self.sets = sets
         self.examBankCount = examBankCount
+        self.examSets = examSets
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, name, sortOrder, sets, examBankCount
+        case id, name, sortOrder, sets, examBankCount, examSets
         case examPageID = "examPageId"
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        examPageID = try container.decodeIfPresent(String.self, forKey: .examPageID)
+        sortOrder = try container.decode(Int.self, forKey: .sortOrder)
+        sets = try container.decode([PracticeSetSummary].self, forKey: .sets)
+        examBankCount = try container.decode(Int.self, forKey: .examBankCount)
+        // Added with deleting; a server or a saved copy from before it sent only the count.
+        examSets = try container.decodeIfPresent([ExamSetSummary].self, forKey: .examSets) ?? []
     }
 
     /// The folders a course from before folders has: one per week, named and identified by its
@@ -249,6 +268,19 @@ public struct Folder: Codable, Sendable, Equatable, Identifiable {
                 examBankCount: week.examBankCount
             )
         }
+    }
+}
+
+/// An exam set of a folder's exam bank, asked only on exams.
+public struct ExamSetSummary: Codable, Sendable, Equatable, Hashable, Identifiable {
+    public let id: String
+    public let title: String
+    public let questionCount: Int
+
+    public init(id: String, title: String, questionCount: Int) {
+        self.id = id
+        self.title = title
+        self.questionCount = questionCount
     }
 }
 

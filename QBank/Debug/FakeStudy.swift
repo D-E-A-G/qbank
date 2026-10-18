@@ -284,7 +284,7 @@ nonisolated final class FakeStudy: Sendable {
     }
 
     func reviewCount(_ courseID: String) -> Int {
-        state.withLock { $0.review[courseID]?.count ?? 0 }
+        state.withLock { Self.liveReview($0, courseID: courseID).count }
     }
 
     func termCount(_ courseID: String) -> Int {
@@ -316,8 +316,14 @@ nonisolated final class FakeStudy: Sendable {
 
     // MARK: Review
 
+    /// Her Review list, without the questions of sets she deleted, as every read leaves them out.
+    private static func liveReview(_ state: State, courseID: String) -> [ReviewEntry] {
+        let folders = state.folders.filter { $0.courseID == courseID }
+        return (state.review[courseID] ?? []).filter { folder(of: $0.questionID, in: folders) != nil }
+    }
+
     private func review(_ courseID: String, filter: String) -> Reply {
-        let (entries, folders) = state.withLock { ($0.review[courseID] ?? [], Self.ordered($0, courseID: courseID)) }
+        let (entries, folders) = state.withLock { (Self.liveReview($0, courseID: courseID), Self.ordered($0, courseID: courseID)) }
         let counts: [String: Any] = [
             "all": entries.count,
             "missed": entries.count { $0.status == .incorrect },
@@ -372,7 +378,7 @@ nonisolated final class FakeStudy: Sendable {
     }
 
     private func reviewPractice(_ courseID: String, filter: String, questionID: String?) -> Reply {
-        let entries = state.withLock { $0.review[courseID] ?? [] }
+        let entries = state.withLock { Self.liveReview($0, courseID: courseID) }
         let ids: [String]
         if let questionID {
             guard FakePracticeQuestions.template(forQuestionID: questionID) != nil else {
@@ -393,7 +399,7 @@ nonisolated final class FakeStudy: Sendable {
     }
 
     private func clearReview(_ courseID: String, confirmed: Bool) -> Reply {
-        let count = state.withLock { $0.review[courseID]?.count ?? 0 }
+        let count = state.withLock { Self.liveReview($0, courseID: courseID).count }
         guard confirmed else {
             return Self.failure(400, "confirmation_required", "Clear all \(Wording.count(count, "question")) from this course's Review list?")
         }
@@ -1073,6 +1079,131 @@ nonisolated final class FakeStudy: Sendable {
             state.courseExams.removeAll { $0.id == id }
             return (204, [:])
         }
+    }
+
+    // MARK: Deleting, for `FakeDeletions`
+
+    /// A folder's exam sets: its exam bank's questions, by the set they came from. An imported or
+    /// twin exam set's questions are "bank-<set id>-q<n>"; the invented banks', "bank1-q<n>".
+    static func examSets(_ folder: Folder) -> [(id: String, questionIDs: [String])] {
+        var sets: [(id: String, questionIDs: [String])] = []
+        for question in folder.bank {
+            let parts = question.split(separator: "-").dropLast()
+            let id = parts.first == "bank" && parts.count > 1 ? parts.dropFirst().joined(separator: "-") : parts.joined(separator: "-")
+            if let index = sets.firstIndex(where: { $0.id == id }) {
+                sets[index].questionIDs.append(question)
+            } else {
+                sets.append((id, [question]))
+            }
+        }
+        return sets
+    }
+
+    func folder(_ id: String) -> Folder? {
+        state.withLock { state in state.folders.first { $0.id == id } }
+    }
+
+    /// The folder holding an exam set, and its questions.
+    func folder(holdingExamSet id: String) -> (folder: Folder, questionIDs: [String])? {
+        state.withLock { state in
+            for folder in state.folders {
+                if let set = Self.examSets(folder).first(where: { $0.id == id }) { return (folder, set.questionIDs) }
+            }
+            return nil
+        }
+    }
+
+    /// Of these questions, how many are in her Review list.
+    func inReview(_ questionIDs: Set<String>, courseID: String) -> Int {
+        state.withLock { state in (state.review[courseID] ?? []).count { questionIDs.contains($0.questionID) } }
+    }
+
+    /// The exams of hers still going in the course.
+    func runningExams(courseID: String) -> [Exam] {
+        settleExpired()
+        return state.withLock { state in state.exams.filter { $0.courseID == courseID && $0.finishedAt == nil } }
+    }
+
+    func exam(_ id: String) -> Exam? {
+        settleExpired()
+        return state.withLock { state in state.exams.first { $0.id == id } }
+    }
+
+    /// The exam as Exam setup lists it.
+    func summaryJSON(examID: String) -> [String: Any]? {
+        state.withLock { state in state.exams.first { $0.id == examID }.map { summaryJSON($0, in: state) } }
+    }
+
+    /// Her ended exams in the course over a folder.
+    func pastExams(over folderID: String, courseID: String) -> Int {
+        state.withLock { state in state.exams.count { $0.courseID == courseID && $0.finishedAt != nil && $0.folderIDs.contains(folderID) } }
+    }
+
+    /// Takes a practice set out of its folder, remembering its place.
+    func take(set id: String) -> (folderID: String, index: Int)? {
+        state.withLock { state in
+            guard let folder = state.folders.firstIndex(where: { $0.sets.contains(id) }),
+                  let index = state.folders[folder].sets.firstIndex(of: id) else { return nil }
+            state.folders[folder].sets.remove(at: index)
+            return (state.folders[folder].id, index)
+        }
+    }
+
+    func putBack(set id: String, in folderID: String, at index: Int) {
+        state.withLock { state in
+            guard let folder = state.folders.firstIndex(where: { $0.id == folderID }) else { return }
+            state.folders[folder].sets.insert(id, at: min(index, state.folders[folder].sets.count))
+        }
+    }
+
+    /// Takes an exam set's questions out of its folder's exam bank.
+    func take(examSet id: String) -> (folderID: String, questionIDs: [String])? {
+        guard let (folder, questionIDs) = folder(holdingExamSet: id) else { return nil }
+        state.withLock { state in
+            guard let index = state.folders.firstIndex(where: { $0.id == folder.id }) else { return }
+            state.folders[index].bank.removeAll { questionIDs.contains($0) }
+        }
+        return (folder.id, questionIDs)
+    }
+
+    func putBack(bank questionIDs: [String], in folderID: String) {
+        file(bank: questionIDs, in: folderID)
+    }
+
+    /// Takes a folder, with its sets, out of the course.
+    func take(folder id: String) -> Folder? {
+        state.withLock { state in
+            guard let index = state.folders.firstIndex(where: { $0.id == id }) else { return nil }
+            return state.folders.remove(at: index)
+        }
+    }
+
+    /// Puts a deleted folder back: on its exam page if that is still there, else at the end of the
+    /// Folders list. Refused, in the server's words, when that list has a folder of its name now.
+    func putBack(folder: Folder) -> String? {
+        state.withLock { state in
+            var folder = folder
+            if let page = folder.examPageID, !state.courseExams.contains(where: { $0.id == page }) {
+                folder.examPageID = nil
+                folder.sortOrder = Self.end(of: nil, courseID: folder.courseID, in: state)
+            }
+            if let clash = Self.nameTaken(folder.name, courseID: folder.courseID, page: folder.examPageID, except: [folder.id], in: state) {
+                return "\(clash.message.dropLast()). Rename one of them, then bring this one back."
+            }
+            state.folders.append(folder)
+            return nil
+        }
+    }
+
+    func take(exam id: String) -> Exam? {
+        state.withLock { state in
+            guard let index = state.exams.firstIndex(where: { $0.id == id }) else { return nil }
+            return state.exams.remove(at: index)
+        }
+    }
+
+    func putBack(exam: Exam) {
+        state.withLock { $0.exams.append(exam) }
     }
 
     // MARK: Plumbing

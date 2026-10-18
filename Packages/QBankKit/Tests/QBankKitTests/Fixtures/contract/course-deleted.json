@@ -1,0 +1,96 @@
+{
+  "recordedFrom": "db503743c7b9d7da7341ef62ed67adcb110da862",
+  "request": {
+    "method": "GET",
+    "path": "/api/courses/c0000000-0000-4000-8000-000000000701/deleted",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "undoDays": 30,
+      "folders": [
+        {
+          "id": "f0000000-0000-4000-8000-000000000701",
+          "name": "Week 1",
+          "examPageId": "ce000000-0000-4000-8000-000000000701",
+          "sets": [
+            {
+              "id": "5e700000-0000-4000-8000-000000000701",
+              "title": "Heart A",
+              "kind": "practice",
+              "questionCount": 4
+            },
+            {
+              "id": "5e700000-0000-4000-8000-000000000702",
+              "title": "Heart B",
+              "kind": "practice",
+              "questionCount": 3
+            },
+            {
+              "id": "5e700000-0000-4000-8000-000000000706",
+              "title": "Heart C",
+              "kind": "practice",
+              "questionCount": 2
+            },
+            {
+              "id": "5e700000-0000-4000-8000-000000000703",
+              "title": "Heart A exam",
+              "kind": "exam",
+              "questionCount": 3
+            }
+          ],
+          "deletedAt": "2026-10-18T20:22:06.420Z",
+          "undoUntil": "2026-11-17T20:22:06.420Z",
+          "undoRefusal": null
+        }
+      ],
+      "sets": [
+        {
+          "id": "5e700000-0000-4000-8000-000000000704",
+          "title": "Lungs",
+          "kind": "practice",
+          "questionCount": 3,
+          "folderId": "f0000000-0000-4000-8000-000000000702",
+          "folderName": "Week 2",
+          "deletedAt": "2026-10-18T20:22:06.438Z",
+          "undoUntil": "2026-11-17T20:22:06.438Z",
+          "undoRefusal": null
+        }
+      ],
+      "exams": [
+        {
+          "id": "e0000000-0000-4000-8000-000000000701",
+          "courseId": "c0000000-0000-4000-8000-000000000701",
+          "weeks": [
+            "Week 2"
+          ],
+          "folderIds": [
+            "f0000000-0000-4000-8000-000000000702"
+          ],
+          "courseExamId": null,
+          "pool": "all",
+          "practiceWeeks": [
+            "Week 2"
+          ],
+          "questionCount": 3,
+          "timeLimitSeconds": 270,
+          "startedAt": "2026-10-18T20:22:06.339Z",
+          "endsAt": "2026-10-18T20:26:36.339Z",
+          "finishedAt": "2026-10-18T20:22:06.358Z",
+          "endReason": "finished",
+          "answeredCount": 2,
+          "fullyRight": 2,
+          "points": 2,
+          "maxPoints": 3,
+          "minutesUsed": 1,
+          "deletedAt": "2026-10-18T20:22:06.429Z",
+          "undoUntil": "2026-11-17T20:22:06.429Z"
+        }
+      ]
+    }
+  }
+}

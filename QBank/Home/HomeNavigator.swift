@@ -94,8 +94,10 @@ struct ExamSetupRoute: Hashable {
     var examName: String?
 }
 
-/// A screen of a course under its page: an exam page or a folder, by id, so a rename keeps it open.
+/// A screen of a course under its page: an exam page or a folder, by id, so a rename keeps it open,
+/// or what she deleted in it.
 enum CoursePage: Hashable {
     case examPage(String)
     case folder(String)
+    case recentlyDeleted
 }

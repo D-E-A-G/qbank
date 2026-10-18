@@ -2,8 +2,10 @@ import QBankDesign
 import QBankKit
 import SwiftUI
 
-/// A folder: which exam page it is on and how far she is, Rename and Exam page, its sets, and its
-/// exam line. Select puts a check circle on each set and a Move bar at the bottom, as Files does.
+/// A folder: which exam page it is on and how far she is, Rename, Exam page and Delete, its sets,
+/// and its exam bank. Select puts a check circle on each set and a Move bar at the bottom, as Files
+/// does. Touching and holding a set offers Delete. Deleting the folder deletes its sets too, after a
+/// warning that names them.
 struct FolderView: View {
     let app: AppModel
     let model: CourseModel
@@ -13,7 +15,12 @@ struct FolderView: View {
     /// The sets she ticked, while she selects.
     @State private var selection: Set<String>?
     @State private var sheet: Sheet?
+    /// The set, exam set, or the folder itself she asked to delete, while its warning is open.
+    @State private var deleting: DeleteRequest?
+    /// True once the folder is deleted, so the screen leaves instead of saying it is gone.
+    @State private var isDeleted = false
     @Environment(TabNavigator.self) private var tabs: TabNavigator?
+    @Environment(\.dismiss) private var dismiss
 
     private enum Sheet: Identifiable {
         case rename
@@ -37,7 +44,7 @@ struct FolderView: View {
                 content(folder)
                     .screenColumn()
                     .padding(.bottom, QBankSpacing.space7)
-            } else if model.course != nil {
+            } else if model.course != nil, !isDeleted {
                 // Removed elsewhere, such as on the web, while it was open here.
                 EmptyCard(message: "This folder is not in the course anymore.", systemImage: "folder")
                     .screenColumn()
@@ -56,6 +63,12 @@ struct FolderView: View {
             }
         }
         .practiceCover(app: app, model: model, route: $practicing)
+        .deleteSheet(app: app, request: $deleting) { target in
+            if case .folder = target {
+                isDeleted = true
+                dismiss()
+            }
+        }
         .sheet(item: $sheet, onDismiss: { Task { await model.load() } }, content: { sheet in
             if let folder = model.folder(id) {
                 switch sheet {
@@ -120,6 +133,14 @@ struct FolderView: View {
                     Label("Import here", systemImage: "square.and.arrow.down")
                 }
                 .accessibilityIdentifier("folder.import")
+                Button {
+                    deleting = DeleteRequest(target: .folder(id: folder.id, name: folder.name))
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+                .buttonStyle(.qbank(.destructive, size: .small))
+                .accessibilityLabel("Delete \(folder.name)")
+                .accessibilityIdentifier("folder.delete")
             }
             .buttonStyle(.qbank(.secondary, size: .small))
             .disabled(!model.canEdit || selection != nil)
@@ -154,9 +175,27 @@ struct FolderView: View {
                             } restore: {
                                 Task { await model.restore(set) }
                             }
+                            .deletable(set.title, isEnabled: model.canEdit) {
+                                deleting = DeleteRequest(target: .set(id: set.id, title: set.title))
+                            }
                         }
                     }
                     ExamBankLine(folder: folder)
+                    if selection == nil {
+                        ForEach(folder.examSets) { set in
+                            ExamSetRow(set: set)
+                                .deletable(set.title, isEnabled: model.canEdit) {
+                                    deleting = DeleteRequest(target: .set(id: set.id, title: set.title))
+                                }
+                        }
+                    }
+                }
+                if selection == nil, model.canEdit {
+                    Text("Touch and hold a set to delete it.")
+                        .qbankFont(.footnote)
+                        .foregroundStyle(.qbank(.text3))
+                        .padding(.horizontal, QBankSpacing.space5)
+                        .accessibilityHidden(true)
                 }
             }
         }
@@ -298,6 +337,50 @@ private struct SetText: View {
                 .foregroundStyle(.qbank(.text2))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// An exam set of the folder's exam bank, under its exam line: its title and size, asked only on
+/// exams. Not opened for practice.
+private struct ExamSetRow: View {
+    let set: ExamSetSummary
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(set.title)
+                .qbankFont(.callout, weight: .semibold)
+                .foregroundStyle(.qbank(.text1))
+                .multilineTextAlignment(.leading)
+            Text(Wording.count(set.questionCount, "question"))
+                .qbankFont(.subheadline)
+                .foregroundStyle(.qbank(.text2))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, QBankSpacing.rowPaddingHorizontal)
+        .padding(.vertical, 10)
+        .frame(minHeight: QBankSpacing.rowMin)
+        .contentShape(.rect)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("folder.examSet.\(set.title)")
+    }
+}
+
+extension View {
+    /// Offers Delete when she touches and holds the row, and to VoiceOver as an action.
+    func deletable(_ name: String, isEnabled: Bool, delete: @escaping () -> Void) -> some View {
+        contextMenu {
+            if isEnabled {
+                Button(role: .destructive, action: delete) {
+                    Label("Delete", systemImage: "trash")
+                }
+                .accessibilityIdentifier("delete.\(name)")
+            }
+        }
+        .accessibilityActions {
+            if isEnabled {
+                Button("Delete", action: delete)
+            }
+        }
     }
 }
 
