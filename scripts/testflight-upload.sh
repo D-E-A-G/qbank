@@ -193,6 +193,18 @@ check_export() {
 upload_with_vault() {
   local ipa="$1"
   log "uploading: Automic Vault asks to allow APP_STORE_CONNECT_KEY_ID, APP_STORE_CONNECT_ISSUER_ID, and APP_STORE_CONNECT_API_KEY_P8"
+  # av inject --mode=fd refuses a descriptor that is already open. A parent
+  # can inherit one: the worker runner that starts this script holds a pipe
+  # on 3. Nothing above uses 3, 4, or 5.
+  if { true <&3; } 2>/dev/null || { true >&3; } 2>/dev/null; then
+    exec 3<&-
+  fi
+  if { true <&4; } 2>/dev/null || { true >&4; } 2>/dev/null; then
+    exec 4<&-
+  fi
+  if { true <&5; } 2>/dev/null || { true >&5; } 2>/dev/null; then
+    exec 5<&-
+  fi
   if ! av inject --mode=fd \
     +APP_STORE_CONNECT_KEY_ID:3 \
     +APP_STORE_CONNECT_ISSUER_ID:4 \
