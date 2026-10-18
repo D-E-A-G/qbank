@@ -1,0 +1,56 @@
+{
+  "recordedFrom": "db503743c7b9d7da7341ef62ed67adcb110da862",
+  "request": {
+    "method": "GET",
+    "path": "/api/practice-sets/5e700000-0000-4000-8000-000000000703/delete-preview",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "setId": "5e700000-0000-4000-8000-000000000703",
+      "title": "Heart A exam",
+      "kind": "exam",
+      "folderId": "f0000000-0000-4000-8000-000000000701",
+      "folderName": "Week 1",
+      "examPageId": "ce000000-0000-4000-8000-000000000701",
+      "questionCount": 3,
+      "versionCount": 1,
+      "answeredCount": 0,
+      "reviewCount": 0,
+      "progress": {
+        "answeredCount": {
+          "before": 4,
+          "after": 4
+        },
+        "fullyRightCount": {
+          "before": 2,
+          "after": 2
+        },
+        "reviewCount": {
+          "before": 2,
+          "after": 2
+        },
+        "points": {
+          "before": 2,
+          "after": 2
+        },
+        "maxPoints": {
+          "before": 4,
+          "after": 4
+        },
+        "wrongCount": {
+          "before": 0,
+          "after": 2
+        }
+      },
+      "message": "Delete Heart A exam from Week 1's exam bank? Its 3 questions go with it, and exams over Week 1 go back to asking its practice questions. You can undo this for 30 days.",
+      "refusal": "An exam in progress asks questions from Heart A exam. Finish or leave that exam first.",
+      "confirm": "b4e96e9e99e17fe4",
+      "undoDays": 30
+    }
+  }
+}

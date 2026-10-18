@@ -66,6 +66,12 @@ extension OfflineBanner {
         )
     }
 
+    /// Deleting and bringing back happen on the server, so they need a connection.
+    static let deletingNeedsConnection = OfflineBanner(
+        title: "No connection",
+        message: "Bringing back what you deleted happens on the server. Try again when you are back online."
+    )
+
     /// Exams start and end on the server, so they need a connection.
     static let examsNeedConnection = OfflineBanner(
         title: "Exams need a connection",

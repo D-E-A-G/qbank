@@ -1,0 +1,18 @@
+{
+  "recordedFrom": "db503743c7b9d7da7341ef62ed67adcb110da862",
+  "request": {
+    "method": "POST",
+    "path": "/api/practice-sets/5e700000-0000-4000-8000-000000000705/undo-delete",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 409,
+    "headers": {},
+    "body": {
+      "error": "undo_expired",
+      "message": "Kidneys was deleted more than 30 days ago, so it can't be brought back."
+    }
+  }
+}

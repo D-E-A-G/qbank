@@ -69,6 +69,9 @@ nonisolated enum DebugLaunchScenario {
         /// `FakeQBankServer.student` is signed in from an earlier launch and last
         /// used the Mental Health course. The server does not let her make questions.
         case signedIn = "signed-in"
+        /// As `signedIn`, with an exam over Mental Health's Weeks 1-2 left in progress, so deleting
+        /// what it asks is refused for now.
+        case examInProgress = "exam-in-progress"
         /// `FakeQBankServer.maker` is signed in: the server lets her make questions, with one set
         /// being written and the questions copied from two photos waiting for her check.
         case maker = "maker"
@@ -139,9 +142,9 @@ nonisolated enum DebugLaunchScenario {
         switch scenario {
         case .signedOut:
             return model(server: FakeQBankServer(signedIn: false), session: nil, defaults: defaults, storage: storage, isOnline: isOnline, device: device)
-        case .signedIn:
+        case .signedIn, .examInProgress:
             return model(
-                server: FakeQBankServer(signedIn: true), session: FakeQBankServer.storedStudentSession(),
+                server: FakeQBankServer(signedIn: true, examInProgress: scenario == .examInProgress), session: FakeQBankServer.storedStudentSession(),
                 defaults: defaults, storage: storage, isOnline: isOnline, device: device
             )
         case .maker, .makerNotSetUp:

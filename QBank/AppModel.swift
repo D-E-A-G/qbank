@@ -34,6 +34,8 @@ final class AppModel {
     let passkeys: PasskeyAuthenticator
     /// The offer to save a passkey after a password sign-in.
     let passkeyOffer: PasskeyOffer
+    /// Her last delete, offered for Undo, and a count the screens follow after a delete or Undo.
+    let deletions = Deletions()
     /// Saved courses and unsent answers for the account on this phone. Nil when signed out.
     private(set) var offline: OfflineStore?
 

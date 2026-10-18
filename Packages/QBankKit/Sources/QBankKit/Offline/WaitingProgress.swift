@@ -108,7 +108,7 @@ public struct WaitingProgress: Sendable, Equatable {
     private func counting(_ folder: Folder) -> Folder {
         Folder(
             id: folder.id, name: folder.name, examPageID: folder.examPageID, sortOrder: folder.sortOrder,
-            sets: folder.sets.map(counting), examBankCount: folder.examBankCount
+            sets: folder.sets.map(counting), examBankCount: folder.examBankCount, examSets: folder.examSets
         )
     }
 

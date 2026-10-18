@@ -50,6 +50,7 @@ struct HomeView: View {
                 }
                 .studyDestinations(app: app)
         }
+        .undoBar(app)
     }
 
     /// iPad: the courses in a sidebar, and the course she chose beside them.
@@ -70,6 +71,7 @@ struct HomeView: View {
                 }
                 .studyDestinations(app: app)
             }
+            .undoBar(app)
         }
         .navigationSplitViewStyle(.balanced)
         .onChange(of: navigator.courseRevision) {

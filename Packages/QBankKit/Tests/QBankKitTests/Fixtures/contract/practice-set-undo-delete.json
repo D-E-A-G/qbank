@@ -1,0 +1,67 @@
+{
+  "recordedFrom": "db503743c7b9d7da7341ef62ed67adcb110da862",
+  "request": {
+    "method": "POST",
+    "path": "/api/practice-sets/5e700000-0000-4000-8000-000000000702/undo-delete",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "id": "f0000000-0000-4000-8000-000000000701",
+      "name": "Week 1",
+      "examPageId": "ce000000-0000-4000-8000-000000000701",
+      "sortOrder": 1,
+      "sets": [
+        {
+          "id": "5e700000-0000-4000-8000-000000000701",
+          "title": "Heart A",
+          "description": "Invented set.",
+          "questionCount": 4,
+          "importedAt": "2026-10-18T20:22:06.249Z",
+          "activeSince": "2026-10-18T20:22:06.249Z",
+          "status": "imported",
+          "canRestore": false,
+          "answeredCount": 3,
+          "fullyRightCount": 2,
+          "lastAnsweredAt": "2026-10-18T20:22:06.320Z",
+          "questionIds": [
+            "9e000000-0000-4000-8000-000000000701",
+            "9e000000-0000-4000-8000-000000000702",
+            "9e000000-0000-4000-8000-000000000703",
+            "9e000000-0000-4000-8000-000000000704"
+          ]
+        },
+        {
+          "id": "5e700000-0000-4000-8000-000000000702",
+          "title": "Heart B",
+          "description": "Invented set.",
+          "questionCount": 3,
+          "importedAt": "2026-10-18T20:22:06.257Z",
+          "activeSince": "2026-10-18T20:22:06.257Z",
+          "status": "imported",
+          "canRestore": false,
+          "answeredCount": 1,
+          "fullyRightCount": 0,
+          "lastAnsweredAt": "2026-10-18T20:22:06.326Z",
+          "questionIds": [
+            "9e000000-0000-4000-8000-000000000705",
+            "9e000000-0000-4000-8000-000000000706",
+            "9e000000-0000-4000-8000-000000000707"
+          ]
+        }
+      ],
+      "examBankCount": 3,
+      "examSets": [
+        {
+          "id": "5e700000-0000-4000-8000-000000000703",
+          "title": "Heart A exam",
+          "questionCount": 3
+        }
+      ]
+    }
+  }
+}

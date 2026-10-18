@@ -1,0 +1,20 @@
+{
+  "recordedFrom": "db503743c7b9d7da7341ef62ed67adcb110da862",
+  "request": {
+    "method": "DELETE",
+    "path": "/api/exams/e0000000-0000-4000-8000-000000000702",
+    "query": {
+      "confirm": "88eb901854610596"
+    },
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 409,
+    "headers": {},
+    "body": {
+      "error": "exam_in_progress",
+      "message": "This exam is still going. Finish or leave it, then delete it."
+    }
+  }
+}

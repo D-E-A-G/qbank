@@ -1,0 +1,78 @@
+{
+  "recordedFrom": "db503743c7b9d7da7341ef62ed67adcb110da862",
+  "request": {
+    "method": "GET",
+    "path": "/api/folders/f0000000-0000-4000-8000-000000000701/delete-preview",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "folderId": "f0000000-0000-4000-8000-000000000701",
+      "name": "Week 1",
+      "examPageId": "ce000000-0000-4000-8000-000000000701",
+      "examPageName": "Exam 1",
+      "sets": [
+        {
+          "id": "5e700000-0000-4000-8000-000000000701",
+          "title": "Heart A",
+          "kind": "practice",
+          "questionCount": 4,
+          "answeredCount": 3
+        },
+        {
+          "id": "5e700000-0000-4000-8000-000000000702",
+          "title": "Heart B",
+          "kind": "practice",
+          "questionCount": 3,
+          "answeredCount": 1
+        },
+        {
+          "id": "5e700000-0000-4000-8000-000000000703",
+          "title": "Heart A exam",
+          "kind": "exam",
+          "questionCount": 3,
+          "answeredCount": 0
+        }
+      ],
+      "setCount": 3,
+      "questionCount": 10,
+      "answeredCount": 4,
+      "reviewCount": 2,
+      "pastExamCount": 0,
+      "progress": {
+        "answeredCount": {
+          "before": 7,
+          "after": 3
+        },
+        "fullyRightCount": {
+          "before": 4,
+          "after": 2
+        },
+        "reviewCount": {
+          "before": 3,
+          "after": 1
+        },
+        "points": {
+          "before": 4,
+          "after": 2
+        },
+        "maxPoints": {
+          "before": 7,
+          "after": 3
+        },
+        "wrongCount": {
+          "before": 1,
+          "after": 1
+        }
+      },
+      "message": "Delete Week 1? Its 3 sets go with it: Heart A, Heart B and Heart A exam, 10 questions in all. You have answered 4 of them: those answers stop counting toward your progress, and 2 questions leave your Review list. It comes off Exam 1. You can undo this for 30 days.",
+      "refusal": null,
+      "confirm": "36a24767c0033cfc",
+      "undoDays": 30
+    }
+  }
+}

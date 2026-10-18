@@ -46,6 +46,10 @@ struct CourseView: View {
             guard model.course != nil else { return }
             Task { await model.load() }
         }
+        .onChange(of: app.deletions.revision) {
+            // Deleted or brought back on one of its screens, or with Undo: its lists change.
+            Task { await model.load() }
+        }
         .onChange(of: model.course) { old, _ in
             // On iPad the courses stay beside this one, and their card shows these counts too.
             if old != nil {
@@ -56,6 +60,7 @@ struct CourseView: View {
             switch page {
             case .examPage(let id): ExamPageView(app: app, model: model, id: id)
             case .folder(let id): FolderView(app: app, model: model, id: id)
+            case .recentlyDeleted: RecentlyDeletedView(app: app, courseID: model.id)
             }
         }
         .sheet(isPresented: $makesPage, onDismiss: {
@@ -97,6 +102,8 @@ struct CourseView: View {
                             .padding(.top, QBankSpacing.space3)
                     }
                 }
+                recentlyDeleted
+                    .padding(.top, QBankSpacing.space3)
             }
         } else if let problem = model.problem {
             LoadFailed(problem: problem) {
@@ -177,6 +184,18 @@ struct CourseView: View {
                 .qbankFont(.footnote)
                 .foregroundStyle(.qbank(.text3))
                 .padding(.horizontal, QBankSpacing.space5)
+        }
+    }
+
+    /// What she deleted in the course, for 30 days.
+    private var recentlyDeleted: some View {
+        QBankListGroup {
+            NavigationLink(value: CoursePage.recentlyDeleted) {
+                QBankListRow("Recently deleted", detail: "Bring back sets, folders and exams for 30 days", systemImage: "trash", showsChevron: true)
+            }
+            .buttonStyle(.qbankRow)
+            .disabled(order != nil)
+            .accessibilityIdentifier("course.recentlyDeleted")
         }
     }
 

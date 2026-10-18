@@ -118,6 +118,14 @@ public struct ServerError: Error, Sendable, Equatable {
         public static let alreadyAnswered: Code = "already_answered"
         public static let questionNotInExam: Code = "question_not_in_exam"
         public static let courseNotFound: Code = "course_not_found"
+        // Deleting and Undo: what goes changed since the preview, a job or a running exam still
+        // uses it, the exam is still going, Undo after 30 days, and the admin with her exams.
+        public static let deletionChanged: Code = "deletion_changed"
+        public static let inUse: Code = "in_use"
+        public static let examInProgress: Code = "exam_in_progress"
+        public static let undoExpired: Code = "undo_expired"
+        public static let notDeleted: Code = "not_deleted"
+        public static let adminCannotDeleteExam: Code = "admin_cannot_delete_exam"
     }
 }
 

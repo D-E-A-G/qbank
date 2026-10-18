@@ -16,6 +16,8 @@ struct ExamPageView: View {
     @State private var editsPage = false
     @State private var isRemoved = false
     @State private var problem: String?
+    /// The past exam she asked to delete, while its warning is open.
+    @State private var deleting: DeleteRequest?
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -40,6 +42,11 @@ struct ExamPageView: View {
             Task { await model.load() }
         }
         .examCover(app: app, model: model, route: $exam) { dismiss() }
+        .onChange(of: app.deletions.revision) {
+            // A folder or exam deleted, or brought back with Undo while this page is open.
+            Task { await model.load() }
+        }
+        .deleteSheet(app: app, request: $deleting)
         .sheet(isPresented: $editsPage, onDismiss: {
             // A removed page leaves once the sheet is down.
             order = nil
@@ -133,7 +140,7 @@ struct ExamPageView: View {
                     systemImage: "timer"
                 )
             } else {
-                QBankListGroup {
+                QBankListGroup(footer: model.isStudent && model.canEdit ? "Touch and hold an exam to delete it." : nil) {
                     ForEach(page.sittings) { sitting in
                         Button {
                             exam = ExamRoute(id: sitting.id)
@@ -141,6 +148,9 @@ struct ExamPageView: View {
                             PastExamRow(exam: sitting)
                         }
                         .buttonStyle(.qbankRow)
+                        .deletable("exam", isEnabled: model.isStudent && model.canEdit && sitting.finishedAt != nil) {
+                            deleting = DeleteRequest(target: .exam(id: sitting.id))
+                        }
                         .accessibilityIdentifier("page.sitting.\(sitting.id)")
                     }
                 }

@@ -36,6 +36,15 @@ struct DebugLaunchScenarioTests {
         #expect(await home.landingCourse() == CourseRoute(id: FakeQBankServer.mentalHealthID, code: "NURS 310"))
     }
 
+    @Test func examInProgressScenarioLeavesAnExamOverWeeks1And2Going() async throws {
+        let app = try #require(Self.launch("exam-in-progress"))
+        #expect(app.account?.email == FakeQBankServer.student.email)
+        let setup = try await app.client.examSetup(courseID: FakeQBankServer.mentalHealthID)
+        let running = try #require(setup.inProgress)
+        #expect(running.weeks == ["Week 1", "Week 2"])
+        #expect(setup.exams.count == 3, "her past exams as in signed-in")
+    }
+
     @Test(arguments: [("maker", true), ("maker-not-set-up", false)])
     func makerScenariosSignInAsTheAccountThatMakesQuestions(scenario: String, isSetUp: Bool) async throws {
         let app = try #require(Self.launch(scenario))

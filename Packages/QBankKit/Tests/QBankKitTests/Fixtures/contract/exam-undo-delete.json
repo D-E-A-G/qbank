@@ -1,0 +1,40 @@
+{
+  "recordedFrom": "db503743c7b9d7da7341ef62ed67adcb110da862",
+  "request": {
+    "method": "POST",
+    "path": "/api/exams/e0000000-0000-4000-8000-000000000701/undo-delete",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "id": "e0000000-0000-4000-8000-000000000701",
+      "courseId": "c0000000-0000-4000-8000-000000000701",
+      "weeks": [
+        "Week 2"
+      ],
+      "folderIds": [
+        "f0000000-0000-4000-8000-000000000702"
+      ],
+      "courseExamId": null,
+      "pool": "all",
+      "practiceWeeks": [
+        "Week 2"
+      ],
+      "questionCount": 3,
+      "timeLimitSeconds": 270,
+      "startedAt": "2026-10-18T20:22:06.339Z",
+      "endsAt": "2026-10-18T20:26:36.339Z",
+      "finishedAt": "2026-10-18T20:22:06.358Z",
+      "endReason": "finished",
+      "answeredCount": 2,
+      "fullyRight": 2,
+      "points": 2,
+      "maxPoints": 3,
+      "minutesUsed": 1
+    }
+  }
+}

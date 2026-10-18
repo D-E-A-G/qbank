@@ -385,6 +385,13 @@
           "examBankCount": {
             "type": "integer",
             "description": "Questions in its exam sets, asked only on exams: the \"Exam bank: 14 questions, exams only\" line under its sets. 0 when it has none."
+          },
+          "examSets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExamSetSummary"
+            },
+            "description": "Its exam sets (its exam bank), by title, each asked only on exams. Empty when it has none. One can be deleted on its own: GET /api/practice-sets/{id}/delete-preview."
           }
         },
         "required": [
@@ -393,7 +400,28 @@
           "examPageId",
           "sortOrder",
           "sets",
-          "examBankCount"
+          "examBankCount",
+          "examSets"
+        ]
+      },
+      "ExamSetSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "questionCount": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "questionCount"
         ]
       },
       "CourseExam": {
@@ -2237,6 +2265,13 @@
             "type": "boolean",
             "description": "False when the set version was replaced by a later import."
           },
+          "setDeletedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "When she deleted its set, or null. A deleted set's answers count toward nothing until she brings it back."
+          },
           "weekLabel": {
             "type": "string",
             "description": "The question's own week, from its file."
@@ -2275,6 +2310,7 @@
           "setId",
           "setTitle",
           "setIsCurrent",
+          "setDeletedAt",
           "weekLabel",
           "folderId",
           "folderName",
@@ -2370,6 +2406,13 @@
               null
             ],
             "description": "How an exam ended: she finished it, left it, or ran out of time."
+          },
+          "deletedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "When she deleted this exam, or null. Its answers are in `attempts` but count toward nothing in `questionProgress` until she brings it back."
           }
         },
         "required": [
@@ -2384,7 +2427,8 @@
           "startedAt",
           "finishedAt",
           "score",
-          "endReason"
+          "endReason",
+          "deletedAt"
         ]
       },
       "ExportAttempt": {
@@ -3632,6 +3676,542 @@
         },
         "required": [
           "reason"
+        ]
+      },
+      "SetDeletion": {
+        "type": "object",
+        "properties": {
+          "setId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "practice",
+              "exam"
+            ],
+            "description": "`exam` for an exam set (Folder.examSets): its questions leave the folder's exams; without its last one, exams over the folder ask its practice questions."
+          },
+          "folderId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "folderName": {
+            "type": "string"
+          },
+          "examPageId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "questionCount": {
+            "type": "integer"
+          },
+          "versionCount": {
+            "type": "integer",
+            "description": "Its versions that go with it, the current one included: the earlier versions Restore could bring back go too, and come back with Undo."
+          },
+          "answeredCount": {
+            "type": "integer",
+            "description": "Of its questions, the ones she has answered. Those answers stay saved and stop counting while it is deleted."
+          },
+          "reviewCount": {
+            "type": "integer",
+            "description": "Of its questions, the ones in her Review list, which leave it."
+          },
+          "progress": {
+            "$ref": "#/components/schemas/StandingChange"
+          },
+          "message": {
+            "type": "string",
+            "description": "The warning, as a sentence or two to show her: what goes, her answers, and Undo."
+          },
+          "refusal": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confirm": {
+            "type": "string"
+          },
+          "undoDays": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "setId",
+          "title",
+          "kind",
+          "folderId",
+          "folderName",
+          "examPageId",
+          "questionCount",
+          "versionCount",
+          "answeredCount",
+          "reviewCount",
+          "progress",
+          "message",
+          "refusal",
+          "confirm",
+          "undoDays"
+        ]
+      },
+      "StandingChange": {
+        "type": "object",
+        "properties": {
+          "answeredCount": {
+            "$ref": "#/components/schemas/CountChange"
+          },
+          "fullyRightCount": {
+            "$ref": "#/components/schemas/CountChange"
+          },
+          "reviewCount": {
+            "$ref": "#/components/schemas/CountChange"
+          },
+          "points": {
+            "$ref": "#/components/schemas/CountChange"
+          },
+          "maxPoints": {
+            "$ref": "#/components/schemas/CountChange"
+          },
+          "wrongCount": {
+            "$ref": "#/components/schemas/CountChange"
+          }
+        },
+        "required": [
+          "answeredCount",
+          "fullyRightCount",
+          "reviewCount",
+          "points",
+          "maxPoints",
+          "wrongCount"
+        ],
+        "description": "Her standing in the course now and once it is deleted: answeredCount, fullyRightCount, reviewCount (her Review list), points and maxPoints as CourseDetail has them, and wrongCount, her Wrong questions: what a Wrong questions only exam over every folder draws from (ExamSetup.folders[].wrongCount, added up). For the admin, the student he looks after; all 0 when there is none."
+      },
+      "CountChange": {
+        "type": "object",
+        "properties": {
+          "before": {
+            "type": "integer",
+            "description": "Now."
+          },
+          "after": {
+            "type": "integer",
+            "description": "Once it is deleted."
+          }
+        },
+        "required": [
+          "before",
+          "after"
+        ],
+        "description": "One count, now and once it is deleted."
+      },
+      "DeletionError": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "message"
+        ]
+      },
+      "FolderDeletion": {
+        "type": "object",
+        "properties": {
+          "folderId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "examPageId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The exam page it is on (CourseDetail.exams), or null. It comes off the page."
+          },
+          "examPageName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeletionSet"
+            },
+            "description": "Every set in it, practice sets then exam sets, each by title. Every one is deleted with it."
+          },
+          "setCount": {
+            "type": "integer"
+          },
+          "questionCount": {
+            "type": "integer",
+            "description": "Questions in those sets."
+          },
+          "answeredCount": {
+            "type": "integer",
+            "description": "Of those, the ones she has answered. Those answers stay saved and stop counting while it is deleted."
+          },
+          "reviewCount": {
+            "type": "integer",
+            "description": "Of those, the ones in her Review list, which leave it."
+          },
+          "pastExamCount": {
+            "type": "integer",
+            "description": "Her past exams over this folder. They stay, and the folder drops out of their folderIds."
+          },
+          "progress": {
+            "$ref": "#/components/schemas/StandingChange"
+          },
+          "message": {
+            "type": "string",
+            "description": "The warning, as a few sentences to show her: its sets by name, her answers, its exam page, and Undo."
+          },
+          "refusal": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confirm": {
+            "type": "string"
+          },
+          "undoDays": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "folderId",
+          "name",
+          "examPageId",
+          "examPageName",
+          "sets",
+          "setCount",
+          "questionCount",
+          "answeredCount",
+          "reviewCount",
+          "pastExamCount",
+          "progress",
+          "message",
+          "refusal",
+          "confirm",
+          "undoDays"
+        ]
+      },
+      "DeletionSet": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "practice",
+              "exam"
+            ],
+            "description": "`exam` for an exam set of the folder's exam bank."
+          },
+          "questionCount": {
+            "type": "integer"
+          },
+          "answeredCount": {
+            "type": "integer",
+            "description": "Of its questions, the ones she has answered."
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "kind",
+          "questionCount",
+          "answeredCount"
+        ]
+      },
+      "ExamDeletion": {
+        "type": "object",
+        "properties": {
+          "examId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "courseId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "startedAt": {
+            "type": "string"
+          },
+          "finishedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "questionCount": {
+            "type": "integer"
+          },
+          "answeredCount": {
+            "type": "integer",
+            "description": "Her answers on it. They stay saved and count toward nothing while it is deleted."
+          },
+          "changedCount": {
+            "type": "integer",
+            "description": "Questions whose latest answer goes back to the one she gave before this exam."
+          },
+          "unansweredCount": {
+            "type": "integer",
+            "description": "Questions she answered only on this exam, which go back to not answered."
+          },
+          "progress": {
+            "$ref": "#/components/schemas/StandingChange"
+          },
+          "message": {
+            "type": "string",
+            "description": "The warning, as a few sentences to show her: her answers, Review and Wrong questions, and Undo."
+          },
+          "refusal": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Set while the exam is still going: it is refused with 409 `exam_in_progress` until she finishes or leaves it."
+          },
+          "confirm": {
+            "type": "string"
+          },
+          "undoDays": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "examId",
+          "courseId",
+          "startedAt",
+          "finishedAt",
+          "questionCount",
+          "answeredCount",
+          "changedCount",
+          "unansweredCount",
+          "progress",
+          "message",
+          "refusal",
+          "confirm",
+          "undoDays"
+        ]
+      },
+      "RecentlyDeleted": {
+        "type": "object",
+        "properties": {
+          "undoDays": {
+            "type": "integer"
+          },
+          "folders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeletedFolder"
+            },
+            "description": "Folders she deleted, newest first."
+          },
+          "sets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeletedSet"
+            },
+            "description": "Sets she deleted on their own, newest first. Sets that went with a folder are under it."
+          },
+          "exams": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeletedExam"
+            },
+            "description": "Her past exams she deleted, newest first."
+          }
+        },
+        "required": [
+          "undoDays",
+          "folders",
+          "sets",
+          "exams"
+        ]
+      },
+      "DeletedFolder": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "POST /api/folders/{id}/undo-delete."
+          },
+          "name": {
+            "type": "string"
+          },
+          "examPageId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The exam page Undo puts it back on; null when it goes back to the Folders list (its page was removed since, or it was on none)."
+          },
+          "sets": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "practice",
+                    "exam"
+                  ]
+                },
+                "questionCount": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "title",
+                "kind",
+                "questionCount"
+              ]
+            },
+            "description": "The sets that went with it, which come back with it."
+          },
+          "deletedAt": {
+            "type": "string"
+          },
+          "undoUntil": {
+            "type": "string",
+            "description": "Undo is refused after this."
+          },
+          "undoRefusal": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why Undo would be refused now (its list has a folder of its name now), or null."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "examPageId",
+          "sets",
+          "deletedAt",
+          "undoUntil",
+          "undoRefusal"
+        ]
+      },
+      "DeletedSet": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Its current version's id: POST /api/practice-sets/{id}/undo-delete."
+          },
+          "title": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "practice",
+              "exam"
+            ]
+          },
+          "folderId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "folderName": {
+            "type": "string"
+          },
+          "questionCount": {
+            "type": "integer"
+          },
+          "deletedAt": {
+            "type": "string"
+          },
+          "undoUntil": {
+            "type": "string",
+            "description": "Undo is refused after this."
+          },
+          "undoRefusal": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why Undo would be refused now (its folder is deleted), or null."
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "kind",
+          "folderId",
+          "folderName",
+          "questionCount",
+          "deletedAt",
+          "undoUntil",
+          "undoRefusal"
+        ]
+      },
+      "DeletedExam": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ExamSummary"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "deletedAt": {
+                "type": "string"
+              },
+              "undoUntil": {
+                "type": "string",
+                "description": "Undo is refused after this."
+              }
+            },
+            "required": [
+              "deletedAt",
+              "undoUntil"
+            ]
+          }
         ]
       },
       "QuestionMakerStatus": {
@@ -6259,11 +6839,11 @@
         }
       },
       "delete": {
-        "summary": "Remove an empty folder",
-        "description": "Only a folder with no sets, of any version, can go; one with sets is refused with 409. The student and the admin can both do this.",
         "tags": [
-          "Folders"
+          "Delete"
         ],
+        "summary": "Delete a folder and its sets",
+        "description": "Deletes the folder and every set in it, every version, as its preview named; it comes off its exam page. Its sets are hidden as DELETE /api/practice-sets/{id} hides one, and her answers to them stop counting while it is deleted. Her past exams over it stay, without it in their folders. Without `confirm`, only a folder that holds no set is deleted (as before), and one with sets is refused with 409 `confirmation_required`. Refused with 409 `in_use` while a Make questions job is measured against one of its sets or is still filing their exam twins, a twin job is twinning one of them, or an exam in progress asks their questions. A Make questions job that would file into it is not a refusal: its set goes to Unsorted, and the job says so. Undo brings it back exactly as it was for 30 days (`undoDays`); after that it stays hidden and Undo is refused with 409 `undo_expired`. Nothing is ever deleted except by this request. The student and the admin can both do this.",
         "parameters": [
           {
             "schema": {
@@ -6273,58 +6853,79 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64,
+              "description": "`confirm` from the delete preview she was shown. Required for a folder that holds sets (409 `confirmation_required` without it); one that no longer matches is refused with 409 `deletion_changed`, and nothing is deleted."
+            },
+            "required": false,
+            "description": "`confirm` from the delete preview she was shown. Required for a folder that holds sets (409 `confirmation_required` without it); one that no longer matches is refused with 409 `deletion_changed`, and nothing is deleted.",
+            "name": "confirm",
+            "in": "query"
           }
         ],
         "responses": {
           "204": {
-            "description": "The folder was removed."
+            "description": "It was deleted."
           },
           "400": {
-            "description": "The request was refused.",
+            "description": "The request was refused, with the sentence to show her in `message`.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ContentError"
+                  "$ref": "#/components/schemas/DeletionError"
                 }
               }
             }
           },
           "401": {
-            "description": "Sign in is required.",
+            "description": "Sign in.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ContentError"
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
                 }
               }
             }
           },
           "404": {
-            "description": "The request was refused.",
+            "description": "The request was refused, with the sentence to show her in `message`.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ContentError"
+                  "$ref": "#/components/schemas/DeletionError"
                 }
               }
             }
           },
           "409": {
-            "description": "The request was refused.",
+            "description": "The request was refused, with the sentence to show her in `message`.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ContentError"
+                  "$ref": "#/components/schemas/DeletionError"
                 }
               }
             }
           },
           "503": {
-            "description": "The database is not configured.",
+            "description": "Sign-in is not configured.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ContentError"
+                  "$ref": "#/components/schemas/DeletionError"
                 }
               }
             }
@@ -6693,6 +7294,100 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ContentError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Delete"
+        ],
+        "summary": "Delete a set",
+        "description": "Deletes the set and every version of it, as its preview named. It is hidden everywhere: its folder, Review, exams and their Wrong questions, the course's counts, Import's name check (a new set may take its name), Make questions and exam twins. Her answers to it stay saved and stop counting while it is deleted; Undo makes them count again. Past exams that asked its questions keep them. Refused with 409 `in_use` while a Make questions job is measured against it or is still filing its exam twins, a twin job is twinning it, or an exam in progress asks its questions. Undo brings it back exactly as it was for 30 days (`undoDays`); after that it stays hidden and Undo is refused with 409 `undo_expired`. Nothing is ever deleted except by this request. The student and the admin can both do this.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64,
+              "description": "`confirm` from the delete preview she was shown. Required (409 `confirmation_required` without it); one that no longer matches is refused with 409 `deletion_changed`, and nothing is deleted."
+            },
+            "required": false,
+            "description": "`confirm` from the delete preview she was shown. Required (409 `confirmation_required` without it); one that no longer matches is refused with 409 `deletion_changed`, and nothing is deleted.",
+            "name": "confirm",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "It was deleted."
+          },
+          "400": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sign-in is not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
                 }
               }
             }
@@ -9333,6 +10028,100 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "Delete"
+        ],
+        "summary": "Delete a past exam",
+        "description": "Deletes one of her ended exams, as its preview described: it leaves Exam setup and GET /api/exams/{id} (404). Its answers stay saved but count toward nothing while it is deleted: her progress on the questions she answered on it is rebuilt from her other answers, so her Review list, course scores and Wrong questions are as if she had not taken it. A Review clear she made after it still keeps its questions out of Review. An exam still going is refused with 409 `exam_in_progress`. Undo brings it back exactly as it was for 30 days (`undoDays`); after that it stays hidden and Undo is refused with 409 `undo_expired`. Nothing is ever deleted except by this request. Only the student can do this; the admin is refused with 403.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64,
+              "description": "`confirm` from the delete preview she was shown. Required (409 `confirmation_required` without it); one that no longer matches is refused with 409 `deletion_changed`, and nothing is deleted."
+            },
+            "required": false,
+            "description": "`confirm` from the delete preview she was shown. Required (409 `confirmation_required` without it); one that no longer matches is refused with 409 `deletion_changed`, and nothing is deleted.",
+            "name": "confirm",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "It was deleted."
+          },
+          "400": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sign-in is not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/exams/{id}/finish": {
@@ -9410,6 +10199,640 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ExamError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/practice-sets/{id}/delete-preview": {
+      "get": {
+        "tags": [
+          "Delete"
+        ],
+        "summary": "What deleting a set takes with it",
+        "description": "For the warning before a set (a practice set, or an exam set from Folder.examSets) is deleted: its questions, every version of it, her answers to it and how her standing changes. Show her `message` (or your own words from the counts), and send `confirm` with the delete: it deletes exactly what this named. `refusal` is the sentence the delete would be refused with right now (a job or an exam in progress still uses it), or null. The id is its current version; an earlier one is refused with 404. The student and the admin can both do this.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What goes.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetDeletion"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sign-in is not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/practice-sets/{id}/undo-delete": {
+      "post": {
+        "tags": [
+          "Delete"
+        ],
+        "summary": "Undo deleting a set",
+        "description": "Brings back a set she deleted on its own, every version as it was, with her answers counting again. A set that went with its folder comes back with the folder, and is refused here with 409; so is one whose folder is deleted. Undo brings it back exactly as it was for 30 days (`undoDays`); after that it stays hidden and Undo is refused with 409 `undo_expired`. Nothing is ever deleted except by this request. The student and the admin can both do this.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The folder it is in, with it back.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Folder"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sign-in is not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/folders/{id}/delete-preview": {
+      "get": {
+        "tags": [
+          "Delete"
+        ],
+        "summary": "What deleting a folder takes with it",
+        "description": "For the warning before a folder is deleted: every set in it (count and titles), their questions, her answers to them, its exam page, her past exams over it, and how her standing changes. Show her `message` (or your own words from the counts), and send `confirm` with the delete: it deletes exactly what this named. `refusal` is the sentence the delete would be refused with right now (a job or an exam in progress still uses it), or null. The student and the admin can both do this.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What goes.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FolderDeletion"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sign-in is not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/folders/{id}/undo-delete": {
+      "post": {
+        "tags": [
+          "Delete"
+        ],
+        "summary": "Undo deleting a folder",
+        "description": "Brings back a folder she deleted and the sets that went with it, as they were: on its exam page if that page is still there, else at its place in the Folders list. A set she had deleted on its own before stays deleted. Refused with 409 when its list has a folder of its name now, naming that list: rename one of them first. Undo brings it back exactly as it was for 30 days (`undoDays`); after that it stays hidden and Undo is refused with 409 `undo_expired`. Nothing is ever deleted except by this request. The student and the admin can both do this.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The folder, with its sets.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Folder"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sign-in is not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/exams/{id}/delete-preview": {
+      "get": {
+        "tags": [
+          "Delete"
+        ],
+        "summary": "What deleting a past exam changes",
+        "description": "For the warning before one of her past exams is deleted: her answers on it, which questions go back to an earlier answer or to not answered, and how her Review list, scores and Wrong questions change. Show her `message` (or your own words from the counts), and send `confirm` with the delete: it deletes exactly what this named. `refusal` is the sentence the delete would be refused with right now (a job or an exam in progress still uses it), or null. An exam whose time ran out is ended first. The admin reads hers.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What changes.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExamDeletion"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sign-in is not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/exams/{id}/undo-delete": {
+      "post": {
+        "tags": [
+          "Delete"
+        ],
+        "summary": "Undo deleting a past exam",
+        "description": "Brings back her past exam: it is listed again, and her progress is rebuilt with its answers, so it counts as it did before the delete. Undo brings it back exactly as it was for 30 days (`undoDays`); after that it stays hidden and Undo is refused with 409 `undo_expired`. Nothing is ever deleted except by this request. Only the student can do this.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The exam as Exam setup lists it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExamSummary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sign-in is not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/courses/{id}/deleted": {
+      "get": {
+        "tags": [
+          "Delete"
+        ],
+        "summary": "What she deleted in a course, for Undo",
+        "description": "The course's folders and sets deleted in the last 30 days, and her past exams deleted in that time, newest first: everything Undo can still bring back. Older deletes stay hidden and are not listed. The admin reads the same, with her exams.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recently deleted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecentlyDeleted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sign-in is not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
                 }
               }
             }

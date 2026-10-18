@@ -292,6 +292,72 @@ public struct QBankClient: Sendable {
         return list.folders
     }
 
+    // MARK: Deleting and Undo
+
+    /// What deleting a set (a practice set, or an exam set from `Folder.examSets`) takes with it,
+    /// with the warning to show her and the `confirm` that deletes exactly that.
+    public func practiceSetDeletion(id: String) async throws(QBankError) -> SetDeletion {
+        try await send(Request(.get, "/api/practice-sets/\(id)/delete-preview"))
+    }
+
+    /// Deletes a set and every version of it, as its preview named. Refused with 409
+    /// `deletion_changed` when what goes changed since the preview, and `in_use` while a job or an
+    /// exam in progress uses it; nothing is deleted then.
+    public func deletePracticeSet(id: String, confirm: String) async throws(QBankError) {
+        _ = try await exchange(Request(.delete, "/api/practice-sets/\(id)", query: [("confirm", confirm)]))
+    }
+
+    /// Brings back a set she deleted on its own, every version as it was, within 30 days. Returns
+    /// the folder it is in, with it back.
+    @discardableResult
+    public func undoDeletePracticeSet(id: String) async throws(QBankError) -> Folder {
+        try await send(Request(.post, "/api/practice-sets/\(id)/undo-delete"))
+    }
+
+    /// What deleting a folder takes with it: every set in it, by title, their questions and her
+    /// answers, and its exam page.
+    public func folderDeletion(id: String) async throws(QBankError) -> FolderDeletion {
+        try await send(Request(.get, "/api/folders/\(id)/delete-preview"))
+    }
+
+    /// Deletes a folder and every set in it, as its preview named; it comes off its exam page. Her
+    /// past exams over it stay. The same refusals as `deletePracticeSet`.
+    public func deleteFolder(id: String, confirm: String) async throws(QBankError) {
+        _ = try await exchange(Request(.delete, "/api/folders/\(id)", query: [("confirm", confirm)]))
+    }
+
+    /// Brings back a folder she deleted and the sets that went with it, within 30 days: on its exam
+    /// page if that is still there, else in the Folders list. Refused with 409 when its list has a
+    /// folder of its name now.
+    @discardableResult
+    public func undoDeleteFolder(id: String) async throws(QBankError) -> Folder {
+        try await send(Request(.post, "/api/folders/\(id)/undo-delete"))
+    }
+
+    /// What deleting one of her past exams changes: her answers on it, and her Review list and Wrong
+    /// questions. `refusal` is set while the exam is still going.
+    public func examDeletion(id: String) async throws(QBankError) -> ExamDeletion {
+        try await send(Request(.get, "/api/exams/\(id)/delete-preview"))
+    }
+
+    /// Deletes one of her ended exams, as its preview described: its answers stop counting toward
+    /// her progress. An exam still going is refused with 409 `exam_in_progress`.
+    public func deleteExam(id: String, confirm: String) async throws(QBankError) {
+        _ = try await exchange(Request(.delete, "/api/exams/\(id)", query: [("confirm", confirm)]))
+    }
+
+    /// Brings back her past exam within 30 days, with its answers counting again. Returns it as
+    /// Exam setup lists it.
+    @discardableResult
+    public func undoDeleteExam(id: String) async throws(QBankError) -> ExamSummary {
+        try await send(Request(.post, "/api/exams/\(id)/undo-delete"))
+    }
+
+    /// The course's folders and sets, and her past exams, deleted in the last 30 days, newest first.
+    public func recentlyDeleted(courseID: String) async throws(QBankError) -> RecentlyDeleted {
+        try await send(Request(.get, "/api/courses/\(courseID)/deleted"))
+    }
+
     // MARK: Exam pages
 
     /// Adds an exam page, such as "Exam 1", with some of the course's folders on it in that order,
