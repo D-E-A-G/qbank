@@ -450,9 +450,14 @@ ruby_check "$UPLOAD reads the vault only in upload_with_vault(), through av inje
   avs = logical.select { |_, t| t =~ /\bav inject\b/ }
   abort "av inject runs #{avs.size} times, expected once" unless avs.size == 1
   i, t = avs[0]
-  abort "av inject runs outside upload_with_vault()" unless body.call("upload_with_vault").cover?(i)
+  vault = body.call("upload_with_vault")
+  abort "av inject runs outside upload_with_vault()" unless vault.cover?(i)
   want = "av inject --mode=fd +APP_STORE_CONNECT_KEY_ID:3 +APP_STORE_CONNECT_ISSUER_ID:4 +APP_STORE_CONNECT_API_KEY_P8:5 -- \"$SELF\" --inside-vault "
   abort "av inject is not: #{want}..." unless t.include?(want)
+  [3, 4, 5].each do |fd|
+    closed = line_in.call(vault, "exec #{fd}<&-") or abort "upload_with_vault() does not close inherited fd #{fd}"
+    abort "upload_with_vault() closes fd #{fd} after av inject" unless closed < i
+  end
   selfs = logical.select { |_, l| l.include?(%q{"$SELF" --inside-vault}) }
   abort "the script runs its --inside-vault step outside av inject" unless selfs.size == 1
   dispatch = logical.index { |_, l| l == %q{if [ "${1:-}" = "--inside-vault" ]; then} } or abort "no --inside-vault dispatch"
