@@ -98,6 +98,8 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary {
     private let study: FakeStudy
     /// Make questions, for `maker` only.
     private let questionMaker: FakeQuestionMaker
+    /// Exam twins of her folders, for `maker` only.
+    private let twinJobs: FakeTwinJobs
     /// Passkey sign-in and Settings' passkeys. The student has one, saved on her Mac.
     private let passkeys: FakePasskeys
 
@@ -119,6 +121,7 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary {
         self.now = now
         study = FakeStudy(now: now)
         questionMaker = FakeQuestionMaker(allowed: [Self.maker.email], isSetUp: makerIsSetUp, seededFor: Self.maker.email, now: now)
+        twinJobs = FakeTwinJobs(maker: questionMaker, study: study)
         passkeys = FakePasskeys(studentEmail: Self.student.email, now: now)
         state = Mutex(State(
             accounts: [
@@ -224,6 +227,9 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary {
             return failure(403, "must_change_password", "Choose a new password to continue.")
         }
         if let reply = questionMaker.answer(method: method, path: path, body: body, email: account.email, library: self) {
+            return reply
+        }
+        if let reply = twinJobs.answer(method: method, path: path, body: body, email: account.email, library: self) {
             return reply
         }
         switch (method, path) {
@@ -928,6 +934,19 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary {
         study.file(set: setID, in: folder.id, replacing: nil)
         if let examID { study.file(bank: FakeStudy.ids("bank-\(examID)", examTwins), in: folder.id) }
         return FakeQuestionMaker.Filed(setID: setID, folderID: folder.id, folderName: folder.name, examPageID: folder.examPageID, examSetID: examID)
+    }
+
+    func fileTwinSet(courseID: String, folderID: String, title: String, questionCount: Int) -> (setID: String, examPageID: String?) {
+        let setID = state.withLock { state -> String in
+            state.importCount += 1
+            let setID = String(format: "5e700000-0000-4000-8000-%012d", 9000 + state.importCount)
+            state.imported[setID] = ImportedEntry(
+                courseID: courseID, title: title, kind: "exam", questionCount: questionCount, termCount: 0,
+                importedAt: .now, status: "imported", previous: nil
+            )
+            return setID
+        }
+        return (setID, study.folders(courseID).first { $0.id == folderID }?.examPageID)
     }
 }
 

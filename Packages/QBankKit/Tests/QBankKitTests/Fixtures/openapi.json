@@ -4713,6 +4713,426 @@
           "questions",
           "changeList"
         ]
+      },
+      "QuestionTwinJob": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "running",
+              "done",
+              "failed",
+              "cancelled"
+            ],
+            "description": "`running`: QBank is working. `failed`: see failure. `done`: the twins are filed (see sets) and `exam` starts the exam on them. A twin job never waits for her."
+          },
+          "step": {
+            "type": "string",
+            "enum": [
+              "read",
+              "twins",
+              "file",
+              "done"
+            ],
+            "description": "The step it is at; `done` once filed."
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "enum": [
+                    "read",
+                    "twins",
+                    "file"
+                  ]
+                },
+                "label": {
+                  "type": "string"
+                },
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "done",
+                    "current",
+                    "failed",
+                    "cancelled",
+                    "todo"
+                  ]
+                },
+                "done": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "description": "How far the current step has got: sets read, twins written, sets filed."
+                },
+                "total": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "key",
+                "label",
+                "state",
+                "done",
+                "total"
+              ]
+            },
+            "description": "read (a source map of each practice set's questions), twins (the twins, her checker, and their blind check), file."
+          },
+          "course": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "code": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "code",
+              "title"
+            ]
+          },
+          "level": {
+            "type": "string",
+            "enum": [
+              "exam",
+              "course",
+              "board"
+            ]
+          },
+          "pool": {
+            "type": "string",
+            "enum": [
+              "all",
+              "wrong"
+            ],
+            "description": "The questions it twins: `all` of the folders' practice questions, or `wrong`: the ones she last answered not fully right."
+          },
+          "folders": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "questionCount": {
+                  "type": "integer",
+                  "description": "Practice questions of the folder in the pool."
+                },
+                "twinCount": {
+                  "type": "integer",
+                  "description": "Of those, the ones this job writes an exam twin for. None in a folder with an exam question that names none of its practice questions: QBank leaves that folder as it is (see note)."
+                },
+                "alreadyTwinned": {
+                  "type": "integer",
+                  "description": "Of those, the ones that already had an exam twin in the folder, kept as they are and not twinned again. An exam question that names an id several of the folder's practice questions carry counts for each of them."
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "questionCount",
+                "twinCount",
+                "alreadyTwinned"
+              ]
+            },
+            "description": "The folders she picked, in the course's order."
+          },
+          "twinCount": {
+            "type": "integer",
+            "description": "Exam twins it writes, one per practice question, as it started. One whose practice question has an exam twin by the time it is filed is left out (see warnings); sets say what was filed."
+          },
+          "note": {
+            "type": "string",
+            "description": "What it does, as a sentence to show her: how many it twins, the ones that already had a twin, folders with none in the pool, folders left as they are, and when a folder's exams will ask only its twins."
+          },
+          "sets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionTwinSet"
+            },
+            "description": "The exam sets filed so far, one per practice set, each in the folder of its practice set (GET /api/practice-sets/{setId})."
+          },
+          "exam": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/QuestionTwinExam"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Once done: the exam on the twins. Null until then."
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          },
+          "finishedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "failure": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why it failed, as a sentence to show her."
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Her checker's warnings left on the twins, and the twins left out as they were filed, each after its practice set's name."
+          },
+          "usage": {
+            "type": "object",
+            "properties": {
+              "calls": {
+                "type": "integer"
+              },
+              "inputTokens": {
+                "type": "integer"
+              },
+              "outputTokens": {
+                "type": "integer"
+              },
+              "cacheReadTokens": {
+                "type": "integer"
+              },
+              "cacheWriteTokens": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "calls",
+              "inputTokens",
+              "outputTokens",
+              "cacheReadTokens",
+              "cacheWriteTokens"
+            ],
+            "description": "Claude calls and tokens so far, for the owner's cost view."
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "step",
+          "steps",
+          "course",
+          "level",
+          "pool",
+          "folders",
+          "twinCount",
+          "note",
+          "sets",
+          "exam",
+          "createdAt",
+          "updatedAt",
+          "finishedAt",
+          "failure",
+          "warnings",
+          "usage"
+        ]
+      },
+      "QuestionTwinSet": {
+        "type": "object",
+        "properties": {
+          "setId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "folderId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "folderName": {
+            "type": "string"
+          },
+          "examPageId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "questionCount": {
+            "type": "integer"
+          },
+          "termCount": {
+            "type": "integer"
+          },
+          "twinsOf": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "title": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "title"
+            ],
+            "description": "The practice set whose questions these twin, as it was named when the job started."
+          }
+        },
+        "required": [
+          "setId",
+          "title",
+          "folderId",
+          "folderName",
+          "examPageId",
+          "questionCount",
+          "termCount",
+          "twinsOf"
+        ]
+      },
+      "QuestionTwinExam": {
+        "type": "object",
+        "properties": {
+          "folderIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "The folders the twins are in, with the ones whose questions in the pool already had twins or were left as they are."
+          },
+          "pool": {
+            "type": "string",
+            "enum": [
+              "all",
+              "wrong"
+            ]
+          }
+        },
+        "required": [
+          "folderIds",
+          "pool"
+        ],
+        "description": "The exam on the twins: send it as the body of POST /api/courses/{course.id}/exams. Its folders draw their exam twins: with `wrong`, the twins of the questions she last answered not fully right."
+      },
+      "NewQuestionTwinJob": {
+        "type": "object",
+        "properties": {
+          "courseId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "folderIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "minItems": 1,
+            "maxItems": 200,
+            "description": "The folders she would start the exam over (CourseDetail.folders)."
+          },
+          "pool": {
+            "type": "string",
+            "enum": [
+              "all",
+              "wrong"
+            ],
+            "default": "all",
+            "description": "As when starting an exam: `all` (the default), or `wrong` to twin only the practice questions she last answered not fully right."
+          },
+          "level": {
+            "type": "string",
+            "enum": [
+              "exam",
+              "course",
+              "board"
+            ],
+            "description": "The level the twins are written and checked at, as her practice sets were: `exam` (the default), `course`, or `board`."
+          }
+        },
+        "required": [
+          "courseId",
+          "folderIds"
+        ]
+      },
+      "QuestionTwinResult": {
+        "type": "object",
+        "properties": {
+          "sets": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "set": {
+                  "$ref": "#/components/schemas/QuestionTwinSet"
+                },
+                "blindCheck": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/QuestionBlindCheck"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "set",
+                "blindCheck"
+              ]
+            },
+            "description": "Each exam set filed, with the blind check of its twins."
+          },
+          "exam": {
+            "$ref": "#/components/schemas/QuestionTwinExam"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "sets",
+          "exam",
+          "warnings"
+        ]
       }
     },
     "parameters": {}
@@ -9003,7 +9423,7 @@
           "Make questions"
         ],
         "summary": "Whether she may make questions, and the choices",
-        "description": "Every signed-in account may ask. `available` is false, with a sentence in `reason`, for an account not in QUESTION_MAKER_ACCOUNTS, when the server has no Claude API key, or at the daily limit.",
+        "description": "Every signed-in account may ask. `available` is false, with a sentence in `reason`, for an account not in QUESTION_MAKER_ACCOUNTS, when the server has no Claude API key, or at the daily limit. It says the same for exam twins (POST /api/twin-jobs): show the Twin option only while `available` is true.",
         "responses": {
           "200": {
             "description": "Status and choices.",
@@ -9153,6 +9573,7 @@
           "Make questions"
         ],
         "summary": "Her recent sets, newest first",
+        "description": "Sets from her material. Exam twins of her folders are listed by GET /api/twin-jobs.",
         "responses": {
           "200": {
             "description": "Up to 20.",
@@ -9920,6 +10341,400 @@
           },
           "409": {
             "description": "The set is not at the step this needs, with a sentence saying so.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionMakerError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`not_set_up` (\"Making questions is not set up yet.\") when the server has no Claude API key, or `auth_unavailable` when sign-in is not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionMakerError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/twin-jobs": {
+      "post": {
+        "tags": [
+          "Make questions"
+        ],
+        "summary": "Write exam twins of the questions she practiced in some folders",
+        "description": "The Twin option of Exam setup: the folders and pool she would start the exam over. Instead of an exam on those questions, QBank writes one exam twin of each with her recipe's twins pass (Prompt D, her checker, and the blind check in a fresh context), and files them through Import as new exam sets, one per practice set, each in its practice set's folder and each twin naming its practice question in twinOf. Her sets, questions, folders and answers are never changed. A practice question that already has an exam twin in its folder keeps it and is not twinned again, and so does one an exam question there may twin: one that names an id several of the folder's practice questions carry counts for each of them. A folder with an exam question that names none of its practice questions is left as it is, and `note` says so. Each set's twins are checked again against the folder as they are filed: a twin whose practice question has one by then is left out, and `warnings` says so. Starts in the background and answers at once; poll GET /api/twin-jobs/{id}. Once done, `exam` is the body of POST /api/courses/{courseId}/exams that starts the exam on the twins. Refused with 400 and a sentence when there is nothing to twin (no question in the pool, or every one already twinned or left as it is), more than 60 to twin, or while another twin job, hers or another account's, is still twinning in one of the folders. Counts against her daily limit like a set (429 `daily_limit` with availableAt).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewQuestionTwinJob"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Started.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionTwinJob"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Something in the request, nothing to twin, or a folder another twin job is still twinning, with a sentence naming it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionMakerError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionMakerError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`not_allowed` (\"Making questions is not available on this account. Import works on every account.\") for an account not in QUESTION_MAKER_ACCOUNTS, or `must_change_password`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionMakerError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The course is not in QBank.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionMakerError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "`too_large`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionMakerError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`daily_limit`, with availableAt.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionMakerError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`not_set_up` (\"Making questions is not set up yet.\") when the server has no Claude API key, or `auth_unavailable` when sign-in is not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionMakerError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Make questions"
+        ],
+        "summary": "Her recent exam twin jobs, newest first",
+        "responses": {
+          "200": {
+            "description": "Up to 20.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "jobs": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/QuestionTwinJob"
+                      }
+                    }
+                  },
+                  "required": [
+                    "jobs"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionMakerError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`not_allowed` (\"Making questions is not available on this account. Import works on every account.\") for an account not in QUESTION_MAKER_ACCOUNTS, or `must_change_password`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionMakerError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`not_set_up` (\"Making questions is not set up yet.\") when the server has no Claude API key, or `auth_unavailable` when sign-in is not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionMakerError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/twin-jobs/{id}": {
+      "get": {
+        "tags": [
+          "Make questions"
+        ],
+        "summary": "An exam twin job's status and steps",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The twin job.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionTwinJob"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionMakerError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`not_allowed` (\"Making questions is not available on this account. Import works on every account.\") for an account not in QUESTION_MAKER_ACCOUNTS, or `must_change_password`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionMakerError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not one of her twin jobs.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionMakerError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`not_set_up` (\"Making questions is not set up yet.\") when the server has no Claude API key, or `auth_unavailable` when sign-in is not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionMakerError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/twin-jobs/{id}/result": {
+      "get": {
+        "tags": [
+          "Make questions"
+        ],
+        "summary": "The filed exam twins and their blind check",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The filed exam sets.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionTwinResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionMakerError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`not_allowed` (\"Making questions is not available on this account. Import works on every account.\") for an account not in QUESTION_MAKER_ACCOUNTS, or `must_change_password`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionMakerError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not one of her twin jobs.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionMakerError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`wrong_step`: not finished yet.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionMakerError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`not_set_up` (\"Making questions is not set up yet.\") when the server has no Claude API key, or `auth_unavailable` when sign-in is not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionMakerError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/twin-jobs/{id}/cancel": {
+      "post": {
+        "tags": [
+          "Make questions"
+        ],
+        "summary": "Stop an exam twin job that is still going",
+        "description": "Nothing more is written or filed. Exam sets already filed stay.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cancelled.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionTwinJob"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionMakerError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`not_allowed` (\"Making questions is not available on this account. Import works on every account.\") for an account not in QUESTION_MAKER_ACCOUNTS, or `must_change_password`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionMakerError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not one of her twin jobs.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionMakerError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`wrong_step`: it has already finished.",
             "content": {
               "application/json": {
                 "schema": {

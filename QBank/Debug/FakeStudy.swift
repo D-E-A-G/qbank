@@ -77,6 +77,8 @@ nonisolated final class FakeStudy: Sendable {
         var review: [String: [ReviewEntry]]
         /// Her latest mark on each question she answered in this run, practice or exam.
         var latest: [String: ScoreStatus] = [:]
+        /// The practice question each exam twin a twin job filed twins, by the twin's id.
+        var twinOf: [String: String] = [:]
         var examCount = 0
         var courseExamCount = 0
         var folderCount = 0
@@ -420,8 +422,17 @@ nonisolated final class FakeStudy: Sendable {
         folder.bank.isEmpty ? folder.sets.flatMap { ids($0, setSizes[$0] ?? 0) } : folder.bank
     }
 
-    private static func wrongPool(_ folder: Folder, latest: [String: ScoreStatus]) -> [String] {
-        pool(folder).filter { id in latest[id].map { $0 != .correct } ?? wrongAtStart.contains(id) }
+    /// With Wrong questions only: the questions she last answered not fully right, and in an exam
+    /// bank the twins of her wrong practice questions until she answers the twin itself.
+    private static func wrongPool(_ folder: Folder, latest: [String: ScoreStatus], twinOf: [String: String]) -> [String] {
+        pool(folder).filter { id in
+            if latest[id] == nil, let practice = twinOf[id] { return isWrong(practice, latest: latest) }
+            return isWrong(id, latest: latest)
+        }
+    }
+
+    private static func isWrong(_ id: String, latest: [String: ScoreStatus]) -> Bool {
+        latest[id].map { $0 != .correct } ?? wrongAtStart.contains(id)
     }
 
     private func setup(_ courseID: String) -> [String: Any] {
@@ -433,7 +444,7 @@ nonisolated final class FakeStudy: Sendable {
             let pools = folders.map { folder -> [String: Any] in
                 [
                     "id": folder.id, "name": folder.name, "examPageId": Self.json(folder.examPageID),
-                    "questionCount": Self.pool(folder).count, "wrongCount": Self.wrongPool(folder, latest: state.latest).count,
+                    "questionCount": Self.pool(folder).count, "wrongCount": Self.wrongPool(folder, latest: state.latest, twinOf: state.twinOf).count,
                     "source": folder.bank.isEmpty ? "practice" : "exam",
                 ]
             }
@@ -443,7 +454,7 @@ nonisolated final class FakeStudy: Sendable {
                 let same = folders.filter { $0.name == folder.name }
                 weeks.append([
                     "label": folder.name, "questionCount": same.reduce(0) { $0 + Self.pool($1).count },
-                    "wrongCount": same.reduce(0) { $0 + Self.wrongPool($1, latest: state.latest).count },
+                    "wrongCount": same.reduce(0) { $0 + Self.wrongPool($1, latest: state.latest, twinOf: state.twinOf).count },
                     "source": same.contains { !$0.bank.isEmpty } ? "exam" : "practice",
                 ])
             }
@@ -496,13 +507,13 @@ nonisolated final class FakeStudy: Sendable {
     /// Draws an exam as the server does, folder by folder in her order and without shuffling, so a
     /// test knows which question comes when.
     private func begin(courseID: String, folderIDs: [String], pool: ExamPool, at startedAt: Date, endingRunning: Bool) -> Result<String, Refusal> {
-        let (course, latest) = state.withLock { (Self.ordered($0, courseID: courseID), $0.latest) }
+        let (course, latest, twinOf) = state.withLock { (Self.ordered($0, courseID: courseID), $0.latest, $0.twinOf) }
         guard !folderIDs.isEmpty else { return .failure(Refusal(code: "no_folders", message: "Tick at least one folder.")) }
         if folderIDs.contains(where: { id in !course.contains { $0.id == id } }) {
             return .failure(Refusal(code: "folder_not_found", message: "That folder is not in this course."))
         }
         let ticked = course.filter { folderIDs.contains($0.id) }
-        let draw = { (folder: Folder) -> [String] in pool == .wrong ? Self.wrongPool(folder, latest: latest) : Self.pool(folder) }
+        let draw = { (folder: Folder) -> [String] in pool == .wrong ? Self.wrongPool(folder, latest: latest, twinOf: twinOf) : Self.pool(folder) }
         let empty = ticked.filter { draw($0).isEmpty }.map(\.name)
         if !empty.isEmpty {
             let one = empty.count == 1
@@ -754,6 +765,53 @@ nonisolated final class FakeStudy: Sendable {
         state.withLock { state in
             guard let index = state.folders.firstIndex(where: { $0.id == folderID }) else { return }
             state.folders[index].bank += questionIDs
+        }
+    }
+
+    // MARK: Exam twins, with the rules of `question-maker/twins.ts`
+
+    /// A folder as a twin job reads it: its practice questions in the pool, set by set, which of
+    /// them already have an exam twin there, and whether its exam bank holds questions that twin
+    /// none of them, which leaves the folder as it is.
+    struct TwinSource {
+        let folder: Folder
+        /// Each current practice set's questions in the pool, in order; sets with none left out.
+        let sets: [(setID: String, questionIDs: [String])]
+        let twinned: Set<String>
+        let unmatched: Bool
+
+        var pooled: [String] { sets.flatMap(\.questionIDs) }
+    }
+
+    /// The ticked folders in her order, or nil when one is not in the course.
+    func twinSources(courseID: String, folderIDs: [String], pool: ExamPool) -> [TwinSource]? {
+        state.withLock { state in
+            let course = Self.ordered(state, courseID: courseID)
+            guard folderIDs.allSatisfy({ id in course.contains { $0.id == id } }) else { return nil }
+            return course.filter { folderIDs.contains($0.id) }.map { folder in
+                let sets = folder.sets.map { set in
+                    (setID: set, questionIDs: Self.ids(set, Self.setSizes[set] ?? 0).filter { pool == .all || Self.isWrong($0, latest: state.latest) })
+                }
+                return TwinSource(
+                    folder: folder,
+                    sets: sets.filter { !$0.questionIDs.isEmpty },
+                    twinned: Set(folder.bank.compactMap { state.twinOf[$0] }),
+                    unmatched: folder.bank.contains { state.twinOf[$0] == nil }
+                )
+            }
+        }
+    }
+
+    /// Files exam twins of these practice questions as an exam set in the folder's bank, each
+    /// twin with the same question as the one it twins.
+    func fileTwins(of practiceIDs: [String], examSetID: String, in folderID: String) {
+        state.withLock { state in
+            guard let index = state.folders.firstIndex(where: { $0.id == folderID }) else { return }
+            for practice in practiceIDs {
+                let twin = "bank-\(examSetID)-\(practice.split(separator: "-").last ?? "q0")"
+                state.folders[index].bank.append(twin)
+                state.twinOf[twin] = practice
+            }
         }
     }
 

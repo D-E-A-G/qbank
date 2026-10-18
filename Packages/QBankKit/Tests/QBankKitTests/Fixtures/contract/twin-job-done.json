@@ -1,0 +1,106 @@
+{
+  "recordedFrom": "b87a25e9f36c45e17ef72d88e45df6fc04717cb5",
+  "request": {
+    "method": "GET",
+    "path": "/api/twin-jobs/a0b00000-0000-4000-8000-000000000501",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "id": "a0b00000-0000-4000-8000-000000000501",
+      "status": "done",
+      "step": "done",
+      "steps": [
+        {
+          "key": "read",
+          "label": "Read your questions",
+          "state": "done",
+          "done": null,
+          "total": null
+        },
+        {
+          "key": "twins",
+          "label": "Exam twins",
+          "state": "done",
+          "done": null,
+          "total": null
+        },
+        {
+          "key": "file",
+          "label": "File the twins",
+          "state": "done",
+          "done": null,
+          "total": null
+        }
+      ],
+      "course": {
+        "id": "c0000000-0000-4000-8000-000000000501",
+        "code": "NURS 406",
+        "title": "Invented Mental Health"
+      },
+      "level": "exam",
+      "pool": "wrong",
+      "folders": [
+        {
+          "id": "f0000000-0000-4000-8000-000000000501",
+          "name": "Week 5",
+          "questionCount": 3,
+          "twinCount": 3,
+          "alreadyTwinned": 0
+        }
+      ],
+      "twinCount": 3,
+      "note": "QBank writes exam twins of 3 wrong questions in Week 5. Once they are filed, exams over Week 5 ask only its exam twins.",
+      "sets": [
+        {
+          "setId": "5e700000-0000-4000-8000-000000000504",
+          "title": "Week 5 Harder A exam",
+          "folderId": "f0000000-0000-4000-8000-000000000501",
+          "termCount": 0,
+          "examPageId": null,
+          "folderName": "Week 5",
+          "questionCount": 2,
+          "twinsOf": {
+            "id": "5e700000-0000-4000-8000-000000000501",
+            "title": "Week 5 Harder A"
+          }
+        },
+        {
+          "setId": "5e700000-0000-4000-8000-000000000505",
+          "title": "Week 5 Harder B exam",
+          "folderId": "f0000000-0000-4000-8000-000000000501",
+          "termCount": 0,
+          "examPageId": null,
+          "folderName": "Week 5",
+          "questionCount": 1,
+          "twinsOf": {
+            "id": "5e700000-0000-4000-8000-000000000502",
+            "title": "Week 5 Harder B"
+          }
+        }
+      ],
+      "exam": {
+        "folderIds": [
+          "f0000000-0000-4000-8000-000000000501"
+        ],
+        "pool": "wrong"
+      },
+      "createdAt": "2026-10-18 18:48:20.931+00",
+      "updatedAt": "2026-10-18 18:48:21.043+00",
+      "finishedAt": "2026-10-18 18:48:21.043+00",
+      "failure": null,
+      "warnings": [],
+      "usage": {
+        "calls": 6,
+        "inputTokens": 6000,
+        "outputTokens": 1200,
+        "cacheReadTokens": 4800,
+        "cacheWriteTokens": 600
+      }
+    }
+  }
+}

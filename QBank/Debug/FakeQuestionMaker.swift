@@ -12,6 +12,9 @@ nonisolated protocol FakeQuestionLibrary: AnyObject {
     /// Files the practice set, and the exam twins as the folder's exam bank. Nil when the folder
     /// cannot be made.
     func fileMadeSet(courseID: String, folderID: String?, folderName: String, title: String, questionCount: Int, termCount: Int, examTwins: Int) -> FakeQuestionMaker.Filed?
+    /// Files an exam set of twins in a folder, the way an import files one. Its questions go into
+    /// the folder's bank through `FakeStudy.fileTwins`.
+    func fileTwinSet(courseID: String, folderID: String, title: String, questionCount: Int) -> (setID: String, examPageID: String?)
 }
 
 /// Make questions on the fake server, with the rules and words of the server's question maker
@@ -79,6 +82,8 @@ nonisolated final class FakeQuestionMaker: Sendable {
     private struct State {
         var jobs: [Job]
         var made = 0
+        /// Twin jobs started, by owner, which count against the daily limit like a set.
+        var twinStarts: [(owner: String, at: Date)] = []
     }
 
     /// The accounts that may make questions, by email.
@@ -124,8 +129,7 @@ nonisolated final class FakeQuestionMaker: Sendable {
             return (200, status(email: email))
         }
         guard path == "/api/question-jobs" || path.hasPrefix("/api/question-jobs/") else { return nil }
-        guard allowed.contains(email) else { return Self.failure(403, "not_allowed", Self.notAllowed) }
-        guard isSetUp else { return Self.failure(503, "not_set_up", Self.notSetUp) }
+        if let refusal = refusal(for: email) { return refusal }
         let parts = path.split(separator: "/").map(String.init)
         switch (method, parts.count) {
         case ("GET", 2):
@@ -190,7 +194,37 @@ nonisolated final class FakeQuestionMaker: Sendable {
 
     private func startedToday(_ email: String) -> Int {
         let since = Date.now.addingTimeInterval(-86_400)
-        return state.withLock { $0.jobs.count { $0.owner == email && $0.createdAt > since } }
+        return state.withLock { state in
+            state.jobs.count { $0.owner == email && $0.createdAt > since } + state.twinStarts.count { $0.owner == email && $0.at > since }
+        }
+    }
+
+    // MARK: For exam twins
+
+    /// The refusal of an account the server does not allow, or of every account while it is not
+    /// set up; nil when she may use the make-questions routes, exam twins' among them.
+    func refusal(for email: String) -> Reply? {
+        guard allowed.contains(email) else { return Self.failure(403, "not_allowed", Self.notAllowed) }
+        guard isSetUp else { return Self.failure(503, "not_set_up", Self.notSetUp) }
+        return nil
+    }
+
+    /// Counts a twin job against her daily limit, as the server counts one like a set, or refuses
+    /// it past the limit.
+    func startTwins(email: String) -> Reply? {
+        if let refusal = dailyLimitRefusal(email) { return refusal }
+        state.withLock { $0.twinStarts.append((email, .now)) }
+        return nil
+    }
+
+    private func dailyLimitRefusal(_ email: String) -> Reply? {
+        let started = startedToday(email)
+        guard started >= Self.dailyLimit else { return nil }
+        return (429, [
+            "error": "daily_limit",
+            "message": "You have started \(started) sets in the last 24 hours, the most for one day. You can start another in 3 hours.",
+            "availableAt": QBankJSON.formatDate(.now.addingTimeInterval(3 * 3_600)),
+        ])
     }
 
     // MARK: Starting
@@ -235,14 +269,7 @@ nonisolated final class FakeQuestionMaker: Sendable {
         if let folderID, library.makerFolderName(courseID: courseID, folderID: folderID) == nil {
             return Self.failure(400, "invalid_request", "That folder is not in this course.")
         }
-        let started = startedToday(email)
-        guard started < Self.dailyLimit else {
-            return (429, [
-                "error": "daily_limit",
-                "message": "You have started \(started) sets in the last 24 hours, the most for one day. You can start another in 3 hours.",
-                "availableAt": QBankJSON.formatDate(.now.addingTimeInterval(3 * 3_600)),
-            ])
-        }
+        if let refusal = dailyLimitRefusal(email) { return refusal }
         let job = state.withLock { state -> Job in
             state.made += 1
             let job = Job(

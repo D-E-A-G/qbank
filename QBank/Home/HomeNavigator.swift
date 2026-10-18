@@ -57,10 +57,9 @@ final class HomeNavigator {
         self.path = path
     }
 
-    /// Steps back one screen.
-    func back() {
-        guard !path.isEmpty else { return }
-        path.removeLast()
+    /// Steps back one screen, or as many as asked, never past the root.
+    func back(_ screens: Int = 1) {
+        path.removeLast(min(screens, path.count))
     }
 
     /// The open course was read again with different counts.
@@ -74,6 +73,8 @@ enum StudyRoute: Hashable {
     case review(CourseRef)
     case terms(CourseRef)
     case exam(ExamSetupRoute)
+    /// Exam twins she started from Exam setup.
+    case twinJob(TwinJobRoute)
 }
 
 /// The course a study screen belongs to, with what its subtitle says before anything loads.

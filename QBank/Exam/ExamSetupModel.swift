@@ -4,7 +4,8 @@ import QBankKit
 
 /// Exam setup, as the web's (`apps/web/src/exam/ExamSetupScreen.tsx`): the folders to tick, by
 /// exam page, with their question or wrong counts, Wrong questions only, the summary of what Start
-/// draws, her running exam, and her past exams.
+/// draws, Write exam twins for the account that may make questions, her running exam, her twin
+/// jobs, and her past exams.
 @Observable
 final class ExamSetupModel {
     /// The folders of one exam page, or of none, as the picker groups them.
@@ -27,6 +28,15 @@ final class ExamSetupModel {
     var wrongOnly = false
     private(set) var isStarting = false
     private(set) var problem: String?
+    /// Whether she may make questions now, which offers Write exam twins.
+    private(set) var maker: QuestionMakerStatus?
+    /// Her twin jobs over this course, newest first; nil while not read, or for an account that may
+    /// not make questions.
+    private(set) var twinJobs: [TwinJob]?
+    private(set) var isTwinning = false
+    /// A refusal of exam twins, with the folders and pool it was about: it shows only until she
+    /// changes them.
+    private var twinRefusal: (pick: TwinPick, message: String)?
 
     private let app: AppModel
     private let now: () -> Date
@@ -192,10 +202,11 @@ final class ExamSetupModel {
 
     // MARK: Loading and starting
 
-    /// Loads the setup, and the course for its exam pages. A course that cannot be read leaves the
-    /// folders ungrouped.
+    /// Loads the setup, the course for its exam pages, and whether she may write exam twins. A
+    /// course that cannot be read leaves the folders ungrouped.
     func load() async {
         async let reading = courseDetail()
+        async let twins: Void = loadTwins()
         do {
             let loaded = try await app.client.examSetup(courseID: course.id)
             setup = loaded
@@ -211,6 +222,21 @@ final class ExamSetupModel {
         }
         if let read = await reading {
             detail = read
+        }
+        await twins
+    }
+
+    /// The Twin option and her twin jobs, for the one account that may make questions. Every other
+    /// account hears no from the status and is never sent to the twin-job routes.
+    private func loadTwins() async {
+        guard isStudent, let status = try? await app.client.questionMakerStatus() else { return }
+        maker = status
+        guard Twins.listsJobs(status) else {
+            twinJobs = nil
+            return
+        }
+        if let jobs = try? await app.client.twinJobs() {
+            twinJobs = Twins.jobs(jobs, courseID: course.id)
         }
     }
 
@@ -230,6 +256,49 @@ final class ExamSetupModel {
             return try await app.client.startExam(courseID: course.id, folderIDs: picked.map(\.id), pool: wrongOnly ? .wrong : .all)
         } catch {
             report(error)
+            return nil
+        }
+    }
+
+    // MARK: Exam twins
+
+    /// The ticked folders and the pool, as a twin job is asked for them.
+    struct TwinPick: Equatable {
+        let folderIDs: [String]
+        let pool: ExamPool
+    }
+
+    private var twinPick: TwinPick {
+        TwinPick(folderIDs: picked.map(\.id), pool: wrongOnly ? .wrong : .all)
+    }
+
+    /// Write exam twins shows while the server says she may make questions now.
+    var canTwin: Bool {
+        isStudent && Twins.canTwin(maker)
+    }
+
+    /// Why the server would not twin the folders and pool ticked now, in its words.
+    var twinProblem: String? {
+        guard let twinRefusal, twinRefusal.pick == twinPick else { return nil }
+        return twinRefusal.message
+    }
+
+    /// Instead of an exam on the ticked folders' questions, QBank writes exam twins of them. Returns
+    /// the job to follow, or nil after a refusal, said in her words until she changes the folders or
+    /// the pool.
+    func writeTwins() async -> TwinJob? {
+        guard canTwin, !picked.isEmpty, !isStarting, !isTwinning, !needsConnection else { return nil }
+        let pick = twinPick
+        isTwinning = true
+        twinRefusal = nil
+        defer { isTwinning = false }
+        do {
+            let job = try await app.client.startTwinJob(NewTwinJob(courseID: course.id, folderIDs: pick.folderIDs, pool: pick.pool))
+            twinJobs = [job] + (twinJobs ?? []).filter { $0.id != job.id }
+            return job
+        } catch {
+            if app.handle(error) { return nil }
+            twinRefusal = (pick, Wording.problem(error) ?? "Could not start the exam twins.")
             return nil
         }
     }

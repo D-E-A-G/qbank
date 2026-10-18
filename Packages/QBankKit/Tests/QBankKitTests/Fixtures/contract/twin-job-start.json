@@ -1,0 +1,80 @@
+{
+  "recordedFrom": "b87a25e9f36c45e17ef72d88e45df6fc04717cb5",
+  "request": {
+    "method": "POST",
+    "path": "/api/twin-jobs",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": {
+      "courseId": "c0000000-0000-4000-8000-000000000501",
+      "folderIds": [
+        "f0000000-0000-4000-8000-000000000501"
+      ],
+      "pool": "wrong"
+    }
+  },
+  "response": {
+    "status": 202,
+    "headers": {},
+    "body": {
+      "id": "a0b00000-0000-4000-8000-000000000501",
+      "status": "running",
+      "step": "read",
+      "steps": [
+        {
+          "key": "read",
+          "label": "Read your questions",
+          "state": "current",
+          "done": null,
+          "total": null
+        },
+        {
+          "key": "twins",
+          "label": "Exam twins",
+          "state": "todo",
+          "done": null,
+          "total": null
+        },
+        {
+          "key": "file",
+          "label": "File the twins",
+          "state": "todo",
+          "done": null,
+          "total": null
+        }
+      ],
+      "course": {
+        "id": "c0000000-0000-4000-8000-000000000501",
+        "code": "NURS 406",
+        "title": "Invented Mental Health"
+      },
+      "level": "exam",
+      "pool": "wrong",
+      "folders": [
+        {
+          "id": "f0000000-0000-4000-8000-000000000501",
+          "name": "Week 5",
+          "questionCount": 3,
+          "twinCount": 3,
+          "alreadyTwinned": 0
+        }
+      ],
+      "twinCount": 3,
+      "note": "QBank writes exam twins of 3 wrong questions in Week 5. Once they are filed, exams over Week 5 ask only its exam twins.",
+      "sets": [],
+      "exam": null,
+      "createdAt": "2026-10-18 18:48:20.931+00",
+      "updatedAt": "2026-10-18 18:48:20.933+00",
+      "finishedAt": null,
+      "failure": null,
+      "warnings": [],
+      "usage": {
+        "calls": 0,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      }
+    }
+  }
+}
