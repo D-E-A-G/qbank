@@ -17,12 +17,12 @@ final class PasskeyUITests: XCTestCase {
     func testSignInWithThePasskeyFromHerMac() throws {
         let app = launch("signed-out", passkeys: "synced")
         let button = app.buttons["signIn.passkey"]
-        XCTAssertTrue(button.waitForExistence(timeout: 10))
+        XCTAssertTrue(button.appears(timeout: 10))
         XCTAssertEqual(button.label, "Sign in with a passkey")
         attachLooks(app, "3-p1 sign in with a passkey")
 
         button.tap()
-        XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 10), "lands on the course she used last")
+        XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 10), "lands on the course she used last")
         XCTAssertFalse(app.descendants(matching: .any)["passkeyOffer"].exists, "a passkey sign-in offers no passkey")
     }
 
@@ -30,9 +30,9 @@ final class PasskeyUITests: XCTestCase {
     func testClosingThePasskeySheetStaysOnSignInAndSaysNothing() throws {
         let app = launch("signed-out", passkeys: "cancels")
         let button = app.buttons["signIn.passkey"]
-        XCTAssertTrue(button.waitForExistence(timeout: 10))
+        XCTAssertTrue(button.appears(timeout: 10))
         button.tap()
-        XCTAssertTrue(button.waitForExistence(timeout: 5))
+        XCTAssertTrue(button.appears(timeout: 5))
         XCTAssertTrue(button.isEnabled)
         XCTAssertFalse(app.descendants(matching: .any)["problem"].exists)
         XCTAssertTrue(app.staticTexts["signIn.title"].exists)
@@ -42,7 +42,7 @@ final class PasskeyUITests: XCTestCase {
     @MainActor
     func testPasswordSignInOffersAPasskeyThatThenSignsHerIn() throws {
         let app = launch("signed-out")
-        XCTAssertTrue(app.staticTexts["signIn.title"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["signIn.title"].appears(timeout: 10))
         signIn(app, email: Self.email, password: Self.password)
         dismissSavePassword(app)
         let offer = passkeyOffer(app)
@@ -51,15 +51,15 @@ final class PasskeyUITests: XCTestCase {
         attachLooks(app, "3-p2 passkey offer")
 
         tapWhenStill(app.buttons["passkeyOffer.confirm"])
-        XCTAssertTrue(offer.waitForNonExistence(timeout: 5), "the offer closes once the passkey is saved")
-        XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 10))
+        XCTAssertTrue(offer.disappears(timeout: 5), "the offer closes once the passkey is saved")
+        XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 10))
 
         openTab(app, "Settings")
         let row = app.buttons["settings.passkeys"]
-        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        XCTAssertTrue(row.appears(timeout: 5))
         waitForLabel(row, containing: "2")
         row.tap()
-        XCTAssertTrue(app.navigationBars["Passkeys"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Passkeys"].appears(timeout: 5))
         XCTAssertTrue(app.staticTexts["MacBook Air"].exists)
         XCTAssertTrue(app.staticTexts["iPhone"].exists)
         goBack(app, from: "Passkeys")
@@ -67,59 +67,59 @@ final class PasskeyUITests: XCTestCase {
         reveal(app.buttons["settings.signOut"], in: app)
         app.buttons["settings.signOut"].tap()
         let passkey = app.buttons["signIn.passkey"]
-        XCTAssertTrue(passkey.waitForExistence(timeout: 10))
+        XCTAssertTrue(passkey.appears(timeout: 10))
         passkey.tap()
-        XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 10), "the passkey she saved signs her in")
+        XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 10), "the passkey she saved signs her in")
     }
 
     @MainActor
     func testNotNowIsKeptOnThePhone() throws {
         let app = launch("signed-out")
-        XCTAssertTrue(app.staticTexts["signIn.title"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["signIn.title"].appears(timeout: 10))
         signIn(app, email: Self.email, password: Self.password)
         dismissSavePassword(app)
         declinePasskeyOffer(app)
-        XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 10))
 
         app.terminate()
         let again = launch("signed-out", keepPhoneSettings: true)
-        XCTAssertTrue(again.staticTexts["signIn.title"].waitForExistence(timeout: 10))
+        XCTAssertTrue(again.staticTexts["signIn.title"].appears(timeout: 10))
         signIn(again, email: Self.email, password: Self.password)
         dismissSavePassword(again)
-        XCTAssertTrue(again.navigationBars["NURS 310"].waitForExistence(timeout: 10))
-        XCTAssertFalse(again.descendants(matching: .any)["passkeyOffer"].waitForExistence(timeout: 2), "asked once on this phone")
+        XCTAssertTrue(again.navigationBars["NURS 310"].appears(timeout: 10))
+        XCTAssertFalse(again.descendants(matching: .any)["passkeyOffer"].appears(timeout: 2), "asked once on this phone")
     }
 
     @MainActor
     func testSettingsListsSavesAndRemovesPasskeys() throws {
         let app = launch("signed-in")
-        XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 10))
         openTab(app, "Settings")
         let row = app.buttons["settings.passkeys"]
-        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        XCTAssertTrue(row.appears(timeout: 5))
         waitForLabel(row, containing: "1")
         row.tap()
-        XCTAssertTrue(app.navigationBars["Passkeys"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["MacBook Air"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Passkeys"].appears(timeout: 5))
+        XCTAssertTrue(app.staticTexts["MacBook Air"].appears(timeout: 5))
         XCTAssertTrue(app.staticTexts["Added \(Self.shortDate(daysAgo: 45))"].exists)
         XCTAssertTrue(app.staticTexts["Passkeys let you sign in with Face ID instead of your password."].exists)
         attachLooks(app, "3-p3 passkeys")
 
         app.buttons["passkeys.save"].tap()
-        XCTAssertTrue(app.staticTexts["Passkey saved on this iPhone."].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Passkey saved on this iPhone."].appears(timeout: 5))
         XCTAssertTrue(app.staticTexts["iPhone"].exists)
         XCTAssertTrue(app.staticTexts["Added today"].exists)
         attachLooks(app, "3-p3 passkeys, saved")
 
         app.buttons["passkeys.remove.MacBook Air"].tap()
         let sheet = app.descendants(matching: .any)["passkeys.removeSheet"]
-        XCTAssertTrue(sheet.waitForExistence(timeout: 5))
+        XCTAssertTrue(sheet.appears(timeout: 5))
         XCTAssertTrue(app.staticTexts["Remove the passkey “MacBook Air”?"].exists)
         XCTAssertTrue(app.staticTexts["You won't be able to sign in with it anymore. Your password still works."].exists)
         attachLooks(app, "3-p4 remove a passkey")
         tapWhenStill(app.buttons["passkeys.removeSheet.confirm"])
-        XCTAssertTrue(sheet.waitForNonExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["MacBook Air"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(sheet.disappears(timeout: 5))
+        XCTAssertTrue(app.staticTexts["MacBook Air"].disappears(timeout: 5))
         XCTAssertTrue(app.staticTexts["iPhone"].exists)
 
         goBack(app, from: "Passkeys")
@@ -131,13 +131,13 @@ final class PasskeyUITests: XCTestCase {
     @MainActor
     func testADeviceThatHasHerPasskeySaysSo() throws {
         let app = launch("signed-in", passkeys: "synced")
-        XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 10))
         openTab(app, "Settings")
         app.buttons["settings.passkeys"].tap()
         let save = app.buttons["passkeys.save"]
-        XCTAssertTrue(save.waitForExistence(timeout: 5))
+        XCTAssertTrue(save.appears(timeout: 5))
         save.tap()
-        XCTAssertTrue(app.staticTexts["This iPhone already has a passkey for your account."].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["This iPhone already has a passkey for your account."].appears(timeout: 5))
     }
 
     /// The date `daysAgo` days back as the app writes it, such as "Sep 1".

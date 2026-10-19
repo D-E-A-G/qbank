@@ -15,75 +15,75 @@ final class QBankUITests: XCTestCase {
     @MainActor
     func testSignInLandsOnHerLastCourseAndSignsOut() throws {
         let app = launch("signed-out")
-        XCTAssertTrue(app.staticTexts["signIn.title"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["signIn.title"].appears(timeout: 10))
         attach(app, "1a-1 sign in")
 
         signIn(app, email: Self.email, password: "not-the-password")
         let problem = app.staticTexts["That email or password is not right."]
-        XCTAssertTrue(problem.waitForExistence(timeout: 5))
+        XCTAssertTrue(problem.appears(timeout: 5))
         dismissKeyboard(app)
         attach(app, "1a-1 sign in, wrong password")
 
         signIn(app, email: nil, password: Self.password)
         dismissSavePassword(app)
         declinePasskeyOffer(app)
-        XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 10), "lands on the course she used last")
-        XCTAssertTrue(app.buttons["course.page.Exam 1"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 10), "lands on the course she used last")
+        XCTAssertTrue(app.buttons["course.page.Exam 1"].appears(timeout: 5))
         let summary = app.descendants(matching: .any)["course.summary"]
         XCTAssertTrue(summary.label.hasPrefix("Mental Health · 86 questions · 4 folders"), summary.label)
         attach(app, "1a-4 course")
 
         let back = app.navigationBars["NURS 310"].buttons["Home"]
-        XCTAssertTrue(back.waitForExistence(timeout: 5))
+        XCTAssertTrue(back.appears(timeout: 5))
         back.tap()
-        XCTAssertTrue(app.navigationBars["Home"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["home.course.NURS 310"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Home"].appears(timeout: 5))
+        XCTAssertTrue(app.buttons["home.course.NURS 310"].appears(timeout: 5))
         XCTAssertTrue(app.buttons["home.course.NURS 220"].exists)
         XCTAssertTrue(app.staticTexts["A course appears here when its first question file is imported."].exists)
         attach(app, "1a-3 home")
 
         app.buttons["home.course.NURS 220"].tap()
-        XCTAssertTrue(app.navigationBars["NURS 220"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["NURS 220"].appears(timeout: 5))
         app.navigationBars["NURS 220"].buttons["Home"].tap()
 
         app.tabBars.buttons["Settings"].tap()
-        XCTAssertTrue(app.staticTexts[Self.email].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts[Self.email].appears(timeout: 5))
         attach(app, "1d settings (sign out)")
 
         app.buttons["settings.signOut"].tap()
-        XCTAssertTrue(app.staticTexts["signIn.title"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["signIn.title"].appears(timeout: 10))
     }
 
     @MainActor
     func testTemporaryPasswordAsksForANewOneFirst() throws {
         let app = launch("signed-out")
-        XCTAssertTrue(app.staticTexts["signIn.title"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["signIn.title"].appears(timeout: 10))
         signIn(app, email: "reset@example.com", password: "synthetic-temp-1")
 
-        XCTAssertTrue(app.staticTexts["choosePassword.title"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["choosePassword.title"].appears(timeout: 10))
         dismissSavePassword(app)
         let newPassword = app.secureTextFields["choosePassword.new"]
-        XCTAssertTrue(newPassword.waitForExistence(timeout: 5))
+        XCTAssertTrue(newPassword.appears(timeout: 5))
         dismissKeyboard(app)
         attach(app, "1a-2 choose a new password")
 
         newPassword.tap()
         newPassword.typeText("short")
         app.buttons["choosePassword.save"].tap()
-        XCTAssertTrue(app.staticTexts["Choose a password of at least 8 characters."].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Choose a password of at least 8 characters."].appears(timeout: 5))
 
         newPassword.tap()
         newPassword.typeText("-and-longer")
         app.buttons["choosePassword.save"].tap()
         dismissSavePassword(app)
         declinePasskeyOffer(app)
-        XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 10))
     }
 
     @MainActor
     func testRestoreAsksFirstThenBringsBackThePreviousVersion() throws {
         let app = launch("signed-in")
-        XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 10))
         openFolder(app, "Week 2", on: "Exam 1")
         let restore = app.buttons["course.restore"]
         reveal(restore, in: app)
@@ -91,24 +91,24 @@ final class QBankUITests: XCTestCase {
         restore.tap()
 
         let sheet = app.sheets.firstMatch
-        XCTAssertTrue(sheet.waitForExistence(timeout: 5))
+        XCTAssertTrue(sheet.appears(timeout: 5))
         XCTAssertTrue(sheet.staticTexts["Restore the previous “Psychosocial Assessment and Safety Screening”?"].exists)
         attach(app, "1a-4 restore asks first")
         sheet.buttons["Restore"].tap()
 
-        XCTAssertTrue(app.staticTexts["Restored today · 12 questions"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Restored today · 12 questions"].appears(timeout: 5))
         XCTAssertFalse(app.staticTexts["That set is not the current version."].exists)
     }
 
     @MainActor
     func testTilesOpenExamReviewAndTerms() throws {
         let app = launch("signed-in")
-        XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 10))
         for (tile, title) in [("exam", "Exam"), ("review", "Review"), ("terms", "Terms")] {
             app.buttons["course.tile.\(tile)"].tap()
-            XCTAssertTrue(app.navigationBars[title].waitForExistence(timeout: 5), title)
+            XCTAssertTrue(app.navigationBars[title].appears(timeout: 5), title)
             goBack(app, from: title)
-            XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 5))
+            XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 5))
         }
     }
 
@@ -119,7 +119,7 @@ final class QBankUITests: XCTestCase {
         let app = launch("signed-in")
         openSettings(app)
         let matchDevice = app.buttons["Match device"]
-        XCTAssertTrue(matchDevice.waitForExistence(timeout: 5))
+        XCTAssertTrue(matchDevice.appears(timeout: 5))
         XCTAssertTrue(matchDevice.isSelected, "Match device is the first choice")
         app.buttons["Dark"].tap()
         XCTAssertTrue(app.buttons["Dark"].isSelected)
@@ -128,7 +128,7 @@ final class QBankUITests: XCTestCase {
         app.terminate()
         let again = launch("signed-in", keepPhoneSettings: true)
         openSettings(again)
-        XCTAssertTrue(again.buttons["Dark"].waitForExistence(timeout: 5))
+        XCTAssertTrue(again.buttons["Dark"].appears(timeout: 5))
         XCTAssertTrue(again.buttons["Dark"].isSelected, "Dark survives a relaunch")
         again.buttons["Match device"].tap()
         XCTAssertTrue(again.buttons["Match device"].isSelected)
@@ -141,31 +141,31 @@ final class QBankUITests: XCTestCase {
         app.buttons["settings.changePassword"].tap()
         let current = app.secureTextFields["changePassword.current"]
         let new = app.secureTextFields["changePassword.new"]
-        XCTAssertTrue(current.waitForExistence(timeout: 5))
+        XCTAssertTrue(current.appears(timeout: 5))
 
         app.buttons["changePassword.save"].tap()
-        XCTAssertTrue(app.staticTexts["Enter your current password and a new one."].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Enter your current password and a new one."].appears(timeout: 5))
 
         type(current, "not-it")
         type(new, "short")
         app.buttons["changePassword.save"].tap()
-        XCTAssertTrue(app.staticTexts["Choose a password of at least 8 characters."].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Choose a password of at least 8 characters."].appears(timeout: 5))
 
         type(new, "-and-longer")
         app.buttons["changePassword.save"].tap()
-        XCTAssertTrue(app.staticTexts["That password is not right."].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["That password is not right."].appears(timeout: 5))
         let left = current.value as? String ?? ""
         XCTAssertTrue(left.isEmpty || left == current.placeholderValue, "the wrong current password is cleared, not \(left)")
 
         type(current, Self.password)
         app.buttons["changePassword.save"].tap()
         dismissSavePassword(app)
-        XCTAssertTrue(app.staticTexts["Password saved."].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Password saved."].appears(timeout: 5))
         attach(app, "1d-2 change password, saved")
         XCTAssertTrue(app.navigationBars["Change password"].exists, "still signed in, on the same screen")
 
         app.navigationBars["Change password"].buttons["Settings"].tap()
-        XCTAssertTrue(app.staticTexts[Self.email].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts[Self.email].appears(timeout: 5))
     }
 
     @MainActor
@@ -173,50 +173,50 @@ final class QBankUITests: XCTestCase {
         let app = launch("signed-in")
         openSettings(app)
         let semesterOne = app.buttons["settings.semester.1"]
-        XCTAssertTrue(semesterOne.waitForExistence(timeout: 5))
+        XCTAssertTrue(semesterOne.appears(timeout: 5))
         XCTAssertTrue(app.staticTexts["NURS 310, NURS 220"].exists)
 
         // Add Semester 3, then the row is gone: there are only three.
         let add = app.buttons["settings.addSemester"]
-        XCTAssertTrue(add.waitForExistence(timeout: 5))
+        XCTAssertTrue(add.appears(timeout: 5))
         XCTAssertTrue(add.label.contains("Add Semester 3"), add.label)
         add.tap()
-        XCTAssertTrue(app.buttons["settings.semester.3"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["settings.semester.3"].appears(timeout: 5))
         XCTAssertFalse(app.buttons["settings.addSemester"].exists)
 
         // Rename Semester 1 and give it a start date.
         semesterOne.tap()
         let name = app.textFields["semester.name"]
-        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        XCTAssertTrue(name.appears(timeout: 5))
         name.clearAndType("Fall 2026")
         app.buttons["semester.starts.add"].tap()
-        XCTAssertTrue(app.buttons["semester.starts.clear"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["semester.starts.clear"].appears(timeout: 5))
         app.buttons["semester.save"].tap()
-        XCTAssertTrue(app.staticTexts["Saved."].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.navigationBars["Fall 2026"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Saved."].appears(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Fall 2026"].appears(timeout: 5))
 
         // A course code the semester already has is refused with the server's words.
         type(app.textFields["semester.newCode"], "nurs 220")
         type(app.textFields["semester.newTitle"], "Again")
         app.buttons["semester.addCourse"].tap()
-        XCTAssertTrue(app.staticTexts["This semester already has a course with the code nurs 220."].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["This semester already has a course with the code nurs 220."].appears(timeout: 5))
         app.textFields["semester.newCode"].clearAndType("NURS 406")
         app.buttons["semester.addCourse"].tap()
-        XCTAssertTrue(app.buttons["semester.course.NURS 406"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["semester.course.NURS 406"].appears(timeout: 5))
 
         // Archive Fundamentals: it leaves Home.
         app.buttons["semester.course.NURS 220"].tap()
         let archive = app.buttons["course.archive"]
-        XCTAssertTrue(archive.waitForExistence(timeout: 5))
+        XCTAssertTrue(archive.appears(timeout: 5))
         archive.tap()
-        XCTAssertTrue(app.staticTexts["Archived. It no longer shows on Home."].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Archived. It no longer shows on Home."].appears(timeout: 5))
         XCTAssertTrue(archive.label.contains("Unarchive NURS 220"), archive.label)
 
         app.tabBars.buttons["Home"].tap()
         if app.navigationBars["NURS 310"].exists {
             app.navigationBars["NURS 310"].buttons["Home"].tap()
         }
-        XCTAssertTrue(app.buttons["home.course.NURS 406"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["home.course.NURS 406"].appears(timeout: 5))
         XCTAssertFalse(app.buttons["home.course.NURS 220"].exists)
         XCTAssertTrue(app.staticTexts["FALL 2026"].exists || app.staticTexts["Fall 2026"].exists)
     }
@@ -238,28 +238,28 @@ final class QBankUITests: XCTestCase {
 
             app.swipeDown()
             app.buttons["settings.changePassword"].tap()
-            XCTAssertTrue(app.secureTextFields["changePassword.current"].waitForExistence(timeout: 5))
+            XCTAssertTrue(app.secureTextFields["changePassword.current"].appears(timeout: 5))
             attach(app, "1d-2 change password, \(tag)")
             app.buttons["changePassword.save"].tap()
-            XCTAssertTrue(app.staticTexts["Enter your current password and a new one."].waitForExistence(timeout: 5))
+            XCTAssertTrue(app.staticTexts["Enter your current password and a new one."].appears(timeout: 5))
             attach(app, "1d-2 change password, problem, \(tag)")
             app.navigationBars["Change password"].buttons["Settings"].tap()
 
             app.buttons["settings.semester.1"].tap()
-            XCTAssertTrue(app.textFields["semester.name"].waitForExistence(timeout: 5))
+            XCTAssertTrue(app.textFields["semester.name"].appears(timeout: 5))
             app.buttons["semester.starts.add"].tap()
-            XCTAssertTrue(app.buttons["semester.starts.clear"].waitForExistence(timeout: 5))
+            XCTAssertTrue(app.buttons["semester.starts.clear"].appears(timeout: 5))
             attach(app, "1d-3 semester, \(tag)")
             scroll(app, until: app.buttons["semester.addCourse"])
             attach(app, "1d-3 semester scrolled, \(tag)")
             app.swipeDown()
 
             app.buttons["semester.course.NURS 310"].tap()
-            XCTAssertTrue(app.textFields["course.code"].waitForExistence(timeout: 5))
+            XCTAssertTrue(app.textFields["course.code"].appears(timeout: 5))
             attach(app, "1d-4 course, \(tag)")
             app.navigationBars["NURS 310"].buttons["Semester 1"].tap()
             app.navigationBars["Semester 1"].buttons["Settings"].tap()
-            XCTAssertTrue(app.buttons[look].waitForExistence(timeout: 5))
+            XCTAssertTrue(app.buttons[look].appears(timeout: 5))
         }
     }
 
@@ -268,9 +268,9 @@ final class QBankUITests: XCTestCase {
     /// The signed-in scenario opens her last course; Settings is one tab away.
     @MainActor
     private func openSettings(_ app: XCUIApplication) {
-        XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 10))
         app.tabBars.buttons["Settings"].tap()
-        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Settings"].appears(timeout: 5))
     }
 
     /// Swipes up until `element` is on screen and clear of the tab bar. A swipe made while the
@@ -294,7 +294,7 @@ final class QBankUITests: XCTestCase {
     private func dismissKeyboard(_ app: XCUIApplication) {
         guard app.keyboards.firstMatch.exists else { return }
         app.swipeDown()
-        _ = app.keyboards.firstMatch.waitForNonExistence(timeout: 3)
+        _ = app.keyboards.firstMatch.disappears(timeout: 3)
     }
 
     /// The date `daysAgo` days back as the app writes it, such as "Oct 6".

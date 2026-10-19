@@ -14,7 +14,7 @@ It references no secrets, reads the repository with a `contents: read` token, an
 
 ## Trusted code: `xcode.yml`
 
-Pushes to `main`, `qbank-v*` tags, and manual runs (Actions > Xcode > Run workflow) run one Mac job:
+`qbank-v*` tags and manual runs (Actions > Xcode > Run workflow, or `gh workflow run xcode.yml -R D-E-A-G/qbank --ref <branch>`) run one Mac job; a push to `main` does not:
 
 1. `test/package-tests.sh --macos`: `swift test` in every package under `Packages/` on the Mac host
 2. `xcodebuild test` of the `QBank` scheme (unit and UI tests) on a run-scoped iPhone simulator through `test/sim.sh`, then again on a run-scoped iPad simulator, where the iPad layout's UI tests run and the iPhone layout's skip themselves
