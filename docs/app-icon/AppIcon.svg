@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- QBank app icon, light: direction A2 of the icon board. A letter-bowl Q in paper-100 with a short square-cut tail, on the Dusk gradient (dusk-500 to dusk-900). -->
+  <defs>
+    <linearGradient id="field" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#935073"/>
+      <stop offset="1" stop-color="#502D55"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#field)"/>
+  <path fill-rule="evenodd" fill="#F7F4EE" d="M500,240 A235,255 0 1 0 500,750 A235,255 0 1 0 500,240 Z M500,323 A132,172 0 1 1 500,667 A132,172 0 1 1 500,323 Z"/>
+  <line x1="610" y1="620" x2="706" y2="716" stroke="#F7F4EE" stroke-width="100" stroke-linecap="butt"/>
+</svg>
