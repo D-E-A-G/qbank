@@ -154,7 +154,7 @@ struct DebugLaunchScenarioTests {
         let detail = CourseModel(app: app, id: FakeQBankServer.mentalHealthID)
         await detail.load()
         #expect(detail.course?.code == "NURS 311")
-        #expect(detail.course?.semester.number == 2)
+        #expect(detail.course?.semester?.number == 2)
     }
 
     @Test func fakeServerRefusesPasswordsAsTheServerDoes() async throws {

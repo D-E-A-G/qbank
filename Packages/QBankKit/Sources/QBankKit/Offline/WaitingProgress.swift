@@ -80,9 +80,9 @@ public struct WaitingProgress: Sendable, Equatable {
         let folders = course.folders.map(counting)
         let (answered, fullyRight) = added(from: course.folders, to: folders)
         return CourseDetail(
-            id: course.id, code: course.code, title: course.title, archivedAt: course.archivedAt, semester: course.semester,
-            questionCount: course.questionCount, examQuestionCount: course.examQuestionCount, weekCount: course.weekCount,
-            termCount: course.termCount, reviewCount: course.reviewCount,
+            id: course.id, kind: course.kind, code: course.code, title: course.title, archivedAt: course.archivedAt,
+            semester: course.semester, questionCount: course.questionCount, examQuestionCount: course.examQuestionCount,
+            weekCount: course.weekCount, termCount: course.termCount, reviewCount: course.reviewCount,
             answeredCount: Self.clamp(course.answeredCount + answered, to: course.questionCount),
             fullyRightCount: Self.clamp(course.fullyRightCount + fullyRight, to: course.questionCount),
             points: course.points, maxPoints: course.maxPoints, weeks: weeks, exams: course.exams, folders: folders,
@@ -96,9 +96,9 @@ public struct WaitingProgress: Sendable, Equatable {
         guard !isEmpty, let detail, detail.id == course.id else { return course }
         let (answered, fullyRight) = added(from: detail.folders, to: detail.folders.map(counting))
         return CourseSummary(
-            id: course.id, code: course.code, title: course.title, sortOrder: course.sortOrder, archivedAt: course.archivedAt,
-            questionCount: course.questionCount, weekCount: course.weekCount, folderCount: course.folderCount,
-            reviewCount: course.reviewCount,
+            id: course.id, kind: course.kind, code: course.code, title: course.title, sortOrder: course.sortOrder,
+            archivedAt: course.archivedAt, questionCount: course.questionCount, weekCount: course.weekCount,
+            folderCount: course.folderCount, reviewCount: course.reviewCount,
             answeredCount: Self.clamp(course.answeredCount + answered, to: course.questionCount),
             fullyRightCount: Self.clamp(course.fullyRightCount + fullyRight, to: course.questionCount),
             points: course.points, maxPoints: course.maxPoints

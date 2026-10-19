@@ -11,9 +11,22 @@ public struct Semester: Codable, Sendable, Equatable, Identifiable {
     public let courses: [CourseSummary]
 }
 
+/// What a course row is: a course in a semester, or a study topic, which has no semester and an
+/// empty code. Open, so a kind the server adds later still decodes.
+public struct CourseKind: RawRepresentable, Hashable, Sendable, Codable, ExpressibleByStringLiteral {
+    public let rawValue: String
+    public init(rawValue: String) { self.rawValue = rawValue }
+    public init(stringLiteral value: String) { self.rawValue = value }
+
+    public static let course: CourseKind = "course"
+    public static let topic: CourseKind = "topic"
+}
+
 /// A course card on Home.
 public struct CourseSummary: Codable, Sendable, Equatable, Identifiable {
     public let id: String
+    /// `.course` from a server or a saved copy from before topics.
+    public let kind: CourseKind
     public let code: String
     public let title: String
     public let sortOrder: Int
@@ -30,10 +43,11 @@ public struct CourseSummary: Codable, Sendable, Equatable, Identifiable {
     public let maxPoints: Int
 
     public init(
-        id: String, code: String, title: String, sortOrder: Int, archivedAt: Date?, questionCount: Int, weekCount: Int,
-        folderCount: Int? = nil, reviewCount: Int, answeredCount: Int, fullyRightCount: Int, points: Int, maxPoints: Int
+        id: String, kind: CourseKind = .course, code: String, title: String, sortOrder: Int, archivedAt: Date?, questionCount: Int,
+        weekCount: Int, folderCount: Int? = nil, reviewCount: Int, answeredCount: Int, fullyRightCount: Int, points: Int, maxPoints: Int
     ) {
         self.id = id
+        self.kind = kind
         self.code = code
         self.title = title
         self.sortOrder = sortOrder
@@ -49,13 +63,15 @@ public struct CourseSummary: Codable, Sendable, Equatable, Identifiable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, code, title, sortOrder, archivedAt, questionCount, weekCount, folderCount
+        case id, kind, code, title, sortOrder, archivedAt, questionCount, weekCount, folderCount
         case reviewCount, answeredCount, fullyRightCount, points, maxPoints
     }
 
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)
+        // Added with topics; everything from before them is a course.
+        kind = try container.decodeIfPresent(CourseKind.self, forKey: .kind) ?? .course
         code = try container.decode(String.self, forKey: .code)
         title = try container.decode(String.self, forKey: .title)
         sortOrder = try container.decode(Int.self, forKey: .sortOrder)
@@ -81,10 +97,13 @@ public struct CourseDetail: Codable, Sendable, Equatable, Identifiable {
     }
 
     public let id: String
+    /// `.course` from a server or a saved copy from before topics.
+    public let kind: CourseKind
     public let code: String
     public let title: String
     public let archivedAt: Date?
-    public let semester: SemesterRef
+    /// Nil for a topic, which is in no semester.
+    public let semester: SemesterRef?
     /// Practice questions. Exam-bank questions are counted per folder.
     public let questionCount: Int
     /// How many questions an exam over every folder draws from.
@@ -112,12 +131,13 @@ public struct CourseDetail: Codable, Sendable, Equatable, Identifiable {
     public let folders: [Folder]
 
     public init(
-        id: String, code: String, title: String, archivedAt: Date?, semester: SemesterRef,
+        id: String, kind: CourseKind = .course, code: String, title: String, archivedAt: Date?, semester: SemesterRef?,
         questionCount: Int, examQuestionCount: Int, weekCount: Int, termCount: Int, reviewCount: Int,
         answeredCount: Int, fullyRightCount: Int, points: Int, maxPoints: Int, weeks: [Week], exams: [CourseExam] = [],
         folders: [Folder]? = nil, folderCount: Int? = nil
     ) {
         self.id = id
+        self.kind = kind
         self.code = code
         self.title = title
         self.archivedAt = archivedAt
@@ -138,17 +158,20 @@ public struct CourseDetail: Codable, Sendable, Equatable, Identifiable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, code, title, archivedAt, semester, questionCount, examQuestionCount, weekCount, folderCount, termCount
+        case id, kind, code, title, archivedAt, semester, questionCount, examQuestionCount, weekCount, folderCount, termCount
         case reviewCount, answeredCount, fullyRightCount, points, maxPoints, weeks, exams, folders
     }
 
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)
+        // Added with topics; everything from before them is a course.
+        kind = try container.decodeIfPresent(CourseKind.self, forKey: .kind) ?? .course
         code = try container.decode(String.self, forKey: .code)
         title = try container.decode(String.self, forKey: .title)
         archivedAt = try container.decodeIfPresent(Date.self, forKey: .archivedAt)
-        semester = try container.decode(SemesterRef.self, forKey: .semester)
+        // Null for a topic.
+        semester = try container.decodeIfPresent(SemesterRef.self, forKey: .semester)
         questionCount = try container.decode(Int.self, forKey: .questionCount)
         examQuestionCount = try container.decode(Int.self, forKey: .examQuestionCount)
         weekCount = try container.decode(Int.self, forKey: .weekCount)
