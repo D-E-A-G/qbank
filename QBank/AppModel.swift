@@ -26,6 +26,12 @@ final class AppModel {
     let client: QBankClient
     /// Light or dark, chosen in Settings and kept on this phone.
     let look: LookStore
+    /// The color scheme she picked in Settings while it is on its way to the server, shown at once.
+    private(set) var pickedPalette: Account.Palette?
+    /// Said under Color in Settings when the server did not save her pick.
+    private(set) var paletteProblem: String?
+    /// Counts her picks, so only the latest decides what shows once the server answers.
+    @ObservationIgnored private var palettePicks = 0
     /// The optional Face ID lock, turned on in Settings and kept on this phone.
     let lock: AppLock
     /// Whether the phone has a network path.
@@ -72,6 +78,35 @@ final class AppModel {
         switch route {
         case .signedOut: nil
         case .choosingPassword(let account), .signedIn(let account): account
+        }
+    }
+
+    /// The color scheme the screens are drawn in: her account's, which follows it to every device,
+    /// or the one she just picked. Dusk when no one is signed in.
+    var palette: Account.Palette {
+        pickedPalette ?? account?.palette ?? .dusk
+    }
+
+    /// Saves the color scheme she picked in Settings to her account. It shows at once; when the
+    /// server does not take it, the screens go back to her account's and Settings says why.
+    func pickPalette(_ palette: Account.Palette) async {
+        guard account != nil, palette != self.palette else { return }
+        palettePicks += 1
+        let pick = palettePicks
+        pickedPalette = palette
+        paletteProblem = nil
+        do {
+            let saved = try await client.setPalette(palette)
+            guard pick == palettePicks else { return }
+            pickedPalette = nil
+            if account?.id == saved.id {
+                route = Self.route(for: saved)
+            }
+        } catch {
+            guard pick == palettePicks else { return }
+            pickedPalette = nil
+            guard !handle(error) else { return }
+            paletteProblem = Wording.problem(error)
         }
     }
 
@@ -177,6 +212,8 @@ final class AppModel {
 
     private func forgetSession(reason: String?) {
         signedOutReason = reason
+        pickedPalette = nil
+        paletteProblem = nil
         temporaryPassword = nil
         hasLanded = false
         passkeyOffer.close()

@@ -1398,6 +1398,9 @@
           },
           "mustChangePassword": {
             "type": "boolean"
+          },
+          "palette": {
+            "$ref": "#/components/schemas/Palette"
           }
         },
         "required": [
@@ -1405,8 +1408,17 @@
           "email",
           "name",
           "role",
-          "mustChangePassword"
+          "mustChangePassword",
+          "palette"
         ]
+      },
+      "Palette": {
+        "type": "string",
+        "enum": [
+          "dusk",
+          "slate"
+        ],
+        "description": "The account's color scheme. Every account is on dusk until it picks another with PUT /api/me/palette. More may be added later; show one you do not know as dusk."
       },
       "Error": {
         "type": "object",
@@ -1539,6 +1551,17 @@
         "required": [
           "currentPassword",
           "newPassword"
+        ]
+      },
+      "PaletteUpdate": {
+        "type": "object",
+        "properties": {
+          "palette": {
+            "$ref": "#/components/schemas/Palette"
+          }
+        },
+        "required": [
+          "palette"
         ]
       },
       "TemporaryPasswordSet": {
@@ -8261,6 +8284,77 @@
           },
           "502": {
             "description": "The password changed, but the session could not be refreshed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sign-in is not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/me/palette": {
+      "put": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "Pick the account's color scheme",
+        "description": "Any signed-in account picks its own, the admin included. It follows the account to every device; Look (light or dark) stays per device.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaletteUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The account, with its new color scheme.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Account"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "That is not a color scheme.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Choose a new password first.",
             "content": {
               "application/json": {
                 "schema": {

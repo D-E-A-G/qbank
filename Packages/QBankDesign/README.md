@@ -9,7 +9,7 @@ iOS 18 and later. macOS 15 is supported only so `swift test` runs on a Mac.
 | Token | Swift | Web |
 |---|---|---|
 | Semantic colors | `QBankColorToken` (`.bg`, `.surface`, `.text1`, `.tint`, `.correct`, ...) | `--bg`, `--surface`, `--text-1`, `--tint`, `--correct`, ... |
-| Palettes | `QBankPalette` (`.dusk` default, `.pink`, `.ink`, `.earth`) | `data-palette` |
+| Palettes | `QBankPalette` (`.dusk` default, `.pink`, `.ink`, `.earth`, `.slate`) | `data-palette` |
 | Light and dark | `QBankAppearance`, from the view's color scheme | `data-theme` |
 | Raw ramps | `QBankBaseColors` (`paper100`, `dusk600`, ...) | `--paper-100`, `--dusk-600`, ... |
 | Type scale | `QBankTextStyle` | `--size-*`, `--lh-*`, `--text-*` |

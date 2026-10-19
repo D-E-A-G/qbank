@@ -1,7 +1,9 @@
 /* Qbank color tokens. Warm paper neutrals shared by two palettes:
    [data-palette="pink"] (bubblegum), [data-palette="ink"] (ink blue) and
    [data-palette="earth"] (salmon/peach with lavender, from "The Palette Earth"),
-   [data-palette="dusk"] (default — mauve with peach, from "Violet Dusk").
+   [data-palette="dusk"] (default — mauve with peach, from "Violet Dusk"),
+   [data-palette="slate"] (graphite with periwinkle). Dusk and Slate are the two an account
+   can pick in Settings (Color).
    Light is the :root default; [data-theme="dark"] forces dark; [data-theme="auto"]
    follows the OS. Hex on purpose: drops straight into an Xcode asset catalog. */
 
@@ -30,6 +32,10 @@
   --dusk-50: #F6ECF1;  --dusk-100: #EDD7E2; --dusk-300: #C994AE;  --dusk-400: #B26F92;
   --dusk-500: #935073; --dusk-600: #7C3F60; --dusk-700: #62324D;  --dusk-900: #502D55;
   --peach-50: #FBF3EA; --peach-300: #F6DBC0; --peach-400: #E9C39E; --peach-600: #9C6A3C; --peach-900: #33241A;
+
+  /* ── Accent E: slate (graphite) ── */
+  --slate-50: #F1F4F6;  --slate-100: #E2E7EC; --slate-300: #B1BCC6;  --slate-400: #909DA9;
+  --slate-500: #6E7C89; --slate-600: #495764; --slate-700: #37444F;  --slate-900: #21272D;
 
   /* ── Semantic states (shared) ── */
   --sage-50: #E6F4EA;  --sage-300: #9AD3AE;  --sage-400: #7ACC98;  --sage-600: #2D8A55;  --sage-900: #16291D;
@@ -123,6 +129,15 @@
   --accent-soft-dark: #2E1F2E;  --accent-soft-border-dark: #4A3348;
   --guess-50: var(--peach-50);  --guess-300: var(--peach-300);  --guess-400: var(--peach-400);  --guess-600: var(--peach-600);  --guess-900: var(--peach-900);  --guess-border-dark: #5C4630;
   --icon-top: #935073;  --icon-bottom: #502D55;  --icon-fg: #F8F4E9;
+}
+
+[data-palette="slate"] {
+  --accent-50: var(--slate-50);   --accent-100: var(--slate-100);  --accent-300: var(--slate-300);  --accent-400: var(--slate-400);
+  --accent-500: var(--slate-500);  --accent-600: var(--slate-600);  --accent-700: var(--slate-700);  --accent-900: var(--slate-900);
+  --accent-tint-dark: var(--slate-300);  --accent-pressed-dark: var(--slate-100);  --accent-on-tint-dark: var(--slate-900);
+  --accent-soft-dark: #202326;  --accent-soft-border-dark: #393E42;
+  --guess-50: var(--peri-50);  --guess-300: var(--peri-300);  --guess-400: var(--peri-400);  --guess-600: var(--peri-600);  --guess-900: var(--peri-900);  --guess-border-dark: #34407A;
+  --icon-top: #6E7C89;  --icon-bottom: #37444F;  --icon-fg: #F7F4EE;
 }
 
 [data-theme="light"] {

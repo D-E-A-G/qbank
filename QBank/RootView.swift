@@ -23,10 +23,14 @@ struct RootView: View {
         }
         .animation(QBankMotion.reveal, value: model.route)
         .tint(QBankColor(.tint))
-        .qbankPalette(.default)
+        // Her account's color scheme, on every screen and sheet; Dusk on the sign-in screen.
+        .qbankPalette(model.palette.design)
         .background(WindowLook(look: model.look.look))
         .background(
-            LockWindow(lock: model.lock, look: model.look.look, hasAccount: model.account != nil, isLocked: model.account != nil && model.lock.isLocked)
+            LockWindow(
+                lock: model.lock, look: model.look.look, palette: model.palette.design, hasAccount: model.account != nil,
+                isLocked: model.account != nil && model.lock.isLocked
+            )
         )
         .task {
             // A session kept from an earlier launch: check the server still accepts it.

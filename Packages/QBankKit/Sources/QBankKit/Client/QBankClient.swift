@@ -487,6 +487,17 @@ public struct QBankClient: Sendable {
         let _: StudyPlaceBody = try await send(Request(.put, "/api/me/place", body: StudyPlaceBody(courseId: courseID)))
     }
 
+    /// Picks the account's color scheme on every device, and keeps the account it returns as the
+    /// one this device opens with.
+    @discardableResult
+    public func setPalette(_ palette: Account.Palette) async throws(QBankError) -> Account {
+        let account: Account = try await send(Request(.put, "/api/me/palette", body: PaletteUpdate(palette: palette)))
+        if let stored = try loadSession() {
+            try save(StoredSession(token: stored.token, expiresAt: stored.expiresAt, account: account))
+        }
+        return account
+    }
+
     /// Her progress as one JSON file, for the share sheet.
     public func exportProgress() async throws(QBankError) -> Data {
         try await sendForData(Request(.get, "/api/me/export"))

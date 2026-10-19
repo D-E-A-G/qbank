@@ -140,16 +140,17 @@ enum TestApp {
 
 /// Invented server bodies, shaped like the real routes' answers.
 enum Bodies {
-    static func account(role: String = "student", mustChangePassword: Bool = false) -> String {
-        #"{"id":"a1","email":"student@example.com","name":"Sam Student","role":"\#(role)","mustChangePassword":\#(mustChangePassword)}"#
+    static func account(role: String = "student", mustChangePassword: Bool = false, palette: String? = nil) -> String {
+        let field = palette.map { #","palette":"\#($0)""# } ?? ""
+        return #"{"id":"a1","email":"student@example.com","name":"Sam Student","role":"\#(role)","mustChangePassword":\#(mustChangePassword)\#(field)}"#
     }
 
     static func signedIn(token: String = "synthetic-new-token", mustChangePassword: Bool = false) -> String {
         #"{"token":"\#(token)","user":\#(account(mustChangePassword: mustChangePassword)),"expiresAt":"2027-01-01T00:00:00.000Z"}"#
     }
 
-    static func session(mustChangePassword: Bool = false) -> String {
-        #"{"user":\#(account(mustChangePassword: mustChangePassword)),"expiresAt":"2027-01-01T00:00:00.000Z"}"#
+    static func session(mustChangePassword: Bool = false, palette: String? = nil) -> String {
+        #"{"user":\#(account(mustChangePassword: mustChangePassword, palette: palette)),"expiresAt":"2027-01-01T00:00:00.000Z"}"#
     }
 
     static func course(
@@ -216,8 +217,8 @@ enum Bodies {
 }
 
 extension Account {
-    static func student(mustChangePassword: Bool = false) -> Account {
-        Account(id: "a1", email: "student@example.com", name: "Sam Student", role: .student, mustChangePassword: mustChangePassword)
+    static func student(mustChangePassword: Bool = false, palette: Palette = .dusk) -> Account {
+        Account(id: "a1", email: "student@example.com", name: "Sam Student", role: .student, mustChangePassword: mustChangePassword, palette: palette)
     }
 
     static let admin = Account(id: "a2", email: "owner@example.com", name: "Owner", role: .admin, mustChangePassword: false)

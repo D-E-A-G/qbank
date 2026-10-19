@@ -68,6 +68,17 @@ public enum QBankBaseColors {
     public static let peach600 = QBankRGBA(0x9C6A3C)
     public static let peach900 = QBankRGBA(0x33241A)
 
+    // MARK: Accent E: slate (graphite), with periwinkle for "guessed"
+
+    public static let slate50 = QBankRGBA(0xF1F4F6)
+    public static let slate100 = QBankRGBA(0xE2E7EC)
+    public static let slate300 = QBankRGBA(0xB1BCC6)
+    public static let slate400 = QBankRGBA(0x909DA9)
+    public static let slate500 = QBankRGBA(0x6E7C89)
+    public static let slate600 = QBankRGBA(0x495764)
+    public static let slate700 = QBankRGBA(0x37444F)
+    public static let slate900 = QBankRGBA(0x21272D)
+
     // MARK: Answer states, shared by every palette
 
     public static let sage50 = QBankRGBA(0xE6F4EA)
@@ -160,6 +171,14 @@ public enum QBankBaseColors {
         "--peach-400": peach400,
         "--peach-600": peach600,
         "--peach-900": peach900,
+        "--slate-50": slate50,
+        "--slate-100": slate100,
+        "--slate-300": slate300,
+        "--slate-400": slate400,
+        "--slate-500": slate500,
+        "--slate-600": slate600,
+        "--slate-700": slate700,
+        "--slate-900": slate900,
         "--sage-50": sage50,
         "--sage-300": sage300,
         "--sage-400": sage400,
