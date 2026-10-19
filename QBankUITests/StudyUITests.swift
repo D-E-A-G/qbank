@@ -251,8 +251,12 @@ final class StudyUITests: XCTestCase {
         // An exam page: Start exam, its folders, and the exams she took over them.
         exam1.tap()
         XCTAssertTrue(app.navigationBars["Exam 1"].waitForExistence(timeout: 5))
-        XCTAssertEqual(app.staticTexts["page.note"].label, "2 folders · 3 sets · 43 questions")
+        XCTAssertEqual(app.staticTexts["page.note"].label, "2 folders · 3 practice sets · 43 questions")
         XCTAssertEqual(app.staticTexts["page.draw"].label, "40 questions from the 43 in these 2 folders, or Wrong questions only.")
+        XCTAssertTrue(app.staticTexts["Study material"].exists)
+        XCTAssertTrue(
+            app.descendants(matching: .any)["page.twins"].label.contains("Exam twins: 17 in Week 1 · exams draw from these first")
+        )
         XCTAssertTrue(app.buttons["folder.Week 1"].label.contains("1 set · 13 of 17 fully right"))
         XCTAssertTrue(app.buttons["folder.Week 2"].label.contains("2 sets · 9 of 26 answered"))
         attach(app, "C exam page")
@@ -260,7 +264,8 @@ final class StudyUITests: XCTestCase {
         reveal(sitting, in: app)
         XCTAssertTrue(app.buttons["page.sitting.e0000000-0000-4000-8000-000000000002"].exists)
         XCTAssertFalse(app.buttons["page.sitting.e0000000-0000-4000-8000-000000000003"].exists, "Weeks 1-3 spans both pages")
-        attach(app, "C exam page, your exams")
+        XCTAssertTrue(app.staticTexts["Past exams"].exists)
+        attach(app, "C exam page, past exams")
         sitting.tap()
         XCTAssertTrue(app.staticTexts["examResult.title"].waitForExistence(timeout: 10))
         app.buttons["examResult.done"].tap()
@@ -277,7 +282,8 @@ final class StudyUITests: XCTestCase {
         goBack(app, from: "Week 2")
         goBack(app, from: "Exam 1")
         openFolder(app, "Week 3", on: "Exam 2")
-        XCTAssertTrue(app.descendants(matching: .any)["folder.bank"].label.contains("Exam bank: 31 questions, exams only"))
+        XCTAssertTrue(app.descendants(matching: .any)["folder.bank"].label.contains("Exam twins: 31 questions, exams only"))
+        attach(app, "C folder, exam twins")
 
         // Start exam on an exam page opens the setup with its folders ticked.
         goBack(app, from: "Week 3")
@@ -294,7 +300,7 @@ final class StudyUITests: XCTestCase {
         XCTAssertEqual(app.descendants(matching: .any)["exam.summary.count"].label, "40 questions, in 60 minutes")
         attach(app, "C exam setup from Exam 1, summary")
 
-        // The exam she takes from here shows under the page's Your exams when she comes back.
+        // The exam she takes from here shows under the page's Past exams when she comes back.
         app.buttons["exam.start"].tap()
         XCTAssertTrue(app.buttons["exam.end"].waitForExistence(timeout: 10))
         app.buttons["exam.end"].tap()
@@ -453,7 +459,8 @@ final class StudyUITests: XCTestCase {
         attach(app, "C new exam page")
         app.buttons["editPage.save"].tap()
         XCTAssertTrue(app.navigationBars["Exam 1"].waitForExistence(timeout: 10), "a new page opens")
-        XCTAssertEqual(app.staticTexts["page.note"].label, "2 folders · 2 sets · 85 questions")
+        XCTAssertEqual(app.staticTexts["page.note"].label, "2 folders · 2 practice sets · 85 questions")
+        XCTAssertFalse(app.descendants(matching: .any)["page.twins"].exists, "no folder on this page has exam twins")
         XCTAssertTrue(app.staticTexts["Exams you finish over Exam 1 show up here with their scores."].exists)
         attach(app, "C exam page, new")
 

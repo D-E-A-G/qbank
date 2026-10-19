@@ -52,10 +52,10 @@ struct CourseFoldersTests {
         #expect(FolderWording.meta(done) == "1 set · 12 of 14 fully right")
         #expect(FolderWording.state(FolderProgress(done)) == "Done")
         let bankOnly = try folder("Week 8", [], bank: 1)
-        #expect(FolderWording.meta(bankOnly) == "Exam bank only · 1 question")
+        #expect(FolderWording.meta(bankOnly) == "Exam twins only · 1 question")
         #expect(FolderWording.state(FolderProgress(bankOnly)) == "")
         #expect(FolderWording.meta(try folder("Unsorted", [])) == "Empty folder")
-        #expect(FolderWording.examBank(try folder("Week 3", [(1, 0, 0)], bank: 27)) == "Exam bank: 27 questions, exams only")
+        #expect(FolderWording.examBank(try folder("Week 3", [(1, 0, 0)], bank: 27)) == "Exam twins: 27 questions, exams only")
         #expect(FolderWording.examBank(done) == "No exam bank yet · exams use practice questions")
     }
 
@@ -76,7 +76,8 @@ struct CourseFoldersTests {
         #expect(exam1.progress.questionCount == 20)
         #expect(exam1.progress.answeredCount == 12)
         #expect(FolderWording.pageRow(exam1) == "2 folders · 20 questions")
-        #expect(FolderWording.pageNote(exam1) == "2 folders · 3 sets · 20 questions")
+        #expect(FolderWording.pageNote(exam1) == "2 folders · 3 practice sets · 20 questions")
+        #expect(FolderWording.examTwins(exam1) == nil, "Week 1 and Week 2 have no exam twins")
         #expect(FolderWording.state(exam1.progress) == "12 of 20")
         #expect(FolderWording.examDraw(exam1) == "All 20 questions in these 2 folders, or Wrong questions only.")
         #expect(layout.looseFolders.isEmpty, "a folder on a page is listed only there")
@@ -106,6 +107,27 @@ struct CourseFoldersTests {
         let folders = [try folder("A", [(30, 0, 0)]), try folder("B", [(14, 0, 0), (16, 0, 0)])]
         let large = ExamPage(exam: CourseExam(id: "x", name: "Exam 3", sortOrder: 1, weekLabels: []), folders: folders, sittings: [], progress: FolderProgress(sets: folders.flatMap(\.sets)))
         #expect(FolderWording.examDraw(large) == "40 questions from the 60 in these 2 folders, or Wrong questions only.")
+    }
+
+    @Test func examTwinsSitBesideStartExamWhenAFolderHasThem() throws {
+        let one = try #require(CourseLayout(course: try course(pages: [("x1", "Exam 1", ["f3"])]), sittings: []).page("x1"))
+        #expect(FolderWording.examTwins(one) == "Exam twins: 20 in Week 3 · exams draw from these first")
+        let week4 = try folder("Week 4", [(1, 0, 0)], bank: 14)
+        let plain = try folder("Week 7", [(1, 0, 0)])
+        let week5 = try folder("Week 5", [(1, 0, 0)], bank: 14)
+        let week6 = try folder("Week 6", [(1, 0, 0)], bank: 13)
+        let several = ExamPage(
+            exam: CourseExam(id: "x", name: "Exam 2", sortOrder: 1, weekLabels: []),
+            folders: [week4, plain, week5, week6],
+            sittings: [],
+            progress: FolderProgress(sets: [week4, plain, week5, week6].flatMap(\.sets))
+        )
+        #expect(FolderWording.examTwins(several) == "Exam twins: 41 in Week 4, Week 5 and Week 6 · exams draw from these first")
+        let pair = ExamPage(
+            exam: several.exam, folders: [week4, week5], sittings: [],
+            progress: FolderProgress(sets: [week4, week5].flatMap(\.sets))
+        )
+        #expect(FolderWording.examTwins(pair) == "Exam twins: 28 in Week 4 and Week 5 · exams draw from these first")
     }
 
     @Test func aFolderSaysWhichPageItIsOn() throws {
