@@ -232,7 +232,7 @@ require_grep 'INFOPLIST_KEY_CFBundleDisplayName = QBank;' "$PBXPROJ" "app displa
 # App Store Connect refuses an upload whose bundle has no app icon (90022,
 # 90023, 90713), so every slot of the icon set must name an image that exists.
 require_grep 'ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;' "$PBXPROJ" "app icon set is AppIcon"
-ruby_check "every AppIcon slot names a 1024x1024 PNG that exists" QBank/Assets.xcassets/AppIcon.appiconset/Contents.json '
+ruby_check "every AppIcon slot names a 1024x1024 PNG that exists, the default one opaque" QBank/Assets.xcassets/AppIcon.appiconset/Contents.json '
   require "json"
   dir = File.dirname(ARGV[0])
   images = JSON.parse(File.read(ARGV[0]))["images"]
@@ -243,6 +243,10 @@ ruby_check "every AppIcon slot names a 1024x1024 PNG that exists" QBank/Assets.x
     abort "#{name} is not a PNG" unless png.start_with?("\x89PNG\r\n\x1A\n".b)
     width, height = png[16, 8].unpack("NN")
     abort "#{name} is #{width}x#{height}, not 1024x1024" unless [width, height] == [1024, 1024]
+    # The App Store icon (the slot with no appearance) must be opaque (90717):
+    # an RGB or gray PNG with no transparency chunk.
+    next if image["appearances"]
+    abort "#{name} has an alpha channel" unless [0, 2].include?(png.getbyte(25)) && !png.include?("tRNS")
   end
 '
 # The Apple team id comes from the uploader's shell, never from Git.

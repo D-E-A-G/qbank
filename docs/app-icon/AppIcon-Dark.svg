@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- QBank app icon, dark: the A2 Q in dusk-300 on a transparent field, which iOS fills with its dark backdrop. -->
+  <path fill-rule="evenodd" fill="#C994AE" d="M500,240 A235,255 0 1 0 500,750 A235,255 0 1 0 500,240 Z M500,323 A132,172 0 1 1 500,667 A132,172 0 1 1 500,323 Z"/>
+  <line x1="610" y1="620" x2="706" y2="716" stroke="#C994AE" stroke-width="100" stroke-linecap="butt"/>
+</svg>
