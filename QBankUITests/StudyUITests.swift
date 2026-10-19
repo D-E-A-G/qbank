@@ -439,10 +439,10 @@ final class StudyUITests: XCTestCase {
         // Her order: Edit, then drag a folder by its grip onto another, then Done.
         tapVisible(app.buttons["course.editFolders"], in: app)
         let week3 = app.otherElements["reorder.Week 3"]
-        XCTAssertTrue(week3.appears(timeout: 5))
+        waitUntilStill(week3)
         week3.press(forDuration: 1, thenDragTo: app.otherElements["reorder.Week 1"], withVelocity: .slow, thenHoldForDuration: 0.5)
-        XCTAssertTrue(app.buttons["reorder.up.Week 1"].appears(timeout: 5))
-        XCTAssertFalse(app.buttons["reorder.up.Week 3"].isEnabled, "now first")
+        let first = NSPredicate(format: "isEnabled == false")
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation(for: first, evaluatedWith: app.buttons["reorder.up.Week 3"])], timeout: 5), .completed, "now first")
         attach(app, "C folders, order")
         app.buttons["course.editFolders"].tap()
         XCTAssertTrue(app.buttons["folder.Week 3"].appears(timeout: 5))

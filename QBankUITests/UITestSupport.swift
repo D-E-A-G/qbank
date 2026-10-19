@@ -105,15 +105,22 @@ extension XCTestCase {
     /// height. A tap made while it moves can land beside it.
     @MainActor
     func tapWhenStill(_ element: XCUIElement) {
+        waitUntilStill(element)
+        element.tap()
+    }
+
+    /// Waits until the element has stopped moving and can be touched, for at most three seconds.
+    /// A sheet's button can report where it will settle while the sheet still slides in.
+    @MainActor
+    func waitUntilStill(_ element: XCUIElement) {
         XCTAssertTrue(element.appears(timeout: 5))
         var frame = element.frame
         for _ in 0..<20 {
             RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.15))
             let now = element.frame
-            if now == frame { break }
+            if now == frame, element.isHittable { break }
             frame = now
         }
-        element.tap()
     }
 
     /// Scrolls until the element is on screen, clear of the bars at the top and bottom, then taps it.
