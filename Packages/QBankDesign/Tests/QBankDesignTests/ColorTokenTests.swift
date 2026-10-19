@@ -94,7 +94,7 @@ struct ColorTokenTests {
     func readmeValues() {
         let tints: [(QBankPalette, UInt32, UInt32)] = [
             (.pink, 0xC93D74, 0xF07AA6), (.ink, 0x36598A, 0x9DB6D6),
-            (.earth, 0xC2573F, 0xF0977E), (.dusk, 0x7C3F60, 0xC994AE),
+            (.earth, 0xC2573F, 0xF0977E), (.dusk, 0x7C3F60, 0xC994AE), (.slate, 0x495764, 0xB1BCC6),
         ]
         for (palette, light, dark) in tints {
             #expect(QBankColorToken.tint.value(palette: palette, appearance: .light) == QBankRGBA(light))
@@ -112,6 +112,37 @@ struct ColorTokenTests {
         #expect(QBankColorToken.text2.value(appearance: .dark).hex == "#B8B2A8")
     }
 
+    @Test("Slate is the graphite the captain picked, with periwinkle guesses")
+    func slateValues() {
+        let light: [(QBankColorToken, UInt32)] = [
+            (.tint, 0x495764), (.tintPressed, 0x37444F), (.tintSoft, 0xF1F4F6), (.tintSoftBorder, 0xE2E7EC),
+            (.focusRing, 0x6E7C89), (.textOnTint, 0xFFFFFF), (.guess, 0x4A62D6), (.guessSoft, 0xECF0FE),
+            (.guessBorder, 0xAEBEFC), (.progressFill, 0x495764),
+        ]
+        let dark: [(QBankColorToken, UInt32)] = [
+            (.tint, 0xB1BCC6), (.tintPressed, 0xE2E7EC), (.tintSoft, 0x202326), (.tintSoftBorder, 0x393E42),
+            (.focusRing, 0x909DA9), (.textOnTint, 0x21272D), (.guess, 0x8FA6FA), (.guessSoft, 0x1F2542), (.guessBorder, 0x34407A),
+            (.progressFill, 0xB1BCC6),
+        ]
+        for (token, hex) in light {
+            #expect(token.value(palette: .slate, appearance: .light) == QBankRGBA(hex), "\(token.cssName) light")
+        }
+        for (token, hex) in dark {
+            #expect(token.value(palette: .slate, appearance: .dark) == QBankRGBA(hex), "\(token.cssName) dark")
+        }
+        #expect(QBankPalette.slate.displayName == "Slate")
+        #expect(QBankPalette.slate.appIcon == QBankAppIconColors(top: QBankRGBA(0x6E7C89), bottom: QBankRGBA(0x37444F), foreground: QBankRGBA(0xF7F4EE)))
+        // Everything outside the accent and the guess is Dusk's.
+        let accentTokens: Set<QBankColorToken> = [.tint, .tintPressed, .tintSoft, .tintSoftBorder, .focusRing, .textOnTint,
+                                                   .guess, .guessSoft, .guessBorder, .progressFill]
+        for appearance in QBankAppearance.allCases {
+            for token in QBankColorToken.allCases where !accentTokens.contains(token) {
+                #expect(token.value(palette: .slate, appearance: appearance) == token.value(palette: .dusk, appearance: appearance),
+                        "\(token.cssName) \(appearance.rawValue)")
+            }
+        }
+    }
+
     @Test("Answer states are shared; only guessed follows the palette")
     func statesAreShared() {
         let shared: [QBankColorToken] = [.correct, .correctSoft, .correctBorder, .partial, .partialSoft,
@@ -121,8 +152,10 @@ struct ColorTokenTests {
                 let values = Set(QBankPalette.allCases.map { token.value(palette: $0, appearance: appearance) })
                 #expect(values.count == 1, "\(token) differs between palettes")
             }
+            // Slate and Pink share periwinkle; each other palette has a guess ramp of its own.
             let guesses = Set(QBankPalette.allCases.map { QBankColorToken.guess.value(palette: $0, appearance: appearance) })
-            #expect(guesses.count == QBankPalette.allCases.count)
+            #expect(guesses.count == Set(QBankPalette.allCases.map(\.guess)).count)
+            #expect(guesses.count > 1)
             for palette in QBankPalette.allCases {
                 #expect(QBankColorToken.guess.value(palette: palette, appearance: appearance)
                     != QBankColorToken.tint.value(palette: palette, appearance: appearance))

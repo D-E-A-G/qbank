@@ -9,6 +9,8 @@ public enum QBankPalette: String, CaseIterable, Identifiable, Sendable {
     case ink
     /// Salmon and peach with lavender.
     case earth
+    /// Graphite with periwinkle: one quiet accent.
+    case slate
 
     public static let `default`: QBankPalette = .dusk
 
@@ -21,6 +23,7 @@ public enum QBankPalette: String, CaseIterable, Identifiable, Sendable {
         case .pink: "Pink"
         case .ink: "Ink"
         case .earth: "Earth"
+        case .slate: "Slate"
         }
     }
 
@@ -55,6 +58,13 @@ public enum QBankPalette: String, CaseIterable, Identifiable, Sendable {
                 tintDark: C.earth400, pressedDark: C.earth300, onTintDark: C.earth900,
                 softDark: QBankRGBA(0x3A2420), softBorderDark: QBankRGBA(0x5C3A32)
             )
+        case .slate:
+            return QBankAccentRamp(
+                shade50: C.slate50, shade100: C.slate100, shade300: C.slate300, shade400: C.slate400,
+                shade500: C.slate500, shade600: C.slate600, shade700: C.slate700, shade900: C.slate900,
+                tintDark: C.slate300, pressedDark: C.slate100, onTintDark: C.slate900,
+                softDark: QBankRGBA(0x202326), softBorderDark: QBankRGBA(0x393E42)
+            )
         }
     }
 
@@ -66,7 +76,7 @@ public enum QBankPalette: String, CaseIterable, Identifiable, Sendable {
                 shade50: C.peach50, shade300: C.peach300, shade400: C.peach400, shade600: C.peach600,
                 shade900: C.peach900, borderDark: QBankRGBA(0x5C4630)
             )
-        case .pink:
+        case .pink, .slate:
             return QBankGuessRamp(
                 shade50: C.peri50, shade300: C.peri300, shade400: C.peri400, shade600: C.peri600,
                 shade900: C.peri900, borderDark: QBankRGBA(0x34407A)
@@ -95,6 +105,8 @@ public enum QBankPalette: String, CaseIterable, Identifiable, Sendable {
             QBankAppIconColors(top: QBankRGBA(0x3D6497), bottom: QBankRGBA(0x2A4870), foreground: QBankRGBA(0xF7F4EE))
         case .earth:
             QBankAppIconColors(top: QBankRGBA(0xF5A98C), bottom: QBankRGBA(0xE67A5E), foreground: QBankRGBA(0x3A1A12))
+        case .slate:
+            QBankAppIconColors(top: QBankRGBA(0x6E7C89), bottom: QBankRGBA(0x37444F), foreground: QBankRGBA(0xF7F4EE))
         }
     }
 }

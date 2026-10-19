@@ -7,6 +7,15 @@ public struct Account: Codable, Sendable, Equatable, Identifiable {
         case admin
     }
 
+    /// The account's color scheme, which follows it to every device. Look (light or dark) stays
+    /// per device.
+    public enum Palette: String, Codable, Sendable, CaseIterable {
+        /// Mauve with peach, every account's until it picks another.
+        case dusk
+        /// Graphite.
+        case slate
+    }
+
     public let id: String
     public let email: String
     public let name: String
@@ -14,13 +23,27 @@ public struct Account: Codable, Sendable, Equatable, Identifiable {
     /// True after the admin set a temporary password: most calls answer 403 `must_change_password`
     /// until she chooses a new one with `QBankClient.changePassword`.
     public let mustChangePassword: Bool
+    /// Set with `QBankClient.setPalette`. A server from before color schemes, a session kept from
+    /// then, or a scheme this version does not know reads as `.dusk`, as the server asks.
+    public let palette: Palette
 
-    public init(id: String, email: String, name: String, role: Role, mustChangePassword: Bool) {
+    public init(id: String, email: String, name: String, role: Role, mustChangePassword: Bool, palette: Palette = .dusk) {
         self.id = id
         self.email = email
         self.name = name
         self.role = role
         self.mustChangePassword = mustChangePassword
+        self.palette = palette
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        email = try container.decode(String.self, forKey: .email)
+        name = try container.decode(String.self, forKey: .name)
+        role = try container.decode(Role.self, forKey: .role)
+        mustChangePassword = try container.decode(Bool.self, forKey: .mustChangePassword)
+        palette = try container.decodeIfPresent(String.self, forKey: .palette).flatMap(Palette.init(rawValue:)) ?? .dusk
     }
 }
 
@@ -35,6 +58,11 @@ public struct SignedIn: Codable, Sendable, Equatable {
 public struct Session: Codable, Sendable, Equatable {
     public let user: Account
     public let expiresAt: Date
+}
+
+/// The body of `PUT /api/me/palette`.
+struct PaletteUpdate: Codable {
+    let palette: Account.Palette
 }
 
 /// `GET /health`.

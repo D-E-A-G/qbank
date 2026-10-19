@@ -1,0 +1,25 @@
+{
+  "recordedFrom": "8c1bde9f87d8e6f31e3efa4c1691e34edf670dc1",
+  "request": {
+    "method": "GET",
+    "path": "/api/session",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "user": {
+        "id": "lPJxET2yqqqi4kQozL9JbAyXmRbXJWQT",
+        "email": "student@example.com",
+        "name": "Sam Student",
+        "role": "student",
+        "mustChangePassword": false,
+        "palette": "slate"
+      },
+      "expiresAt": "2027-11-23T22:20:36.524Z"
+    }
+  }
+}

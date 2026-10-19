@@ -68,6 +68,7 @@ struct LockScreen: View {
 struct LockWindow: UIViewRepresentable {
     let lock: AppLock
     let look: Look
+    let palette: QBankPalette
     /// True when a signed-in account is on screen, so there is something to lock.
     let hasAccount: Bool
     /// True while the lock covers the account's screens. Passed in, rather than read from `lock`
@@ -84,6 +85,7 @@ struct LockWindow: UIViewRepresentable {
     func updateUIView(_ host: Host, context: Context) {
         host.lock = lock
         host.look = look
+        host.palette = palette
         host.hasAccount = hasAccount
         host.isLocked = isLocked
         host.apply()
@@ -92,6 +94,7 @@ struct LockWindow: UIViewRepresentable {
     final class Host: UIView {
         var lock: AppLock?
         var look: Look = .matchDevice
+        var palette: QBankPalette = .default
         var hasAccount = false
         var isLocked = false
         /// True from the moment the scene stops being active until it is active again.
@@ -116,7 +119,7 @@ struct LockWindow: UIViewRepresentable {
             let screen = AnyView(
                 LockScreen(lock: lock, asks: isLocked)
                     .tint(QBankColor(.tint))
-                    .qbankPalette(.default)
+                    .qbankPalette(palette)
             )
             if let hosting, let lockWindow {
                 hosting.rootView = screen

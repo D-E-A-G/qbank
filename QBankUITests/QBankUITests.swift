@@ -67,12 +67,12 @@ final class QBankUITests: XCTestCase {
         dismissKeyboard(app)
         attach(app, "1a-2 choose a new password")
 
-        newPassword.tap()
+        focus(newPassword, in: app)
         newPassword.typeText("short")
         app.buttons["choosePassword.save"].tap()
         XCTAssertTrue(app.staticTexts["Choose a password of at least 8 characters."].appears(timeout: 5))
 
-        newPassword.tap()
+        focus(newPassword, in: app)
         newPassword.typeText("-and-longer")
         app.buttons["choosePassword.save"].tap()
         dismissSavePassword(app)
@@ -132,6 +132,53 @@ final class QBankUITests: XCTestCase {
         XCTAssertTrue(again.buttons["Dark"].isSelected, "Dark survives a relaunch")
         again.buttons["Match device"].tap()
         XCTAssertTrue(again.buttons["Match device"].isSelected)
+    }
+
+    /// Color is the account's: Slate shows at once, a pick without signal goes back and says why,
+    /// and signing in again reads it from her account on the server.
+    @MainActor
+    func testColorGoesWithHerAccount() throws {
+        let app = launch("signed-in")
+        openSettings(app)
+        let dusk = app.buttons["Dusk"]
+        let slate = app.buttons["Slate"]
+        XCTAssertTrue(dusk.appears(timeout: 5))
+        reveal(slate, in: app)
+        XCTAssertTrue(dusk.isSelected, "every account starts on Dusk")
+        XCTAssertFalse(slate.isSelected)
+        attach(app, "color, dusk")
+        slate.tap()
+        XCTAssertTrue(slate.isSelected)
+        XCTAssertFalse(dusk.isSelected)
+        XCTAssertTrue(app.buttons["Match device"].isSelected, "Look stays as it was")
+        attachLooks(app, "color, slate")
+
+        setNetwork(online: false)
+        dusk.tap()
+        let problem = app.staticTexts["No connection. Check Wi-Fi or cellular data and try again."]
+        XCTAssertTrue(problem.appears(timeout: 5))
+        XCTAssertTrue(slate.isSelected, "the pick went back to Slate")
+        attach(app, "color, not saved offline")
+        setNetwork(online: true)
+
+        app.swipeDown()
+        app.buttons["settings.signOut"].tap()
+        XCTAssertTrue(app.staticTexts["signIn.title"].appears(timeout: 10))
+        attach(app, "color, signed out in dusk")
+        signIn(app, email: Self.email, password: Self.password)
+        dismissSavePassword(app)
+        attachLooks(app, "color, passkey offer in slate")
+        declinePasskeyOffer(app)
+        XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 10))
+        attachLooks(app, "color, course in slate")
+        app.tabBars.buttons["Settings"].tap()
+        reveal(slate, in: app)
+        XCTAssertTrue(slate.isSelected, "her account kept Slate")
+        XCTAssertFalse(problem.exists)
+
+        dusk.tap()
+        XCTAssertTrue(dusk.isSelected)
+        XCTAssertFalse(slate.isSelected)
     }
 
     @MainActor
@@ -288,6 +335,22 @@ final class QBankUITests: XCTestCase {
     private func type(_ field: XCUIElement, _ text: String) {
         field.tap()
         field.typeText(text)
+    }
+
+    /// Taps a field until it has the keyboard. iOS can offer to save the password a second time
+    /// once the first offer is gone, and that late offer takes the keyboard from the field.
+    @MainActor
+    private func focus(_ field: XCUIElement, in app: XCUIApplication) {
+        for _ in 0..<3 {
+            field.tap()
+            if field.value(forKey: "hasKeyboardFocus") as? Bool == true { return }
+            let notNow = app.buttons["Not Now"]
+            if notNow.appears(timeout: 2) {
+                tapWhenStill(notNow)
+                _ = notNow.disappears(timeout: 3)
+            }
+        }
+        XCTFail("\(field) never got the keyboard")
     }
 
     @MainActor

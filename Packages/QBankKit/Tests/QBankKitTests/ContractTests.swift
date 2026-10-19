@@ -125,6 +125,33 @@ struct SessionContractTests {
         try expectRequest(transport.requests.first, matches: Fixture.load("sign-out"))
         #expect(try store.load() == nil)
     }
+
+    @Test func pickingAPaletteKeepsTheAccountItReturns() async throws {
+        let transport = try FixtureTransport("palette")
+        let (client, store) = TestClient.make(transport)
+        let account = try await client.setPalette(.slate)
+        try expectRequest(transport.requests.first, matches: Fixture.load("palette"))
+        #expect(account.palette == .slate)
+        #expect(account.email == "student@example.com")
+        let stored = try #require(try store.load())
+        #expect(stored.token == "synthetic-session-token")
+        #expect(stored.account == account)
+    }
+
+    @Test func sessionCarriesThePalette() async throws {
+        let transport = try FixtureTransport("session-slate")
+        let (client, store) = TestClient.make(transport)
+        let session = try await client.session()
+        try expectRequest(transport.requests.first, matches: Fixture.load("session-slate"))
+        #expect(session.user.palette == .slate)
+        #expect(try store.load()?.account?.palette == .slate)
+    }
+
+    @Test func sessionFromBeforePalettesIsDusk() async throws {
+        let transport = try FixtureTransport("session")
+        let (client, _) = TestClient.make(transport)
+        #expect(try await client.session().user.palette == .dusk)
+    }
 }
 
 @Suite("Contract: courses and practice")

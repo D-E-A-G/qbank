@@ -12,7 +12,7 @@ enum SettingsRoute: Hashable {
 }
 
 /// The Settings tab, as the web's Settings for a student: her account, her semesters and
-/// courses, and Look, then what is saved on this phone. Export stays on the web.
+/// courses, and Look and Color, then what is saved on this phone. Export stays on the web.
 struct SettingsView: View {
     let app: AppModel
     @State private var catalog: CatalogModel
@@ -228,13 +228,47 @@ struct SettingsView: View {
         }
     }
 
+    /// Look, kept on this phone, and Color, which goes with her account to every device, as on the web.
     private var look: some View {
         @Bindable var store = app.look
-        return QBankListGroup(header: "Look", footer: "Match device follows this device's light or dark setting.") {
-            QBankSegmentedControl("Look", selection: $store.look, options: Look.allCases.map { .init($0, $0.label) })
-                .padding(QBankSpacing.space3)
-                .accessibilityIdentifier("settings.look")
+        let palette = Binding {
+            app.palette
+        } set: { palette in
+            Task { await app.pickPalette(palette) }
         }
+        return VStack(alignment: .leading, spacing: QBankSpacing.space3) {
+            QBankListGroup(
+                header: "Look",
+                footer: "Match device follows this device's light or dark setting. Color goes with your account to every device."
+            ) {
+                field("Look") {
+                    QBankSegmentedControl("Look", selection: $store.look, options: Look.allCases.map { .init($0, $0.label) })
+                        .accessibilityIdentifier("settings.look")
+                }
+                field("Color") {
+                    QBankSegmentedControl("Color", selection: palette, options: Account.Palette.allCases.map { .init($0, $0.label) })
+                        .accessibilityIdentifier("settings.color")
+                }
+            }
+            if let problem = app.paletteProblem {
+                ProblemText(text: problem)
+                    .padding(.horizontal, QBankSpacing.space5)
+            }
+        }
+    }
+
+    /// A control with its name above it, as the web's labeled fields.
+    private func field(_ label: String, @ViewBuilder control: () -> some View) -> some View {
+        VStack(alignment: .leading, spacing: QBankSpacing.space2) {
+            Text(label)
+                .qbankFont(.footnote)
+                .foregroundStyle(.qbank(.text3))
+                // In line with the rows' text, 16pt in from the card.
+                .padding(.horizontal, QBankSpacing.rowPaddingHorizontal - QBankSpacing.space3)
+                .accessibilityHidden(true)
+            control()
+        }
+        .padding(QBankSpacing.space3)
     }
 
     private var onThisPhone: some View {

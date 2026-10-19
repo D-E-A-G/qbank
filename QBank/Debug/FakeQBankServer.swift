@@ -32,9 +32,11 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary, Fak
         let name: String
         var password: String
         var mustChangePassword: Bool
+        /// Her color scheme, "dusk" until she picks "slate" in Settings.
+        var palette = "dusk"
 
         var json: [String: Any] {
-            ["id": id, "email": email, "name": name, "role": "student", "mustChangePassword": mustChangePassword]
+            ["id": id, "email": email, "name": name, "role": "student", "mustChangePassword": mustChangePassword, "palette": palette]
         }
     }
 
@@ -256,6 +258,8 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary, Fak
             let place = body["courseId"] as? String
             state.withLock { $0.place = place }
             return (200, ["courseId": json(place)])
+        case ("PUT", "/api/me/palette"):
+            return setPalette(account, to: body["palette"] as? String)
         case ("GET", "/api/courses/\(Self.mentalHealthID)"):
             return (200, mentalHealth().merging(stored(Self.mentalHealthID)) { _, edited in edited }.merging(studied(Self.mentalHealthID)) { _, now in now })
         case ("GET", "/api/courses/\(Self.fundamentalsID)"):
@@ -317,6 +321,19 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary, Fak
             return failure(401, "invalid_credentials", "That email or password is not right.")
         }
         return (200, ["token": token, "user": account.json, "expiresAt": date(days: 30)])
+    }
+
+    /// Her color scheme, which the real route takes only by its name and answers with her account.
+    private func setPalette(_ account: Account, to palette: String?) -> Reply {
+        guard let palette, ["dusk", "slate"].contains(palette) else {
+            return failure(400, "invalid_request", "Check the fields and try again.")
+        }
+        let updated = state.withLock { state -> Account in
+            let index = state.accounts.firstIndex { $0.email == account.email }!
+            state.accounts[index].palette = palette
+            return state.accounts[index]
+        }
+        return (200, updated.json)
     }
 
     private func changePassword(_ account: Account, token: String, current: String, new: String) -> Reply {
