@@ -93,9 +93,11 @@ extension XCTestCase {
         RunLoop.current.run(until: .now.addingTimeInterval(1))
     }
 
-    /// Waits until the element's label contains the text.
+    /// Waits until the element's label contains the text. It looks once at once, because XCTest's
+    /// own wait looks first a second later, and a line shown for a few seconds can be gone by then.
     @MainActor
     func waitForLabel(_ element: XCUIElement, containing text: String, timeout: TimeInterval = 10) {
+        if let now = try? element.snapshot(), now.label.contains(text) { return }
         let predicate = NSPredicate(format: "label CONTAINS %@", text)
         let result = XCTWaiter.wait(for: [expectation(for: predicate, evaluatedWith: element)], timeout: timeout)
         XCTAssertEqual(result, .completed, "\"\(element.label)\" never contained \"\(text)\"")
@@ -183,11 +185,12 @@ extension XCTestCase {
         app.buttons["signIn.submit"].tap()
     }
 
-    /// iOS offers to save the password after a sign-in; the tests decline, as she may.
+    /// iOS offers to save the password after a sign-in; the tests decline, as she may. On GitHub's
+    /// Mac the offer has come as late as five and a half seconds after Sign in.
     @MainActor
     func dismissSavePassword(_ app: XCUIApplication) {
         let notNow = app.buttons["Not Now"]
-        guard notNow.appears(timeout: 4) else { return }
+        guard notNow.appears(timeout: 10) else { return }
         // A tap while the prompt is still animating in does not register: tap until it is gone.
         for _ in 0..<5 {
             if notNow.isHittable { notNow.tap() }
