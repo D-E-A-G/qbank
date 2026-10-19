@@ -16,7 +16,7 @@ final class OfflineUITests: XCTestCase {
     @MainActor
     func testPracticeWithoutSignalThenSendWhenBackOnline() throws {
         let app = launch("signed-in")
-        XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 10))
 
         // Online, the app saves both courses with every set, so any set can be practiced offline.
         app.tabBars.buttons["Settings"].tap()
@@ -25,7 +25,7 @@ final class OfflineUITests: XCTestCase {
         waitForLabel(savedRow, containing: "2 courses · updated ")
         attach(app, "1e settings, on this phone")
         savedRow.tap()
-        XCTAssertTrue(app.descendants(matching: .any)["savedForOffline.nothingWaiting"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["savedForOffline.nothingWaiting"].appears(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["savedForOffline.course.NURS 310"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["savedForOffline.course.NURS 220"].exists)
         attach(app, "1e-5 saved for offline, nothing waiting")
@@ -33,7 +33,7 @@ final class OfflineUITests: XCTestCase {
 
         // Signal lost: the course shows what is saved on the phone.
         setNetwork(online: false)
-        XCTAssertTrue(app.descendants(matching: .any)["course.offline"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.descendants(matching: .any)["course.offline"].appears(timeout: 10))
         XCTAssertTrue(app.staticTexts["No connection"].exists)
         attach(app, "1e course, no connection")
 
@@ -41,7 +41,7 @@ final class OfflineUITests: XCTestCase {
         openFolder(app, "Week 3", on: "Exam 2")
         let set = app.buttons["course.set.\(Self.set)"]
         tapVisible(set, in: app)
-        XCTAssertTrue(app.buttons["practice.close"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["practice.close"].appears(timeout: 5))
         expectCount(app, "1 of 13")
         tapVisible(app.buttons["practice.option.0"], in: app)
         check(app)
@@ -69,38 +69,38 @@ final class OfflineUITests: XCTestCase {
         // The count opens the list of what waits.
         app.buttons["practice.waiting"].tap()
         let waiting = app.descendants(matching: .any)["savedForOffline.waiting.\(Self.set)"]
-        XCTAssertTrue(waiting.waitForExistence(timeout: 5))
+        XCTAssertTrue(waiting.appears(timeout: 5))
         XCTAssertTrue(waiting.label.hasPrefix("3 answers, \(Self.set) · answered "), waiting.label)
         attach(app, "1e-5 saved for offline, from the runner")
         app.buttons["savedForOffline.done"].tap()
-        XCTAssertTrue(waiting.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(waiting.disappears(timeout: 5))
 
         // Back in its folder, the set counts her waiting answers, and so does its exam page.
         app.buttons["practice.close"].tap()
         let line = app.buttons["course.set.\(Self.set)"]
-        XCTAssertTrue(line.waitForExistence(timeout: 5))
+        XCTAssertTrue(line.appears(timeout: 5))
         waitForLabel(line, containing: "3 of 13 answered")
         reveal(line, in: app)
         attach(app, "1e folder, waiting answers counted")
         goBack(app, from: "Week 3")
         let week3 = app.buttons["folder.Week 3"]
-        XCTAssertTrue(week3.waitForExistence(timeout: 5))
+        XCTAssertTrue(week3.appears(timeout: 5))
         waitForLabel(week3, containing: "3 of 31 answered")
         goBack(app, from: "Exam 2")
 
         // Exams start and end on the server.
-        XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 5))
         tapVisible(app.buttons["course.tile.exam"], in: app)
-        XCTAssertTrue(app.descendants(matching: .any)["exam.needsConnection"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["exam.needsConnection"].appears(timeout: 5))
         XCTAssertTrue(app.staticTexts["Exams need a connection"].exists)
         attach(app, "1e-3 exams need a connection")
         goBack(app, from: "Exam")
 
         // Home says what it shows and what waits.
         app.navigationBars["NURS 310"].buttons["Home"].tap()
-        XCTAssertTrue(app.descendants(matching: .any)["home.offline"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["home.offline"].appears(timeout: 5))
         let pill = app.buttons["home.waiting"]
-        XCTAssertTrue(pill.waitForExistence(timeout: 5))
+        XCTAssertTrue(pill.appears(timeout: 5))
         XCTAssertEqual(pill.label, "3 waiting to send")
         let card = app.buttons["home.course.NURS 310"]
         XCTAssertTrue(card.label.contains("Saved "), card.label)
@@ -111,22 +111,22 @@ final class OfflineUITests: XCTestCase {
         app.terminate()
         let again = launch("signed-in", keepPhoneData: true, online: false)
         let pillAgain = again.buttons["home.waiting"]
-        XCTAssertTrue(pillAgain.waitForExistence(timeout: 10))
+        XCTAssertTrue(pillAgain.appears(timeout: 10))
         XCTAssertEqual(pillAgain.label, "3 waiting to send")
         XCTAssertTrue(again.descendants(matching: .any)["home.offline"].exists)
         attach(again, "1e-1 home after a relaunch without signal")
         pillAgain.tap()
-        XCTAssertTrue(again.descendants(matching: .any)["savedForOffline.waiting.\(Self.set)"].waitForExistence(timeout: 5))
+        XCTAssertTrue(again.descendants(matching: .any)["savedForOffline.waiting.\(Self.set)"].appears(timeout: 5))
         XCTAssertTrue(again.buttons["savedForOffline.sendNow"].exists)
         attach(again, "1e-5 saved for offline, waiting to send")
 
         // Signal is back: the answers go by themselves.
         setNetwork(online: true)
-        XCTAssertTrue(again.descendants(matching: .any)["savedForOffline.nothingWaiting"].waitForExistence(timeout: 10))
+        XCTAssertTrue(again.descendants(matching: .any)["savedForOffline.nothingWaiting"].appears(timeout: 10))
         attach(again, "1e-5 saved for offline, sent")
         again.navigationBars.buttons["Home"].tap()
-        XCTAssertTrue(pillAgain.waitForNonExistence(timeout: 10))
-        XCTAssertTrue(again.descendants(matching: .any)["home.offline"].waitForNonExistence(timeout: 10))
+        XCTAssertTrue(pillAgain.disappears(timeout: 10))
+        XCTAssertTrue(again.descendants(matching: .any)["home.offline"].disappears(timeout: 10))
         XCTAssertFalse(again.buttons["home.course.NURS 310"].label.contains("Saved "))
         attach(again, "1e home, back online")
 
@@ -134,7 +134,7 @@ final class OfflineUITests: XCTestCase {
         again.buttons["home.course.NURS 310"].tap()
         openFolder(again, "Week 3", on: "Exam 2")
         let sent = again.buttons["course.set.\(Self.set)"]
-        XCTAssertTrue(sent.waitForExistence(timeout: 10))
+        XCTAssertTrue(sent.appears(timeout: 10))
         waitForLabel(sent, containing: "3 of 13 answered")
         XCTAssertFalse(again.descendants(matching: .any)["course.offline"].exists)
     }
@@ -142,21 +142,21 @@ final class OfflineUITests: XCTestCase {
     @MainActor
     func testAnOfflineAnswerSendsWhileTheRunnerIsOpen() throws {
         let app = launch("signed-in")
-        XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 10))
         openFolder(app, "Weeks 1-3")
         tapVisible(app.buttons["course.set.Mixed Clinical Judgment"], in: app)
-        XCTAssertTrue(app.buttons["practice.close"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["practice.close"].appears(timeout: 5))
         expectCount(app, "1 of 8")
 
         setNetwork(online: false)
         tapVisible(app.buttons["practice.option.0"], in: app)
         check(app)
         let banner = app.descendants(matching: .any)["practice.savedOnPhone"]
-        XCTAssertTrue(banner.waitForExistence(timeout: 5))
+        XCTAssertTrue(banner.appears(timeout: 5))
         XCTAssertTrue(app.buttons["practice.waiting"].exists)
 
         setNetwork(online: true)
-        XCTAssertTrue(banner.waitForNonExistence(timeout: 10), "sent: it no longer waits on the phone")
+        XCTAssertTrue(banner.disappears(timeout: 10), "sent: it no longer waits on the phone")
         XCTAssertFalse(app.buttons["practice.waiting"].exists)
         XCTAssertTrue(feedback(app).label.hasPrefix("Correct"))
         attach(app, "1e-2 answer sent once back online")
@@ -167,7 +167,7 @@ final class OfflineUITests: XCTestCase {
     @MainActor
     private func expectCount(_ app: XCUIApplication, _ count: String) {
         let counter = app.staticTexts["practice.count"]
-        XCTAssertTrue(counter.waitForExistence(timeout: 5))
+        XCTAssertTrue(counter.appears(timeout: 5))
         waitForLabel(counter, containing: "\(count),", timeout: 5)
     }
 
@@ -176,7 +176,7 @@ final class OfflineUITests: XCTestCase {
         let button = app.buttons["practice.check"]
         XCTAssertTrue(button.isEnabled)
         button.tap()
-        XCTAssertTrue(feedback(app).waitForExistence(timeout: 5))
+        XCTAssertTrue(feedback(app).appears(timeout: 5))
     }
 
     @MainActor

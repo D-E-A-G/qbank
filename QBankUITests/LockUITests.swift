@@ -10,7 +10,7 @@ final class LockUITests: XCTestCase {
     @MainActor
     func testLockAsksForFaceIDAndCoversTheAppUntilItConfirms() throws {
         let app = launch("signed-in")
-        XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 10))
         openTab(app, "Settings")
         let toggle = app.switches["settings.lock"]
         reveal(toggle, in: app)
@@ -25,7 +25,7 @@ final class LockUITests: XCTestCase {
         XCUIDevice.shared.press(.home)
         app.activate()
         let unlock = app.buttons["lock.unlock"]
-        XCTAssertTrue(unlock.waitForExistence(timeout: 10))
+        XCTAssertTrue(unlock.appears(timeout: 10))
         XCTAssertEqual(unlock.label, "Unlock with Face ID")
         XCTAssertTrue(app.staticTexts["Locked. Unlock with Face ID to keep studying."].exists)
         XCTAssertFalse(toggle.isHittable, "Settings is covered")
@@ -33,18 +33,18 @@ final class LockUITests: XCTestCase {
 
         setDeviceOwner(confirms: true)
         unlock.tap()
-        XCTAssertTrue(unlock.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(unlock.disappears(timeout: 5))
         XCTAssertTrue(toggle.isHittable)
 
         // The lock is kept on the device: the next launch starts locked.
         app.terminate()
         let relaunched = launch("signed-in", keepPhoneSettings: true, deviceOwner: "face-id-refusing")
         let unlockAgain = relaunched.buttons["lock.unlock"]
-        XCTAssertTrue(unlockAgain.waitForExistence(timeout: 10))
+        XCTAssertTrue(unlockAgain.appears(timeout: 10))
         setDeviceOwner(confirms: true)
         unlockAgain.tap()
-        XCTAssertTrue(unlockAgain.waitForNonExistence(timeout: 5))
-        XCTAssertTrue(relaunched.navigationBars["NURS 310"].waitForExistence(timeout: 10), "her course is underneath, as she left it")
+        XCTAssertTrue(unlockAgain.disappears(timeout: 5))
+        XCTAssertTrue(relaunched.navigationBars["NURS 310"].appears(timeout: 10), "her course is underneath, as she left it")
 
         // Off again: leaving and coming back asks for nothing.
         openTab(relaunched, "Settings")
@@ -55,14 +55,14 @@ final class LockUITests: XCTestCase {
         waitForValue(toggleAgain, "0")
         XCUIDevice.shared.press(.home)
         relaunched.activate()
-        XCTAssertTrue(toggleAgain.waitForExistence(timeout: 5))
+        XCTAssertTrue(toggleAgain.appears(timeout: 5))
         XCTAssertFalse(relaunched.buttons["lock.unlock"].exists)
     }
 
     @MainActor
     func testLockStaysOverPracticeAndLeavesItAsItWas() throws {
         let app = launch("signed-in")
-        XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 10))
         openTab(app, "Settings")
         let toggle = app.switches["settings.lock"]
         reveal(toggle, in: app)
@@ -72,22 +72,22 @@ final class LockUITests: XCTestCase {
 
         openFolder(app, "Weeks 1-3")
         let set = app.buttons["course.set.Mixed Clinical Judgment"]
-        XCTAssertTrue(set.waitForExistence(timeout: 5))
+        XCTAssertTrue(set.appears(timeout: 5))
         tapVisible(set, in: app)
         let count = app.staticTexts["practice.count"]
-        XCTAssertTrue(count.waitForExistence(timeout: 10))
+        XCTAssertTrue(count.appears(timeout: 10))
         let question = count.label
 
         setDeviceOwner(confirms: false)
         XCUIDevice.shared.press(.home)
         app.activate()
         let unlock = app.buttons["lock.unlock"]
-        XCTAssertTrue(unlock.waitForExistence(timeout: 10))
+        XCTAssertTrue(unlock.appears(timeout: 10))
         attach(app, "3 lock screen over practice")
         setDeviceOwner(confirms: true)
         unlock.tap()
-        XCTAssertTrue(unlock.waitForNonExistence(timeout: 5))
-        XCTAssertTrue(count.waitForExistence(timeout: 5), "practice is still open")
+        XCTAssertTrue(unlock.disappears(timeout: 5))
+        XCTAssertTrue(count.appears(timeout: 5), "practice is still open")
         XCTAssertEqual(count.label, question)
     }
 
@@ -97,7 +97,7 @@ final class LockUITests: XCTestCase {
     func testAnotherWindowLeavesQBankOpenUntilAllOfItLeaves() throws {
         try XCTSkipUnless(UIDevice.current.userInterfaceIdiom == .pad, "only an iPad has more than one window")
         let app = launch("signed-in")
-        XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 10))
         openTab(app, "Settings")
         let toggle = app.switches["settings.lock"]
         reveal(toggle, in: app)
@@ -109,20 +109,20 @@ final class LockUITests: XCTestCase {
         // background, keeps its cover for the app switcher.
         openAnotherWindow()
         let mentalHealth = app.buttons["home.course.NURS 310"]
-        XCTAssertTrue(mentalHealth.waitForExistence(timeout: 10), "no new window")
+        XCTAssertTrue(mentalHealth.appears(timeout: 10), "no new window")
         let onScreen = NSPredicate(format: "isHittable == true")
         XCTAssertEqual(XCTWaiter.wait(for: [expectation(for: onScreen, evaluatedWith: mentalHealth)], timeout: 5), .completed, "another window locked QBank")
         let unlock = app.buttons["lock.unlock"].firstMatch
         XCTAssertFalse(unlock.exists, "the other window's cover offers to unlock what is not locked")
         mentalHealth.tap()
         let course = app.buttons["course.page.Exam 1"]
-        XCTAssertTrue(course.waitForExistence(timeout: 5))
+        XCTAssertTrue(course.appears(timeout: 5))
         attach(app, "3 another window")
 
         // All of QBank leaves the screen: every window locks, and Face ID refused keeps them so.
         XCUIDevice.shared.press(.home)
         app.activate()
-        XCTAssertTrue(unlock.waitForExistence(timeout: 10))
+        XCTAssertTrue(unlock.appears(timeout: 10))
         XCTAssertFalse(course.isHittable, "the course is covered")
 
         // Back again, and Face ID confirms her: her course is there as she left it.
@@ -135,7 +135,7 @@ final class LockUITests: XCTestCase {
     @MainActor
     func testADeviceWithoutPasscodeCannotLock() throws {
         let app = launch("signed-in", deviceOwner: "no-passcode")
-        XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 10))
         openTab(app, "Settings")
         let toggle = app.switches["settings.lock"]
         reveal(toggle, in: app)

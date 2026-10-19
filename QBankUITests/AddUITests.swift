@@ -31,7 +31,7 @@ final class AddUITests: XCTestCase {
         paste(Self.file, in: app)
         tapVisible(app.buttons["import.check"], in: app)
         let ready = app.descendants(matching: .any)["import.ready"]
-        XCTAssertTrue(ready.waitForExistence(timeout: 5))
+        XCTAssertTrue(ready.appears(timeout: 5))
         XCTAssertEqual(ready.label, "Ready: 3 questions, 1 term")
         XCTAssertTrue(app.staticTexts["2 Single answer"].exists)
         XCTAssertTrue(app.staticTexts["1 Select all that apply"].exists)
@@ -40,7 +40,7 @@ final class AddUITests: XCTestCase {
 
         tapVisible(app.buttons["import.commit"], in: app)
         let title = app.staticTexts["import.done.title"]
-        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        XCTAssertTrue(title.appears(timeout: 5))
         XCTAssertEqual(title.label, "Imported")
         XCTAssertEqual(
             app.staticTexts["import.done.copy"].label,
@@ -50,15 +50,15 @@ final class AddUITests: XCTestCase {
 
         // The same name again asks first, in the web's words.
         app.buttons["import.done.another"].tap()
-        XCTAssertTrue(app.buttons["import.check"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["import.check"].appears(timeout: 5))
         XCTAssertTrue(app.buttons["import.folder.Unsorted"].isSelected)
         XCTAssertFalse(app.buttons["import.folder.Unsorted"].label.contains("new"), "Unsorted exists now")
         paste(Self.file, in: app)
         tapVisible(app.buttons["import.check"], in: app)
-        XCTAssertTrue(app.buttons["import.commit"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["import.commit"].appears(timeout: 5))
         tapVisible(app.buttons["import.commit"], in: app)
         let sheet = app.staticTexts["import.replace.title"]
-        XCTAssertTrue(sheet.waitForExistence(timeout: 5))
+        XCTAssertTrue(sheet.appears(timeout: 5))
         XCTAssertEqual(sheet.label, "Replace “Invented Sleep and Rest”?")
         XCTAssertEqual(
             app.staticTexts["import.replace.message"].label,
@@ -68,16 +68,16 @@ final class AddUITests: XCTestCase {
         XCTAssertTrue(app.buttons["import.replace.cancel"].exists)
         attachLooks(app, "3-2 replace sheet")
         app.buttons["import.replace.confirm"].tap()
-        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        XCTAssertTrue(title.appears(timeout: 5))
         XCTAssertEqual(title.label, "Replaced")
         XCTAssertTrue(app.staticTexts["import.done.copy"].label.hasSuffix("The previous version can be restored from its folder."))
         attachLooks(app, "3-3 replaced")
 
         // Open Unsorted shows the set in its folder on Home.
         app.buttons["import.done.open"].tap()
-        XCTAssertTrue(app.navigationBars["Unsorted"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Unsorted"].appears(timeout: 5))
         XCTAssertTrue(tabButton(app, "Home").isSelected)
-        XCTAssertTrue(app.buttons["course.set.Invented Sleep and Rest"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["course.set.Invented Sleep and Rest"].appears(timeout: 5))
         XCTAssertTrue(app.buttons["course.restore"].exists, "the replaced set offers its previous version")
         attachLooks(app, "3-3 open unsorted")
     }
@@ -87,24 +87,24 @@ final class AddUITests: XCTestCase {
         let app = launch("signed-in")
         openFolder(app, "Weeks 1-3")
         let importHere = app.buttons["folder.import"]
-        XCTAssertTrue(importHere.waitForExistence(timeout: 5))
+        XCTAssertTrue(importHere.appears(timeout: 5))
         attachLooks(app, "folder with import here")
         importHere.tap()
-        XCTAssertTrue(app.buttons["import.folder.Folders.Weeks 1-3"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["import.folder.Folders.Weeks 1-3"].appears(timeout: 5))
         waitForSelected(app.buttons["import.folder.Folders.Weeks 1-3"])
         XCTAssertFalse(app.buttons["import.folder.Unsorted"].isSelected)
         waitForLabel(app.buttons["import.course"], containing: "NURS 310 · Mental Health")
         app.buttons["Paste JSON"].tap()
         paste(Self.file, in: app)
         tapVisible(app.buttons["import.check"], in: app)
-        XCTAssertTrue(app.buttons["import.commit"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["import.commit"].appears(timeout: 5))
         tapVisible(app.buttons["import.commit"], in: app)
-        XCTAssertTrue(app.staticTexts["import.done.copy"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["import.done.copy"].appears(timeout: 5))
         XCTAssertEqual(app.staticTexts["import.done.copy"].label, "“Invented Sleep and Rest” · 3 questions in NURS 310, Weeks 1-3.")
         attachLooks(app, "import here done")
         app.buttons["import.done.open"].tap()
-        XCTAssertTrue(app.navigationBars["Weeks 1-3"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["course.set.Invented Sleep and Rest"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Weeks 1-3"].appears(timeout: 5))
+        XCTAssertTrue(app.buttons["course.set.Invented Sleep and Rest"].appears(timeout: 5))
         XCTAssertTrue(app.buttons["course.set.Mixed Clinical Judgment"].exists)
     }
 
@@ -116,12 +116,12 @@ final class AddUITests: XCTestCase {
         paste(#"{"title":"Broken","questions":[{"id":"B1","type":"single","stem":"Invented.","ask":"Which?","options":[{"t":"One","ok":true},{"t":"Two","ok":true},{"t":"Three"}],"rationale":"Invented."}]}"#, in: app)
         tapVisible(app.buttons["import.check"], in: app)
         let errors = app.descendants(matching: .any)["import.errors"]
-        XCTAssertTrue(errors.waitForExistence(timeout: 5))
+        XCTAssertTrue(errors.appears(timeout: 5))
         XCTAssertTrue(app.staticTexts["Question 1 (B1): missing takeaway"].exists)
         XCTAssertTrue(app.staticTexts["Question 1 (B1): needs exactly one option with \"ok\": true (found 2)"].exists)
         XCTAssertFalse(app.buttons["import.commit"].exists, "a file with errors cannot be imported")
         tapVisible(app.buttons["import.copyErrors"], in: app)
-        XCTAssertTrue(app.buttons["Copied"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Copied"].appears(timeout: 5))
         attachLooks(app, "3-2 file with errors")
     }
 
@@ -129,7 +129,7 @@ final class AddUITests: XCTestCase {
     func testImportNeedsAConnection() throws {
         let app = launch("signed-in", online: false)
         openImport(app)
-        XCTAssertTrue(app.descendants(matching: .any)["import.offline"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["import.offline"].appears(timeout: 5))
         XCTAssertFalse(app.buttons["import.check"].isEnabled)
         attachLooks(app, "import offline")
     }
@@ -139,9 +139,9 @@ final class AddUITests: XCTestCase {
     @MainActor
     private func openImport(_ app: XCUIApplication) {
         openTab(app, "Add")
-        XCTAssertTrue(app.navigationBars["Add questions"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Add questions"].appears(timeout: 5))
         app.buttons["add.import"].tap()
-        XCTAssertTrue(app.navigationBars["Import"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Import"].appears(timeout: 5))
     }
 
     /// Puts text in the Paste JSON field the way she does: from the pasteboard, with Paste.
@@ -151,15 +151,15 @@ final class AddUITests: XCTestCase {
             app.buttons["Paste JSON"].tap()
         }
         let editor = app.textViews["import.paste"]
-        XCTAssertTrue(editor.waitForExistence(timeout: 5))
+        XCTAssertTrue(editor.appears(timeout: 5))
         UIPasteboard.general.string = text
         reveal(editor, in: app)
         editor.tap()
         let paste = app.menuItems["Paste"]
-        if !paste.waitForExistence(timeout: 2) {
+        if !paste.appears(timeout: 2) {
             editor.tap()
         }
-        XCTAssertTrue(paste.waitForExistence(timeout: 5))
+        XCTAssertTrue(paste.appears(timeout: 5))
         paste.tap()
         waitForLabel(editor, valueContaining: "\"questions\"")
         // The keyboard covers the buttons below. An iPad's has a key that hides it, and there a

@@ -30,10 +30,10 @@ final class PracticeUITests: XCTestCase {
         attach(app, "1b-4 single, rationale")
         let image = app.buttons["practice.image"]
         tapVisible(image, in: app)
-        XCTAssertTrue(app.buttons["imageViewer.close"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["imageViewer.close"].appears(timeout: 5))
         attach(app, "1b-2 image full screen")
         app.buttons["imageViewer.close"].tap()
-        XCTAssertTrue(app.buttons["imageViewer.close"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["imageViewer.close"].disappears(timeout: 5))
         attach(app, "1b-4 single, rationale image")
         next(app)
 
@@ -97,7 +97,7 @@ final class PracticeUITests: XCTestCase {
         XCTAssertFalse(app.buttons["practice.check"].isEnabled)
         choose(app, menu: "practice.match.0", option: "Fidelity")
         tapVisible(app.buttons["practice.match.1"], in: app)
-        XCTAssertTrue(app.buttons["Veracity"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Veracity"].appears(timeout: 5))
         attach(app, "1b-7 matching, menu open")
         app.buttons["Veracity"].tap()
         choose(app, menu: "practice.match.2", option: "Justice")
@@ -139,7 +139,7 @@ final class PracticeUITests: XCTestCase {
 
         // The set result: single and ordering fully right, priority missed, the rest partly right.
         let title = app.staticTexts["result.title"]
-        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        XCTAssertTrue(title.appears(timeout: 5))
         XCTAssertEqual(title.label, "2 of 8 fully right")
         XCTAssertTrue(app.staticTexts["result.points"].label.hasPrefix("15 of 22 points · "), app.staticTexts["result.points"].label)
         XCTAssertEqual(app.descendants(matching: .any)["result.stat.Partly right"].label, "5, Partly right")
@@ -154,9 +154,9 @@ final class PracticeUITests: XCTestCase {
         attach(app, "1b-10 result, end")
 
         app.buttons["result.back"].tap()
-        XCTAssertTrue(app.navigationBars["Weeks 1-3"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Weeks 1-3"].appears(timeout: 5))
         let set = app.buttons["course.set.\(Self.set)"]
-        XCTAssertTrue(set.waitForExistence(timeout: 5))
+        XCTAssertTrue(set.appears(timeout: 5))
         XCTAssertTrue(set.label.contains("Done today · 2 of 8 fully right"), set.label)
     }
 
@@ -170,9 +170,9 @@ final class PracticeUITests: XCTestCase {
         next(app)
         expectQuestion(app, count: "2 of 8", format: "Priority / first action")
         app.buttons["practice.close"].tap()
-        XCTAssertTrue(app.navigationBars["Weeks 1-3"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Weeks 1-3"].appears(timeout: 5))
         let set = app.buttons["course.set.\(Self.set)"]
-        XCTAssertTrue(set.waitForExistence(timeout: 5))
+        XCTAssertTrue(set.appears(timeout: 5))
         XCTAssertTrue(set.label.contains("1 of 8 answered"), set.label)
     }
 
@@ -180,18 +180,18 @@ final class PracticeUITests: XCTestCase {
 
     @MainActor
     private func openSet(_ app: XCUIApplication) {
-        XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 10))
         openFolder(app, "Weeks 1-3")
         let set = app.buttons["course.set.\(Self.set)"]
-        XCTAssertTrue(set.waitForExistence(timeout: 5))
+        XCTAssertTrue(set.appears(timeout: 5))
         tapVisible(set, in: app)
-        XCTAssertTrue(app.buttons["practice.close"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["practice.close"].appears(timeout: 5))
     }
 
     @MainActor
     private func expectQuestion(_ app: XCUIApplication, count: String, format: String) {
         let counter = app.staticTexts["practice.count"]
-        XCTAssertTrue(counter.waitForExistence(timeout: 5))
+        XCTAssertTrue(counter.appears(timeout: 5))
         let changed = NSPredicate(format: "label BEGINSWITH %@", "\(count),")
         XCTAssertEqual(XCTWaiter.wait(for: [expectation(for: changed, evaluatedWith: counter)], timeout: 5), .completed, "count is \(counter.label)")
         let meta = app.descendants(matching: .any)["practice.meta"]
@@ -203,7 +203,7 @@ final class PracticeUITests: XCTestCase {
         let button = app.buttons["practice.check"]
         XCTAssertTrue(button.isEnabled)
         button.tap()
-        XCTAssertTrue(app.descendants(matching: .any)["practice.feedback"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["practice.feedback"].appears(timeout: 5))
     }
 
     @MainActor
@@ -221,9 +221,9 @@ final class PracticeUITests: XCTestCase {
     private func choose(_ app: XCUIApplication, menu: String, option: String) {
         tapVisible(app.buttons[menu], in: app)
         let item = app.buttons[option]
-        XCTAssertTrue(item.waitForExistence(timeout: 5), "\(option) in \(menu)")
+        XCTAssertTrue(item.appears(timeout: 5), "\(option) in \(menu)")
         item.tap()
-        XCTAssertTrue(item.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(item.disappears(timeout: 5))
     }
 
     /// Moves each item to its place with the up buttons, first item first.

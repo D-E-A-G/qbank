@@ -132,16 +132,15 @@ require_grep 'package-tests\.sh --linux' "$CI" "ci.yml tests the Swift packages 
 forbid_grep 'secrets\.' "$XCODE" "xcode.yml references no secrets"
 require_grep '^  contents: read$' "$XCODE" "xcode.yml permissions are contents: read"
 forbid_grep ':[[:space:]]*write' "$XCODE" "xcode.yml grants no write permission"
-ruby_check "xcode.yml triggers only on main pushes, qbank-v* tags, and manual runs" "$XCODE" '
+ruby_check "xcode.yml triggers only on qbank-v* tags and manual runs" "$XCODE" '
   wf = YAML.load_file(ARGV[0])
   on = wf[true] || wf["on"]
   abort "on: must be a mapping" unless on.is_a?(Hash)
   keys = on.keys.map(&:to_s)
   abort "on: keys are #{keys.inspect}, expected [\"push\", \"workflow_dispatch\"]" unless keys == %w[push workflow_dispatch]
   push = on["push"]
-  unless push.is_a?(Hash) && push.keys.map(&:to_s).sort == %w[branches tags] &&
-         push["branches"] == ["main"] && push["tags"] == ["qbank-v*"]
-    abort "push must be exactly branches: [main] and tags: [qbank-v*] (got #{push.inspect})"
+  unless push.is_a?(Hash) && push.keys.map(&:to_s) == %w[tags] && push["tags"] == ["qbank-v*"]
+    abort "push must be exactly tags: [qbank-v*] (got #{push.inspect})"
   end
 '
 ruby_check "every xcode.yml job runs on $MAC_RUNS_ON" "$XCODE" '

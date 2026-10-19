@@ -105,7 +105,7 @@ extension XCTestCase {
     /// height. A tap made while it moves can land beside it.
     @MainActor
     func tapWhenStill(_ element: XCUIElement) {
-        XCTAssertTrue(element.waitForExistence(timeout: 5))
+        XCTAssertTrue(element.appears(timeout: 5))
         var frame = element.frame
         for _ in 0..<20 {
             RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.15))
@@ -126,7 +126,7 @@ extension XCTestCase {
     /// Scrolls until the element is on screen, clear of the bars at the top and bottom.
     @MainActor
     func reveal(_ element: XCUIElement, in app: XCUIApplication) {
-        XCTAssertTrue(element.waitForExistence(timeout: 5))
+        XCTAssertTrue(element.appears(timeout: 5))
         let window = app.windows.firstMatch.frame
         for _ in 0..<10 {
             let frame = element.frame
@@ -149,7 +149,7 @@ extension XCTestCase {
     @MainActor
     func openTab(_ app: XCUIApplication, _ name: String, timeout: TimeInterval = 5) {
         let tab = tabButton(app, name)
-        XCTAssertTrue(tab.waitForExistence(timeout: timeout))
+        XCTAssertTrue(tab.appears(timeout: timeout))
         tab.tap()
     }
 
@@ -159,7 +159,7 @@ extension XCTestCase {
     func goBack(_ app: XCUIApplication, from title: String) {
         let bar = app.navigationBars[title]
         bar.buttons.firstMatch.tap()
-        XCTAssertTrue(bar.waitForNonExistence(timeout: 5), "still on \(title)")
+        XCTAssertTrue(bar.disappears(timeout: 5), "still on \(title)")
     }
 
     /// Fills the sign-in form and presses Sign in. A nil email keeps what is in the field.
@@ -180,11 +180,11 @@ extension XCTestCase {
     @MainActor
     func dismissSavePassword(_ app: XCUIApplication) {
         let notNow = app.buttons["Not Now"]
-        guard notNow.waitForExistence(timeout: 4) else { return }
+        guard notNow.appears(timeout: 4) else { return }
         // A tap while the prompt is still animating in does not register: tap until it is gone.
         for _ in 0..<5 {
             if notNow.isHittable { notNow.tap() }
-            if notNow.waitForNonExistence(timeout: 2) { return }
+            if notNow.disappears(timeout: 2) { return }
         }
         XCTFail("The Save Password prompt did not go away")
     }
@@ -193,7 +193,7 @@ extension XCTestCase {
     @MainActor
     func passkeyOffer(_ app: XCUIApplication) -> XCUIElement {
         let offer = app.descendants(matching: .any)["passkeyOffer"]
-        XCTAssertTrue(offer.waitForExistence(timeout: 10), "no passkey offer")
+        XCTAssertTrue(offer.appears(timeout: 10), "no passkey offer")
         return offer
     }
 
@@ -202,7 +202,7 @@ extension XCTestCase {
     func declinePasskeyOffer(_ app: XCUIApplication) {
         let offer = passkeyOffer(app)
         tapWhenStill(app.buttons["passkeyOffer.cancel"])
-        XCTAssertTrue(offer.waitForNonExistence(timeout: 5), "the passkey offer stayed")
+        XCTAssertTrue(offer.disappears(timeout: 5), "the passkey offer stayed")
     }
 
     /// Opens a folder from the course page, through its exam page when it is on one.
@@ -210,13 +210,29 @@ extension XCTestCase {
     func openFolder(_ app: XCUIApplication, _ name: String, on page: String? = nil) {
         if let page {
             let row = app.buttons["course.page.\(page)"]
-            XCTAssertTrue(row.waitForExistence(timeout: 5))
+            XCTAssertTrue(row.appears(timeout: 5))
             tapVisible(row, in: app)
-            XCTAssertTrue(app.navigationBars[page].waitForExistence(timeout: 5))
+            XCTAssertTrue(app.navigationBars[page].appears(timeout: 5))
         }
         let row = app.buttons["folder.\(name)"]
-        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        XCTAssertTrue(row.appears(timeout: 5))
         tapVisible(row, in: app)
-        XCTAssertTrue(app.navigationBars[name].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars[name].appears(timeout: 5))
+    }
+}
+
+extension XCUIElement {
+    /// `waitForExistence(timeout:)`, but true at once for an element already on screen. XCTest's
+    /// own wait takes its first look only after a second, even then, and over the suite's hundreds
+    /// of waits those seconds added up to a third of the UI tests' time on GitHub's Mac.
+    @MainActor
+    func appears(timeout: TimeInterval) -> Bool {
+        exists || waitForExistence(timeout: timeout)
+    }
+
+    /// `waitForNonExistence(timeout:)`, but true at once for an element already gone.
+    @MainActor
+    func disappears(timeout: TimeInterval) -> Bool {
+        !exists || waitForNonExistence(timeout: timeout)
     }
 }

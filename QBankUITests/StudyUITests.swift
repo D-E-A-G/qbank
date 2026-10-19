@@ -29,48 +29,48 @@ final class StudyUITests: XCTestCase {
         attach(app, "1c-1 review")
 
         app.buttons["Missed 6"].tap()
-        XCTAssertTrue(app.buttons["Practice these 6 (shuffled)"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Practice these 6 (shuffled)"].appears(timeout: 5))
         XCTAssertFalse(app.buttons["review.question.communication-v1-q3"].exists, "partly right is not missed")
         attach(app, "1c-1 review, missed")
 
         // One question, answered fully right without guessing, leaves the list.
         tapVisible(app.buttons["review.question.rights-v1-q0"], in: app)
-        XCTAssertTrue(app.buttons["practice.close"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["practice.close"].appears(timeout: 5))
         XCTAssertTrue(app.staticTexts["practice.count"].label.hasPrefix("1 of 1"))
         tapVisible(app.buttons["practice.option.0"], in: app)
         app.buttons["practice.check"].tap()
-        XCTAssertTrue(app.descendants(matching: .any)["practice.feedback"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["practice.feedback"].appears(timeout: 5))
         app.buttons["practice.next"].tap()
-        XCTAssertTrue(app.staticTexts["result.title"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["result.title"].appears(timeout: 5))
         XCTAssertTrue(hasText(app, "Review finished · Review question"))
         app.buttons["result.done"].tap()
-        XCTAssertTrue(app.buttons["Missed 5"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Missed 5"].appears(timeout: 5))
         XCTAssertFalse(app.buttons["review.question.rights-v1-q0"].exists)
 
         // The filtered list in the runner.
         tapVisible(app.buttons["Practice these 5 (shuffled)"], in: app)
-        XCTAssertTrue(app.buttons["practice.close"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["practice.close"].appears(timeout: 5))
         XCTAssertTrue(app.staticTexts["practice.count"].label.hasPrefix("1 of 5"), app.staticTexts["practice.count"].label)
         app.buttons["practice.close"].tap()
 
         // Clear asks first, in the web's words.
         app.buttons["All 11"].tap()
         tapVisible(app.buttons["review.clear"], in: app)
-        XCTAssertTrue(app.staticTexts["review.clearSheet.title"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["review.clearSheet.title"].appears(timeout: 5))
         XCTAssertEqual(app.staticTexts["review.clearSheet.title"].label, "Clear all 11 questions from this course's Review list?")
         XCTAssertTrue(app.staticTexts["Your answers and scores are kept. Only the list is emptied."].exists)
         attach(app, "1c-1 clear asks first")
         app.buttons["review.clearSheet.confirm"].tap()
         XCTAssertTrue(
             app.staticTexts["Questions you miss or flag as a guess show up here. They leave when you answer them fully right without guessing."]
-                .waitForExistence(timeout: 5)
+                .appears(timeout: 5)
         )
         XCTAssertFalse(app.buttons["review.clear"].exists)
         attach(app, "1c-1 review, cleared")
 
         goBack(app, from: "Review")
         let tile = app.buttons["course.tile.review"]
-        XCTAssertTrue(tile.waitForExistence(timeout: 5))
+        XCTAssertTrue(tile.appears(timeout: 5))
         let emptied = NSPredicate(format: "label BEGINSWITH %@", "0")
         XCTAssertEqual(XCTWaiter.wait(for: [expectation(for: emptied, evaluatedWith: tile)], timeout: 5), .completed, tile.label)
     }
@@ -82,20 +82,20 @@ final class StudyUITests: XCTestCase {
         let app = launch("signed-in")
         openTile(app, "terms", title: "Terms")
         XCTAssertTrue(app.staticTexts["When a term is defined in more than one set, the newest set’s definition is the one shown here."].exists)
-        XCTAssertTrue(app.descendants(matching: .any)["terms.term.Advocacy"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["terms.term.Advocacy"].appears(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["terms.term.Autonomy"].label.contains("Week 1 · Rights, Law, and Ethics"))
         attach(app, "1c-2 terms")
 
         let search = app.searchFields["Search terms"]
-        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        XCTAssertTrue(search.appears(timeout: 5))
         search.tap()
         search.typeText("choices")
-        XCTAssertTrue(app.descendants(matching: .any)["terms.term.Autonomy"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["terms.term.Autonomy"].appears(timeout: 5))
         XCTAssertFalse(app.descendants(matching: .any)["terms.term.Advocacy"].exists)
         attach(app, "1c-2 terms, search")
 
         search.typeText(" zebra")
-        XCTAssertTrue(app.staticTexts["No term matches “choices zebra”."].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["No term matches “choices zebra”."].appears(timeout: 5))
     }
 
     // MARK: Exams (1c-3 to 1c-6)
@@ -108,7 +108,7 @@ final class StudyUITests: XCTestCase {
         let week1 = app.buttons["exam.folder.Week 1"]
         let week2 = app.buttons["exam.folder.Week 2"]
         let week3 = app.buttons["exam.folder.Week 3"]
-        XCTAssertTrue(week1.waitForExistence(timeout: 5))
+        XCTAssertTrue(week1.appears(timeout: 5))
         XCTAssertTrue(week1.label.contains("17 questions · exam bank"), week1.label)
         XCTAssertTrue(week2.label.contains("26 questions"), week2.label)
         XCTAssertTrue(app.staticTexts["Tick at least one folder."].exists)
@@ -137,7 +137,7 @@ final class StudyUITests: XCTestCase {
         attach(app, "1c-3 exam setup, wrong questions only")
 
         app.buttons["exam.start"].tap()
-        XCTAssertTrue(app.buttons["exam.end"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["exam.end"].appears(timeout: 10))
         expectCount(app, "1 of 11")
         XCTAssertTrue(app.staticTexts["practice.count"].label.contains("Exam · Weeks 1-2"))
         XCTAssertTrue(app.descendants(matching: .any)["exam.timer"].exists)
@@ -163,25 +163,25 @@ final class StudyUITests: XCTestCase {
         }
         expectCount(app, "2 of 11")
         let notice = app.descendants(matching: .any)["exam.skippedNotice"]
-        XCTAssertTrue(notice.waitForExistence(timeout: 5))
+        XCTAssertTrue(notice.appears(timeout: 5))
         XCTAssertTrue(app.staticTexts["8 skipped questions left. This is the first one."].exists)
         XCTAssertTrue(app.descendants(matching: .any)["practice.meta"].label.contains("Skipped earlier"))
         attach(app, "1c-4 exam, back to the skipped ones")
 
         app.buttons["exam.end"].tap()
-        XCTAssertTrue(app.staticTexts["exam.endSheet.title"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["exam.endSheet.title"].appears(timeout: 5))
         XCTAssertEqual(app.staticTexts["exam.endSheet.title"].label, "End the exam now?")
         XCTAssertTrue(app.staticTexts["The 3 questions you answered will be scored. Skipped and unreached questions score 0 and stay out of Review."].exists)
         attach(app, "1c-5 end the exam")
         app.buttons["exam.endSheet.cancel"].tap()
-        XCTAssertTrue(app.staticTexts["exam.endSheet.title"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["exam.endSheet.title"].disappears(timeout: 5))
         expectCount(app, "2 of 11")
 
         app.buttons["exam.end"].tap()
-        XCTAssertTrue(app.buttons["exam.endSheet.confirm"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["exam.endSheet.confirm"].appears(timeout: 5))
         app.buttons["exam.endSheet.confirm"].tap()
         let title = app.staticTexts["examResult.title"]
-        XCTAssertTrue(title.waitForExistence(timeout: 10))
+        XCTAssertTrue(title.appears(timeout: 10))
         XCTAssertEqual(title.label, "1 of 11 fully right")
         XCTAssertTrue(app.staticTexts["examResult.points"].label.hasSuffix(" · Ended early"), app.staticTexts["examResult.points"].label)
         XCTAssertTrue(hasText(app, "Exam result · Weeks 1-2 · Wrong questions only"))
@@ -206,10 +206,10 @@ final class StudyUITests: XCTestCase {
         // Open Review goes to the course's Review list; Back returns to the setup.
         reveal(app.buttons["examResult.openReview"], in: app)
         app.buttons["examResult.openReview"].tap()
-        XCTAssertTrue(app.navigationBars["Review"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.buttons["review.question.communication-v1-q0"].waitForExistence(timeout: 5), "the practice question she missed")
+        XCTAssertTrue(app.navigationBars["Review"].appears(timeout: 10))
+        XCTAssertTrue(app.buttons["review.question.communication-v1-q0"].appears(timeout: 5), "the practice question she missed")
         goBack(app, from: "Review")
-        XCTAssertTrue(app.navigationBars["Exam"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Exam"].appears(timeout: 5))
         reveal(app.staticTexts["Past exams"], in: app)
         attach(app, "1c-3 exam setup, after the exam")
     }
@@ -222,11 +222,11 @@ final class StudyUITests: XCTestCase {
         reveal(past, in: app)
         XCTAssertTrue(past.label.contains("Time ran out"), past.label)
         past.tap()
-        XCTAssertTrue(app.staticTexts["examResult.title"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["examResult.title"].appears(timeout: 10))
         XCTAssertTrue(app.staticTexts["examResult.points"].label.hasSuffix("· Time ran out"), app.staticTexts["examResult.points"].label)
         XCTAssertTrue(app.descendants(matching: .any)["examResult.stat.Not answered"].label.hasPrefix("2"))
         app.buttons["examResult.done"].tap()
-        XCTAssertTrue(app.navigationBars["Exam"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Exam"].appears(timeout: 5))
     }
 
     // MARK: The course page: exam pages and folders
@@ -234,9 +234,9 @@ final class StudyUITests: XCTestCase {
     @MainActor
     func testCoursePageOpensExamPagesAndFolders() throws {
         let app = launch("signed-in")
-        XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 10))
         let exam1 = app.buttons["course.page.Exam 1"]
-        XCTAssertTrue(exam1.waitForExistence(timeout: 5))
+        XCTAssertTrue(exam1.appears(timeout: 5))
         XCTAssertTrue(exam1.label.contains("2 folders · 43 questions"), exam1.label)
         XCTAssertTrue(exam1.label.contains("26 of 43"), exam1.label)
         let exam2 = app.buttons["course.page.Exam 2"]
@@ -250,7 +250,7 @@ final class StudyUITests: XCTestCase {
 
         // An exam page: Start exam, its folders, and the exams she took over them.
         exam1.tap()
-        XCTAssertTrue(app.navigationBars["Exam 1"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Exam 1"].appears(timeout: 5))
         XCTAssertEqual(app.staticTexts["page.note"].label, "2 folders · 3 practice sets · 43 questions")
         XCTAssertEqual(app.staticTexts["page.draw"].label, "40 questions from the 43 in these 2 folders, or Wrong questions only.")
         XCTAssertTrue(app.staticTexts["Study material"].exists)
@@ -267,14 +267,14 @@ final class StudyUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Past exams"].exists)
         attach(app, "C exam page, past exams")
         sitting.tap()
-        XCTAssertTrue(app.staticTexts["examResult.title"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["examResult.title"].appears(timeout: 10))
         app.buttons["examResult.done"].tap()
-        XCTAssertTrue(app.navigationBars["Exam 1"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Exam 1"].appears(timeout: 5))
 
         // A folder: which page it is on, its sets, and its exam line.
         app.swipeDown()
         tapVisible(app.buttons["folder.Week 2"], in: app)
-        XCTAssertTrue(app.navigationBars["Week 2"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Week 2"].appears(timeout: 5))
         XCTAssertEqual(app.staticTexts["folder.note"].label, "On Exam 1 · 2 sets · 9 of 26 answered")
         XCTAssertTrue(app.buttons["course.set.Therapeutic Communication and the Relationship"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["folder.bank"].label.contains("No exam bank yet · exams use practice questions"))
@@ -290,7 +290,7 @@ final class StudyUITests: XCTestCase {
         goBack(app, from: "Exam 2")
         tapVisible(app.buttons["course.page.Exam 1"], in: app)
         tapVisible(app.buttons["page.startExam"], in: app)
-        XCTAssertTrue(app.navigationBars["Exam"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Exam"].appears(timeout: 5))
         XCTAssertEqual(app.staticTexts["exam.preselected"].label, "Exam 1 · 2 folders ticked for you")
         XCTAssertTrue(app.buttons["exam.folder.Week 1"].isSelected)
         XCTAssertTrue(app.buttons["exam.folder.Week 2"].isSelected)
@@ -302,45 +302,45 @@ final class StudyUITests: XCTestCase {
 
         // The exam she takes from here shows under the page's Past exams when she comes back.
         app.buttons["exam.start"].tap()
-        XCTAssertTrue(app.buttons["exam.end"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["exam.end"].appears(timeout: 10))
         app.buttons["exam.end"].tap()
-        XCTAssertTrue(app.buttons["exam.endSheet.confirm"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["exam.endSheet.confirm"].appears(timeout: 5))
         app.buttons["exam.endSheet.confirm"].tap()
-        XCTAssertTrue(app.staticTexts["examResult.title"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["examResult.title"].appears(timeout: 10))
         app.buttons["examResult.done"].tap()
-        XCTAssertTrue(app.navigationBars["Exam"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Exam"].appears(timeout: 5))
         goBack(app, from: "Exam")
-        XCTAssertTrue(app.navigationBars["Exam 1"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["page.sitting.e0000000-0000-4000-8000-000000000004"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["Exam 1"].appears(timeout: 5))
+        XCTAssertTrue(app.buttons["page.sitting.e0000000-0000-4000-8000-000000000004"].appears(timeout: 10))
     }
 
     @MainActor
     func testRenameFolderPutItOnAPageMoveASetAndOrderFolders() throws {
         let app = launch("signed-in")
-        XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 10))
         openFolder(app, "Weeks 1-3")
         XCTAssertEqual(app.staticTexts["folder.note"].label, "On no exam page · 1 set · 8 questions")
 
         // Rename: only the name changes.
         app.buttons["folder.rename"].tap()
         let name = app.textFields["renameFolder.name"]
-        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        XCTAssertTrue(name.appears(timeout: 5))
         XCTAssertTrue(app.staticTexts["Only the name changes. Its sets, their progress, its exam page and your past exams stay with it."].exists)
         name.clearAndType("Mixed review")
         attach(app, "C rename folder")
         app.buttons["renameFolder.save"].tap()
-        XCTAssertTrue(app.navigationBars["Mixed review"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Mixed review"].appears(timeout: 5))
 
         // Exam page: the folder goes on Exam 2, with its sets and progress.
         app.buttons["folder.page"].tap()
-        XCTAssertTrue(app.navigationBars["Exam page"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Exam page"].appears(timeout: 5))
         XCTAssertTrue(app.staticTexts["Mixed review can be on one exam page. Its sets and progress stay in the folder."].exists)
         XCTAssertTrue(app.buttons["examPage.none"].isSelected)
         XCTAssertTrue(app.buttons["examPage.new"].label.contains("Exam 3"))
         app.buttons["examPage.page.Exam 2"].tap()
         attach(app, "C exam page sheet")
         app.buttons["examPage.save"].tap()
-        XCTAssertTrue(app.navigationBars["Exam page"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Exam page"].disappears(timeout: 5))
         waitForLabel(app.staticTexts["folder.note"], containing: "On Exam 2 · 1 set · 8 questions")
 
         // Select, then Move: the set goes to Week 2 with its answers.
@@ -348,11 +348,11 @@ final class StudyUITests: XCTestCase {
         app.buttons["folder.pick.Mixed Clinical Judgment"].tap()
         XCTAssertTrue(app.buttons["folder.pick.Mixed Clinical Judgment"].isSelected)
         let move = app.buttons["folder.move"]
-        XCTAssertTrue(move.waitForExistence(timeout: 5))
+        XCTAssertTrue(move.appears(timeout: 5))
         XCTAssertEqual(move.label, "Move 1 set")
         attach(app, "C folder, select")
         move.tap()
-        XCTAssertTrue(app.navigationBars["Move to"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Move to"].appears(timeout: 5))
         XCTAssertTrue(app.staticTexts["Moving “Mixed Clinical Judgment” out of Mixed review."].exists)
         let here = app.buttons["moveSets.folder.Exam 2.Mixed review"]
         XCTAssertFalse(here.isEnabled, "the folder it is in cannot be picked")
@@ -360,14 +360,14 @@ final class StudyUITests: XCTestCase {
         app.buttons["moveSets.folder.Exam 1.Week 2"].tap()
         attach(app, "C move to")
         app.buttons["moveSets.save"].tap()
-        XCTAssertTrue(app.navigationBars["Move to"].waitForNonExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["No sets yet. Move sets here from another folder."].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Move to"].disappears(timeout: 5))
+        XCTAssertTrue(app.staticTexts["No sets yet. Move sets here from another folder."].appears(timeout: 5))
         XCTAssertFalse(app.buttons["folder.move"].exists)
         attach(app, "C folder, emptied")
 
         // On the course page, no folder is left on no exam page.
         goBack(app, from: "Mixed review")
-        XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 5))
         waitForLabel(app.buttons["course.page.Exam 2"], containing: "2 folders · 31 questions")
         XCTAssertFalse(app.staticTexts["Folders on no exam page. Open one to see its sets."].exists)
 
@@ -376,21 +376,21 @@ final class StudyUITests: XCTestCase {
         XCTAssertTrue(app.buttons["course.set.Mixed Clinical Judgment"].exists, "the moved set is here")
         app.buttons["folder.rename"].tap()
         let rename = app.textFields["renameFolder.name"]
-        XCTAssertTrue(rename.waitForExistence(timeout: 5))
+        XCTAssertTrue(rename.appears(timeout: 5))
         rename.clearAndType("week 1")
         app.buttons["renameFolder.save"].tap()
-        XCTAssertTrue(app.staticTexts["Exam 1 already has a folder named Week 1."].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Exam 1 already has a folder named Week 1."].appears(timeout: 5))
         attach(app, "C rename folder, refused")
         app.buttons["renameFolder.cancel"].tap()
-        XCTAssertTrue(app.navigationBars["Week 2"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Week 2"].appears(timeout: 5))
 
         // Her order: Edit, then the arrows, then Done.
         goBack(app, from: "Week 2")
-        XCTAssertTrue(app.navigationBars["Exam 1"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Exam 1"].appears(timeout: 5))
         XCTAssertLessThan(app.buttons["folder.Week 1"].frame.minY, app.buttons["folder.Week 2"].frame.minY)
         tapVisible(app.buttons["page.edit"], in: app)
         let down = app.buttons["reorder.down.Week 1"]
-        XCTAssertTrue(down.waitForExistence(timeout: 5))
+        XCTAssertTrue(down.appears(timeout: 5))
         XCTAssertFalse(app.buttons["reorder.up.Week 1"].isEnabled)
         XCTAssertTrue(app.buttons["page.editPage"].exists)
         down.tap()
@@ -398,38 +398,38 @@ final class StudyUITests: XCTestCase {
         attach(app, "C exam page, order")
         app.buttons["page.edit"].tap()
         let week1 = app.buttons["folder.Week 1"]
-        XCTAssertTrue(week1.waitForExistence(timeout: 5))
+        XCTAssertTrue(week1.appears(timeout: 5))
         XCTAssertLessThan(app.buttons["folder.Week 2"].frame.minY, week1.frame.minY)
 
         // The order is saved in QBank: the page reads it back when she opens it again.
         goBack(app, from: "Exam 1")
         tapVisible(app.buttons["course.page.Exam 1"], in: app)
-        XCTAssertTrue(app.buttons["folder.Week 1"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["folder.Week 1"].appears(timeout: 5))
         XCTAssertLessThan(app.buttons["folder.Week 2"].frame.minY, app.buttons["folder.Week 1"].frame.minY)
 
         // An order she changed is saved before the page's editor opens, even when she cancels it.
         tapVisible(app.buttons["page.edit"], in: app)
         let up = app.buttons["reorder.up.Week 1"]
-        XCTAssertTrue(up.waitForExistence(timeout: 5))
+        XCTAssertTrue(up.appears(timeout: 5))
         up.tap()
         app.buttons["page.editPage"].tap()
-        XCTAssertTrue(app.navigationBars["Edit Exam 1"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["Edit Exam 1"].appears(timeout: 10))
         app.buttons["editPage.cancel"].tap()
-        XCTAssertTrue(app.navigationBars["Edit Exam 1"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Edit Exam 1"].disappears(timeout: 5))
         goBack(app, from: "Exam 1")
         tapVisible(app.buttons["course.page.Exam 1"], in: app)
-        XCTAssertTrue(app.buttons["folder.Week 1"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["folder.Week 1"].appears(timeout: 5))
         XCTAssertLessThan(app.buttons["folder.Week 1"].frame.minY, app.buttons["folder.Week 2"].frame.minY)
     }
 
     @MainActor
     func testDayOneCourseMakesAndRemovesAnExamPage() throws {
         let app = launch("signed-in")
-        XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 10))
         app.navigationBars["NURS 310"].buttons["Home"].tap()
         app.buttons["home.course.NURS 220"].tap()
-        XCTAssertTrue(app.navigationBars["NURS 220"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["No exam pages yet. Tap New to make Exam 1."].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["NURS 220"].appears(timeout: 5))
+        XCTAssertTrue(app.staticTexts["No exam pages yet. Tap New to make Exam 1."].appears(timeout: 5))
         for name in ["Week 1", "Week 2", "Week 3"] {
             XCTAssertTrue(app.buttons["folder.\(name)"].exists, name)
         }
@@ -439,18 +439,18 @@ final class StudyUITests: XCTestCase {
         // Her order: Edit, then drag a folder by its grip onto another, then Done.
         tapVisible(app.buttons["course.editFolders"], in: app)
         let week3 = app.otherElements["reorder.Week 3"]
-        XCTAssertTrue(week3.waitForExistence(timeout: 5))
+        XCTAssertTrue(week3.appears(timeout: 5))
         week3.press(forDuration: 1, thenDragTo: app.otherElements["reorder.Week 1"], withVelocity: .slow, thenHoldForDuration: 0.5)
-        XCTAssertTrue(app.buttons["reorder.up.Week 1"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["reorder.up.Week 1"].appears(timeout: 5))
         XCTAssertFalse(app.buttons["reorder.up.Week 3"].isEnabled, "now first")
         attach(app, "C folders, order")
         app.buttons["course.editFolders"].tap()
-        XCTAssertTrue(app.buttons["folder.Week 3"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["folder.Week 3"].appears(timeout: 5))
         XCTAssertLessThan(app.buttons["folder.Week 3"].frame.minY, app.buttons["folder.Week 1"].frame.minY)
 
         // New: a page with two of her folders.
         app.buttons["course.newPage"].tap()
-        XCTAssertTrue(app.navigationBars["New exam page"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["New exam page"].appears(timeout: 5))
         XCTAssertEqual(app.textFields["editPage.name"].value as? String, "Exam 1")
         XCTAssertEqual(app.staticTexts["editPage.line"].label, "No folders yet")
         app.buttons["editPage.chip.free.Week 1"].tap()
@@ -458,14 +458,14 @@ final class StudyUITests: XCTestCase {
         XCTAssertEqual(app.staticTexts["editPage.line"].label, "2 folders · 85 questions")
         attach(app, "C new exam page")
         app.buttons["editPage.save"].tap()
-        XCTAssertTrue(app.navigationBars["Exam 1"].waitForExistence(timeout: 10), "a new page opens")
+        XCTAssertTrue(app.navigationBars["Exam 1"].appears(timeout: 10), "a new page opens")
         XCTAssertEqual(app.staticTexts["page.note"].label, "2 folders · 2 practice sets · 85 questions")
         XCTAssertFalse(app.descendants(matching: .any)["page.twins"].exists, "no folder on this page has exam twins")
         XCTAssertTrue(app.staticTexts["Exams you finish over Exam 1 show up here with their scores."].exists)
         attach(app, "C exam page, new")
 
         goBack(app, from: "Exam 1")
-        XCTAssertTrue(app.buttons["course.page.Exam 1"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["course.page.Exam 1"].appears(timeout: 5))
         XCTAssertFalse(app.buttons["folder.Week 1"].exists)
         XCTAssertTrue(app.buttons["folder.Week 3"].exists)
 
@@ -473,13 +473,13 @@ final class StudyUITests: XCTestCase {
         app.buttons["course.page.Exam 1"].tap()
         app.buttons["page.edit"].tap()
         app.buttons["page.editPage"].tap()
-        XCTAssertTrue(app.navigationBars["Edit Exam 1"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Edit Exam 1"].appears(timeout: 5))
         XCTAssertTrue(app.buttons["editPage.chip.free.Week 3"].exists)
         XCTAssertTrue(app.staticTexts["Its folders go back under Folders. No set moves."].exists)
         attach(app, "C edit exam page")
         tapVisible(app.buttons["editPage.remove"], in: app)
-        XCTAssertTrue(app.navigationBars["NURS 220"].waitForExistence(timeout: 10), "a removed page closes")
-        XCTAssertTrue(app.staticTexts["No exam pages yet. Tap New to make Exam 1."].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["NURS 220"].appears(timeout: 10), "a removed page closes")
+        XCTAssertTrue(app.staticTexts["No exam pages yet. Tap New to make Exam 1."].appears(timeout: 5))
         XCTAssertTrue(app.buttons["folder.Week 1"].exists)
     }
 
@@ -488,23 +488,23 @@ final class StudyUITests: XCTestCase {
     /// Opens one of the course's three tiles from the course she landed on.
     @MainActor
     private func openTile(_ app: XCUIApplication, _ tile: String, title: String) {
-        XCTAssertTrue(app.navigationBars["NURS 310"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 10))
         let button = app.buttons["course.tile.\(tile)"]
-        XCTAssertTrue(button.waitForExistence(timeout: 5))
+        XCTAssertTrue(button.appears(timeout: 5))
         button.tap()
-        XCTAssertTrue(app.navigationBars[title].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars[title].appears(timeout: 5))
     }
 
     /// Whether a text shows, as one element or as part of a combined one, in any letter case.
     @MainActor
     private func hasText(_ app: XCUIApplication, _ text: String) -> Bool {
-        app.descendants(matching: .any).matching(NSPredicate(format: "label ==[c] %@", text)).firstMatch.waitForExistence(timeout: 5)
+        app.descendants(matching: .any).matching(NSPredicate(format: "label ==[c] %@", text)).firstMatch.appears(timeout: 5)
     }
 
     @MainActor
     private func expectCount(_ app: XCUIApplication, _ count: String) {
         let counter = app.staticTexts["practice.count"]
-        XCTAssertTrue(counter.waitForExistence(timeout: 5))
+        XCTAssertTrue(counter.appears(timeout: 5))
         let changed = NSPredicate(format: "label BEGINSWITH %@", "\(count),")
         XCTAssertEqual(XCTWaiter.wait(for: [expectation(for: changed, evaluatedWith: counter)], timeout: 5), .completed, "count is \(counter.label)")
     }
@@ -520,7 +520,7 @@ final class StudyUITests: XCTestCase {
     /// Flips a switch by its knob, which a tap on the middle of the row does not reach.
     @MainActor
     private func flip(_ toggle: XCUIElement) {
-        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        XCTAssertTrue(toggle.appears(timeout: 5))
         let before = toggle.value as? String
         toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.5)).tap()
         let flipped = NSPredicate(format: "value != %@", before ?? "")
