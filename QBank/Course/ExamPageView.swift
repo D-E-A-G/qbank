@@ -38,7 +38,7 @@ struct ExamPageView: View {
         .screenColumnTitle()
         .refreshable { await model.load() }
         .onAppear {
-            // Back from Exam setup or a folder: an exam she took shows under Your exams.
+            // Back from Exam setup or a folder: an exam she took shows under Past exams.
             Task { await model.load() }
         }
         .examCover(app: app, model: model, route: $exam) { dismiss() }
@@ -83,6 +83,21 @@ struct ExamPageView: View {
                         .foregroundStyle(.qbank(.text3))
                         .padding(.horizontal, QBankSpacing.space1)
                         .accessibilityIdentifier("page.draw")
+                    if let twins = FolderWording.examTwins(page) {
+                        Label {
+                            QBankDetailText(twins)
+                        } icon: {
+                            Image(systemName: "timer")
+                                .foregroundStyle(.qbank(.tint))
+                                .accessibilityHidden(true)
+                        }
+                        .qbankFont(.footnote)
+                        .foregroundStyle(.qbank(.text3))
+                        .padding(.horizontal, QBankSpacing.space1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityIdentifier("page.twins")
+                    }
                 }
             }
             folders(page)
@@ -95,9 +110,9 @@ struct ExamPageView: View {
     private func folders(_ page: ExamPage) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             SectionHead(
-                title: "Folders",
+                title: "Study material",
                 action: order == nil ? "Edit" : "Done",
-                label: order == nil ? "Edit folders" : "Done, save folder order",
+                label: order == nil ? "Edit study material" : "Done, save folder order",
                 identifier: "page.edit",
                 isEnabled: !isSavingOrder && (order != nil || model.canEdit)
             ) {
@@ -131,7 +146,7 @@ struct ExamPageView: View {
     @ViewBuilder
     private func sittings(_ page: ExamPage) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            SectionHead(title: "Your exams")
+            SectionHead(title: model.isStudent ? "Past exams" : "Her past exams")
             if page.sittings.isEmpty {
                 EmptyCard(
                     message: model.isStudent

@@ -33,11 +33,11 @@ nonisolated struct FolderProgress: Equatable {
 /// The lines the course's lists, an exam page and a folder show, worded as on the web.
 nonisolated enum FolderWording {
     /// A folder's line: "2 sets · 27 questions", "2 sets · 22 of 27 answered",
-    /// "2 sets · 22 of 27 fully right", "Exam bank only · 17 questions", or "Empty folder".
+    /// "2 sets · 22 of 27 fully right", "Exam twins only · 17 questions", or "Empty folder".
     static func meta(_ folder: Folder) -> String {
         let progress = FolderProgress(folder)
         if progress.setCount == 0 {
-            return folder.examBankCount > 0 ? "Exam bank only · \(Wording.count(folder.examBankCount, "question"))" : "Empty folder"
+            return folder.examBankCount > 0 ? "Exam twins only · \(Wording.count(folder.examBankCount, "question"))" : "Empty folder"
         }
         let sets = Wording.count(progress.setCount, "set")
         switch progress.state {
@@ -57,11 +57,11 @@ nonisolated enum FolderWording {
         }
     }
 
-    /// The exam line under a folder's sets: "Exam bank: 27 questions, exams only", or that its exams
+    /// The exam line under a folder's sets: "Exam twins: 27 questions, exams only", or that its exams
     /// use practice questions.
     static func examBank(_ folder: Folder) -> String {
         folder.examBankCount > 0
-            ? "Exam bank: \(Wording.count(folder.examBankCount, "question")), exams only"
+            ? "Exam twins: \(Wording.count(folder.examBankCount, "question")), exams only"
             : "No exam bank yet · exams use practice questions"
     }
 
@@ -77,14 +77,31 @@ nonisolated enum FolderWording {
         return "\(Wording.count(page.folders.count, "folder")) · \(Wording.count(page.progress.questionCount, "question"))"
     }
 
-    /// The line under an exam page's name: "5 folders · 16 sets · 217 questions", or "No folders yet".
+    /// The line under an exam page's name: "5 folders · 16 practice sets · 217 questions", or
+    /// "No folders yet". Folder rows keep "2 sets".
     static func pageNote(_ page: ExamPage) -> String {
         guard !page.folders.isEmpty else { return "No folders yet" }
         return [
             Wording.count(page.folders.count, "folder"),
-            Wording.count(page.progress.setCount, "set"),
+            Wording.count(page.progress.setCount, "practice set"),
             Wording.count(page.progress.questionCount, "question"),
         ].joined(separator: " · ")
+    }
+
+    /// Under Start exam, beside the draw line, when a folder on the page has exam twins:
+    /// "Exam twins: 14 in Week 5 · exams draw from these first", or for several folders
+    /// "Exam twins: 41 in Week 4, Week 5 and Week 6 · exams draw from these first". Nil when none do.
+    static func examTwins(_ page: ExamPage) -> String? {
+        let banks = page.folders.filter { $0.examBankCount > 0 }
+        guard !banks.isEmpty else { return nil }
+        let count = banks.reduce(0) { $0 + $1.examBankCount }
+        return "Exam twins: \(count) in \(listed(banks.map(\.name))) · exams draw from these first"
+    }
+
+    /// "Week 5", "Week 4 and Week 5", "Week 4, Week 5 and Week 6", in the order given.
+    private static func listed(_ names: [String]) -> String {
+        guard names.count > 1, let last = names.last else { return names.joined() }
+        return "\(names.dropLast().joined(separator: ", ")) and \(last)"
     }
 
     /// Under an exam page's Start exam: "40 questions from the 217 in these 5 folders, or Wrong
