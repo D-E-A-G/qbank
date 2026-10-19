@@ -105,6 +105,12 @@ final class FixtureTransport: HTTPTransport, @unchecked Sendable {
         state = Mutex(State(queue: [.success((Data(body.utf8), response))]))
     }
 
+    /// Answers each request in turn with a 200 and the next body, for responses no recording has yet.
+    init(bodies: [Data]) {
+        let response = HTTPURLResponse(url: URL(string: "https://qbank.invalid")!, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: ["Content-Type": "application/json"])!
+        state = Mutex(State(queue: bodies.map { .success(($0, response)) }))
+    }
+
     /// Fails every request with this error.
     init(failing error: any Error, times: Int = 1) {
         state = Mutex(State(queue: Array(repeating: .failure(error), count: times)))

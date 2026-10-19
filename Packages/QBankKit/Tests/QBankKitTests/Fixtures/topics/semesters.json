@@ -1,0 +1,47 @@
+{
+  "semesters": [
+    {
+      "id": "3d9a9957-5eb2-4949-b1f7-086f1e51ff61",
+      "number": 1,
+      "name": "Semester 1",
+      "startsOn": null,
+      "endsOn": null,
+      "courses": [
+        {
+          "id": "c0000000-0000-4000-8000-000000000101",
+          "kind": "course",
+          "code": "NURS 101",
+          "title": "Invented Nursing Basics",
+          "sortOrder": 1,
+          "archivedAt": null,
+          "questionCount": 9,
+          "weekCount": 4,
+          "folderCount": 5,
+          "reviewCount": 0,
+          "answeredCount": 2,
+          "fullyRightCount": 2,
+          "points": 2,
+          "maxPoints": 2
+        }
+      ]
+    }
+  ],
+  "topics": [
+    {
+      "id": "70000000-0000-4000-8000-000000000001",
+      "kind": "topic",
+      "code": "",
+      "title": "Invented Pharmacology Review",
+      "sortOrder": 1,
+      "archivedAt": null,
+      "questionCount": 3,
+      "weekCount": 2,
+      "folderCount": 2,
+      "reviewCount": 1,
+      "answeredCount": 1,
+      "fullyRightCount": 0,
+      "points": 0,
+      "maxPoints": 1
+    }
+  ]
+}
