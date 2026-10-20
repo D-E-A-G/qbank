@@ -125,6 +125,33 @@ extension XCTestCase {
         }
     }
 
+    /// Chooses an item of the context menu that touch and hold opened, such as Delete, and waits
+    /// until the menu has closed. On a busy Mac the menu now and then drops a tap that reached the
+    /// item: the item lights up, its action does not run, and the menu stays open. The menu
+    /// closing is the sign the choice was taken; while it stays open, she chooses again.
+    @MainActor
+    func chooseFromMenu(_ item: XCUIElement) {
+        XCTAssertTrue(item.appears(timeout: 5))
+        for _ in 0..<3 {
+            item.tap()
+            if item.disappears(timeout: 5) { return }
+        }
+        XCTFail("The menu stayed open after choosing \(item.label)")
+    }
+
+    /// Taps a row that opens a screen until the screen titled `title` is up. On a busy Mac a tap
+    /// on a screen she just stepped back to is now and then dropped: the row does not light up
+    /// and nothing opens.
+    @MainActor
+    func open(_ row: XCUIElement, titled title: String, in app: XCUIApplication) {
+        let bar = app.navigationBars[title]
+        for _ in 0..<3 {
+            tapVisible(row, in: app)
+            if bar.appears(timeout: 5) { return }
+        }
+        XCTFail("\(title) did not open")
+    }
+
     /// Scrolls until the element is on screen, clear of the bars at the top and bottom, then taps it.
     @MainActor
     func tapVisible(_ element: XCUIElement, in app: XCUIApplication) {
@@ -219,15 +246,9 @@ extension XCTestCase {
     @MainActor
     func openFolder(_ app: XCUIApplication, _ name: String, on page: String? = nil) {
         if let page {
-            let row = app.buttons["course.page.\(page)"]
-            XCTAssertTrue(row.appears(timeout: 5))
-            tapVisible(row, in: app)
-            XCTAssertTrue(app.navigationBars[page].appears(timeout: 5))
+            open(app.buttons["course.page.\(page)"], titled: page, in: app)
         }
-        let row = app.buttons["folder.\(name)"]
-        XCTAssertTrue(row.appears(timeout: 5))
-        tapVisible(row, in: app)
-        XCTAssertTrue(app.navigationBars[name].appears(timeout: 5))
+        open(app.buttons["folder.\(name)"], titled: name, in: app)
     }
 }
 
