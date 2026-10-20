@@ -1,17 +1,20 @@
 name: CI
 
-# Pull requests run only Linux checks: this workflow references no secrets,
-# reads the repository with a read-only token, and never runs on a Mac. The
-# Xcode build and tests run in xcode.yml, which never runs on pull requests.
+# Pull requests and pushes to main run only Linux checks: this workflow
+# references no secrets, reads the repository with a read-only token, and
+# never runs on a Mac. The Xcode build and tests run in xcode.yml, which never
+# runs on pull requests.
 on:
   pull_request:
+  push:
+    branches: [main]
 
 permissions:
   contents: read
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   checks:
@@ -33,3 +36,32 @@ jobs:
 
       - name: Swift packages that build on Linux
         run: ./test/package-tests.sh --linux
+
+  # A change must not add a secret; see test/leak-check.sh.
+  secrets:
+    name: Secrets
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install gitleaks
+        run: |
+          version=8.30.1
+          sha256=551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+          curl --fail --silent --show-error --location --retry 3 -o "$RUNNER_TEMP/gitleaks.tar.gz" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v$version/gitleaks_${version}_linux_x64.tar.gz"
+          echo "$sha256  $RUNNER_TEMP/gitleaks.tar.gz" | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/gitleaks.tar.gz" -C "$RUNNER_TEMP" gitleaks
+
+      - name: Check the change and the files for secrets
+        env:
+          GITLEAKS: ${{ runner.temp }}/gitleaks
+          BASE: ${{ github.event_name == 'push' && github.event.before || github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event_name == 'push' && github.sha || github.event.pull_request.head.sha }}
+        run: ./test/leak-check.sh "$BASE" "$HEAD"

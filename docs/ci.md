@@ -2,15 +2,19 @@
 
 Two workflows run, with a trust boundary between them. `test/release-checks.sh` enforces every rule on this page that a file can show.
 
-## Pull requests: `ci.yml`
+## Pull requests and `main`: `ci.yml`
 
-Every pull request runs one Linux job on GitHub's `ubuntu-latest` machine:
+Every pull request and every push to `main` runs two Linux jobs on GitHub's `ubuntu-latest` machine.
+
+`Linux checks`:
 
 - `shellcheck` over `test/*.sh` and `scripts/*.sh`
 - `test/release-checks.sh`: workflow pins and triggers, project settings, the privacy manifest (it exists, lints, matches [privacy-manifest.md](privacy-manifest.md), and the app target's synchronized `QBank` group includes it), the Debug-only launch seam, the frontend-only rule, and the TestFlight upload script's rules (the key read only in its upload step, its cleanup traps, the export options, and no key or team ID in Git)
 - `test/package-tests.sh --linux`: `swift test` in each package under `Packages/` that builds on Linux (see below)
 
-It references no secrets, reads the repository with a `contents: read` token, and never runs on a Mac. There is no `pull_request_target` workflow.
+`Secrets`: `test/leak-check.sh` runs [gitleaks](https://github.com/gitleaks/gitleaks), a pinned release whose checksum the job checks, over the commits the change adds and over every tracked file at HEAD, and fails on any finding. It uses gitleaks' own rules and the exceptions in `.gitleaks.toml`, which name the synthetic test values that look like keys. Findings print redacted. To run it on a Mac with gitleaks installed: `test/leak-check.sh origin/main HEAD`.
+
+The workflow references no secrets, reads the repository with a `contents: read` token, and never runs on a Mac. There is no `pull_request_target` workflow.
 
 ## Trusted code: `xcode.yml`
 
@@ -41,6 +45,7 @@ A package that needs Apple frameworks (Security, SwiftUI, UIKit) adds an empty `
 ## Repository settings that back this
 
 - Secret scanning and push protection are on.
+- A ruleset on `main` requires a pull request and the `Linux checks` and `Secrets` checks, and forbids force pushes and deletion.
 - Private vulnerability reporting is on (see `SECURITY.md`).
 - Workflows from forks wait for approval for all outside collaborators.
 
