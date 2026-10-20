@@ -57,10 +57,11 @@ final class DeletionUITests: XCTestCase {
         let row = app.buttons["course.set.Mixed Clinical Judgment"]
         XCTAssertTrue(row.appears(timeout: 5))
         row.press(forDuration: 1.2)
-        let delete = app.buttons["Delete"]
+        let delete = app.buttons["delete.Mixed Clinical Judgment"]
         XCTAssertTrue(delete.appears(timeout: 5))
+        XCTAssertEqual(delete.label, "Delete")
         attach(app, "set touch and hold")
-        delete.tap()
+        chooseFromMenu(delete)
 
         let title = app.staticTexts["deleteSheet.title"]
         XCTAssertTrue(title.appears(timeout: 5))
@@ -74,8 +75,7 @@ final class DeletionUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["No sets yet. Move sets here from another folder."].appears(timeout: 5))
 
         goBack(app, from: "Weeks 1-3")
-        tapVisible(app.buttons["course.recentlyDeleted"], in: app)
-        XCTAssertTrue(app.navigationBars["Recently deleted"].appears(timeout: 5))
+        open(app.buttons["course.recentlyDeleted"], titled: "Recently deleted", in: app)
         let bringBack = app.buttons["deleted.bringBack.Mixed Clinical Judgment"]
         XCTAssertTrue(bringBack.appears(timeout: 5))
         XCTAssertTrue(app.staticTexts["Weeks 1-3 · 8 questions"].exists)
@@ -107,9 +107,7 @@ final class DeletionUITests: XCTestCase {
         reveal(first, in: app)
         XCTAssertTrue(app.staticTexts["Touch and hold an exam to delete it."].exists)
         first.press(forDuration: 1.2)
-        let delete = app.buttons["Delete"]
-        XCTAssertTrue(delete.appears(timeout: 5))
-        delete.tap()
+        chooseFromMenu(app.buttons["delete.exam"])
 
         XCTAssertTrue(app.staticTexts["deleteSheet.title"].appears(timeout: 5))
         XCTAssertEqual(app.staticTexts["deleteSheet.title"].label, "Delete this exam?")
@@ -135,15 +133,7 @@ final class DeletionUITests: XCTestCase {
     func testADeleteRefusedForNowSaysWhyAndWaits() throws {
         let app = launch("exam-in-progress")
         XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 10))
-        let page = app.buttons["course.page.Exam 1"]
-        XCTAssertTrue(page.appears(timeout: 5))
-        tapVisible(page, in: app)
-        XCTAssertTrue(app.navigationBars["Exam 1"].appears(timeout: 5))
-
-        let row = app.buttons["folder.Week 2"]
-        XCTAssertTrue(row.appears(timeout: 5))
-        tapVisible(row, in: app)
-        XCTAssertTrue(app.navigationBars["Week 2"].appears(timeout: 5))
+        openFolder(app, "Week 2", on: "Exam 1")
         app.buttons["folder.delete"].tap()
         let problem = app.staticTexts["An exam in progress asks questions from Week 2. Finish or leave that exam first."]
         XCTAssertTrue(problem.appears(timeout: 5))

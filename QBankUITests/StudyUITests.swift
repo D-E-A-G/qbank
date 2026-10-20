@@ -273,8 +273,7 @@ final class StudyUITests: XCTestCase {
 
         // A folder: which page it is on, its sets, and its exam line.
         app.swipeDown()
-        tapVisible(app.buttons["folder.Week 2"], in: app)
-        XCTAssertTrue(app.navigationBars["Week 2"].appears(timeout: 5))
+        open(app.buttons["folder.Week 2"], titled: "Week 2", in: app)
         XCTAssertEqual(app.staticTexts["folder.note"].label, "On Exam 1 · 2 sets · 9 of 26 answered")
         XCTAssertTrue(app.buttons["course.set.Therapeutic Communication and the Relationship"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["folder.bank"].label.contains("No exam bank yet · exams use practice questions"))
@@ -288,7 +287,7 @@ final class StudyUITests: XCTestCase {
         // Start exam on an exam page opens the setup with its folders ticked.
         goBack(app, from: "Week 3")
         goBack(app, from: "Exam 2")
-        tapVisible(app.buttons["course.page.Exam 1"], in: app)
+        open(app.buttons["course.page.Exam 1"], titled: "Exam 1", in: app)
         tapVisible(app.buttons["page.startExam"], in: app)
         XCTAssertTrue(app.navigationBars["Exam"].appears(timeout: 5))
         XCTAssertEqual(app.staticTexts["exam.preselected"].label, "Exam 1 · 2 folders ticked for you")
@@ -403,7 +402,7 @@ final class StudyUITests: XCTestCase {
 
         // The order is saved in QBank: the page reads it back when she opens it again.
         goBack(app, from: "Exam 1")
-        tapVisible(app.buttons["course.page.Exam 1"], in: app)
+        open(app.buttons["course.page.Exam 1"], titled: "Exam 1", in: app)
         XCTAssertTrue(app.buttons["folder.Week 1"].appears(timeout: 5))
         XCTAssertLessThan(app.buttons["folder.Week 2"].frame.minY, app.buttons["folder.Week 1"].frame.minY)
 
@@ -417,7 +416,7 @@ final class StudyUITests: XCTestCase {
         app.buttons["editPage.cancel"].tap()
         XCTAssertTrue(app.navigationBars["Edit Exam 1"].disappears(timeout: 5))
         goBack(app, from: "Exam 1")
-        tapVisible(app.buttons["course.page.Exam 1"], in: app)
+        open(app.buttons["course.page.Exam 1"], titled: "Exam 1", in: app)
         XCTAssertTrue(app.buttons["folder.Week 1"].appears(timeout: 5))
         XCTAssertLessThan(app.buttons["folder.Week 1"].frame.minY, app.buttons["folder.Week 2"].frame.minY)
     }
