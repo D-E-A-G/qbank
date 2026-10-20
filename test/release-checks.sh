@@ -112,11 +112,16 @@ done
 forbid_grep 'secrets\.' "$CI" "ci.yml references no secrets"
 require_grep '^  contents: read$' "$CI" "ci.yml permissions are contents: read"
 forbid_grep ':[[:space:]]*write' "$CI" "ci.yml grants no write permission"
-ruby_check "ci.yml triggers only on pull_request and runs only on Linux" "$CI" '
+ruby_check "ci.yml triggers only on pull_request and pushes to main, and runs only on Linux" "$CI" '
   wf = YAML.load_file(ARGV[0])
   on = wf[true] || wf["on"]
-  keys = on.is_a?(Hash) ? on.keys.map(&:to_s) : Array(on).map(&:to_s)
-  abort "on: is #{keys.inspect}, expected [\"pull_request\"]" unless keys == ["pull_request"]
+  abort "on: must be a mapping" unless on.is_a?(Hash)
+  keys = on.keys.map(&:to_s)
+  abort "on: keys are #{keys.inspect}, expected [\"pull_request\", \"push\"]" unless keys == %w[pull_request push]
+  push = on["push"]
+  unless push.is_a?(Hash) && push.keys.map(&:to_s) == %w[branches] && push["branches"] == ["main"]
+    abort "push must be exactly branches: [main] (got #{push.inspect})"
+  end
   jobs = wf["jobs"] || {}
   abort "no jobs" if jobs.empty?
   jobs.each do |name, job|
@@ -126,6 +131,22 @@ ruby_check "ci.yml triggers only on pull_request and runs only on Linux" "$CI" '
 '
 require_grep 'release-checks\.sh' "$CI" "ci.yml runs test/release-checks.sh"
 require_grep 'package-tests\.sh --linux' "$CI" "ci.yml tests the Swift packages on Linux"
+# The "Secrets" job is a required check on main, so its name is part of the
+# repository settings. It reads every commit and installs the one gitleaks
+# release whose checksum it pins.
+ruby_check "ci.yml has a Secrets job that runs test/leak-check.sh over the full history" "$CI" '
+  jobs = YAML.load_file(ARGV[0])["jobs"] || {}
+  job = jobs.values.find { |j| j["name"] == "Secrets" } or abort "no job is named Secrets"
+  steps = job["steps"] || []
+  checkout = steps.find { |s| s["uses"].to_s.start_with?("actions/checkout@") } or abort "the Secrets job checks nothing out"
+  abort "the Secrets checkout needs fetch-depth: 0" unless (checkout["with"] || {})["fetch-depth"] == 0
+  install = steps.map { |s| s["run"].to_s }.find { |r| r.include?("gitleaks") && r.include?("sha256sum --check") }
+  abort "the Secrets job does not install gitleaks with a checksum check" unless install
+  abort "the Secrets job does not pin a gitleaks version" unless install =~ /^version=\d+\.\d+\.\d+$/
+  abort "the Secrets job does not pin a sha256" unless install =~ /^sha256=[0-9a-f]{64}$/
+  abort "the Secrets job does not run test/leak-check.sh" unless steps.any? { |s| s["run"].to_s.include?("test/leak-check.sh") }
+'
+require_grep '^useDefault = true$' .gitleaks.toml ".gitleaks.toml keeps gitleaks' own rules"
 
 # --- xcode.yml: trusted events only, MAC_RUNNER with hosted fallback ---------
 

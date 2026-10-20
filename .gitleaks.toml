@@ -1,0 +1,15 @@
+# gitleaks settings for this repository: gitleaks' own rules, minus values in
+# the tests that look like keys but are not secrets. The CI job "Secrets"
+# (.github/workflows/ci.yml) runs test/leak-check.sh with these settings.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Not secrets"
+regexes = [
+  # The synthetic sign-in ticket the passkey tests and their stub server use.
+  '''^synthetic-ticket\.c2lnbmVk=$''',
+  # The five-minute passkey challenge cookie in the contract fixtures, recorded
+  # from a throwaway test server with synthetic users.
+  '''^aVMdf5cfdXPWBHmpZwCuuU-6oLqyXord\.wEtfjhNgznupCj03deRFK3rC7mRtkCIfIFj0ZHXLWY0=$''',
+]
