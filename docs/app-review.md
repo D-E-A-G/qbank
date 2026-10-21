@@ -23,8 +23,8 @@ The reviewer needs to understand this, so the review notes below say it in short
 1. The app opens on **Sign in**: email and password fields, a **Sign in** button, and **Sign in with a passkey**. There is no **Sign up** button; accounts are made by the server's owner on the QBank web app.
 2. The app sends the email and password over HTTPS to the QBank server, `https://qbank.dimitrygallego.com`, which answers with a session token. The app keeps the token in the iOS Keychain and sends it with every request. The password is never stored on the phone.
 3. After 5 wrong passwords the server locks that email for a short time and says how long; the app shows that message.
-4. **Forgot password?** explains that the app sends no email: the owner sets a temporary password from his admin account, and the student chooses a new one at the next sign-in (the **Choose a new password** screen).
-5. Signed in, the app opens on Home (courses by semester) and stays signed in for months unless the student signs out in Settings.
+4. **Forgot password?** explains that the app sends no email: the owner sets a temporary password from his admin account, and the user chooses a new one at the next sign-in (the **Choose a new password** screen).
+5. Signed in, the app opens on Home (courses by semester) and stays signed in for months unless the user signs out in Settings.
 6. After a password sign-in the app offers once to save a passkey for that device (**Not now** declines). A passkey is saved with the iOS passkey sheet, signs in through the same sheet with Face ID, Touch ID or the passcode, and is listed and removed in **Settings > Passkeys**. The app sends the server only the passkey's public key and signatures, never a biometric.
 
 Login rules this meets:
@@ -50,7 +50,7 @@ How to make it (owner, on the web app, about five minutes):
 4. Sign in to the iPhone app with it once, answer a few questions in one course, and finish one short exam, so the reviewer sees a Review list and progress instead of empty screens.
 5. Keep the account after review: Apple may re-check it with each new version. Change its password after any version is approved if you like, and update App Store Connect at the same time.
 
-The demo account is an ordinary student account. It sees the shared course bank and only its own answers; nothing it does touches Khine's progress.
+The demo account is an ordinary user account. It sees the shared course bank and only its own answers; nothing it does touches Khine's progress.
 
 Before every submission, a worker signs in to the TestFlight build of that version with the demo account (the owner gives the credentials to the session, not to a file) and checks that sign-in, one practice set, Review, and an exam work against the live server.
 
@@ -61,7 +61,7 @@ Paste into App Store Connect (App Review Information > Notes). Fill the two mark
 ```text
 QBank is an NCLEX-style practice question bank for nursing students. It is the iPhone client of a private QBank server (https://qbank.dimitrygallego.com) that also serves a web app.
 
-Sign in: accounts are created by the server's owner, so the app has no sign-up screen. Please use the demo account in the Sign-In Information fields. It is a normal student account with a few answers already given, so Review and progress are not empty.
+Sign in: accounts are created by the server's owner, so the app has no sign-up screen. Please use the demo account in the Sign-In Information fields. It is a normal user account with a few answers already given, so Review and progress are not empty.
 
 What to try:
 1. Sign in. Home lists courses by semester.
@@ -70,7 +70,7 @@ What to try:
 4. Open Exam in the course, pick folders (or "Wrong questions only"), and start a timed exam. "End exam" scores what was answered.
 5. Turn on Airplane Mode and answer a practice question: it is saved on the phone and sent when the connection returns. Exams need a connection.
 
-Accounts: the app does not create accounts, so there is no in-app account deletion (Guideline 5.1.1(v)); students ask the owner to delete theirs, as the privacy policy says. There is no third-party or social login (Guideline 4.8 does not apply).
+Accounts: the app does not create accounts, so there is no in-app account deletion (Guideline 5.1.1(v)); users ask the owner to delete theirs, as the privacy policy says. There is no third-party or social login (Guideline 4.8 does not apply).
 
 The app has no ads, no tracking, no analytics, and no in-app purchases. It uses only standard HTTPS encryption.
 

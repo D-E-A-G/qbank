@@ -97,7 +97,7 @@ App Store Connect asks a questionnaire; these are the answers for QBank's conten
 | Parental controls | not present | |
 | Age assurance | not present | |
 | Unrestricted web access | not present | the app opens no web pages |
-| User-generated content | not present | answers are private to each student; nothing is shared between users |
+| User-generated content | not present | answers are private to each user; nothing is shared between users |
 | Social media | not present | |
 | Messaging and chat | not present | |
 | Advertising | not present | |
@@ -115,7 +115,7 @@ App Store Connect asks a questionnaire; these are the answers for QBank's conten
 | Guns or other weapons | none | |
 | Contests, loot boxes, simulated gambling, gambling | none | |
 
-Expected result: **16+**, set by "frequent medical or treatment information". That is right for a nursing licensing-exam app and harmless for its users, who are adults. Revisit the answers when a new kind of content arrives (phase Q question-writing, phase 3 import), since students' own sets could cover other topics.
+Expected result: **16+**, set by "frequent medical or treatment information". That is right for a nursing licensing-exam app and harmless for its users, who are adults. Revisit the answers when a new kind of content arrives (phase Q question-writing, phase 3 import), since users' own sets could cover other topics.
 
 ## Screenshots
 
@@ -149,4 +149,4 @@ Each App Store version needs release notes. The first one:
 The first release of QBank for iPhone and iPad.
 ```
 
-Later versions: one or two plain sentences on what changed for students, written from the release PR.
+Later versions: one or two plain sentences on what changed for users, written from the release PR.
