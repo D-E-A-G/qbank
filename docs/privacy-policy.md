@@ -8,7 +8,7 @@ This policy will be published at the privacy policy URL named in [app-store-list
 
 ## What this app is
 
-QBank is an iPhone and iPad app for practicing nursing exam questions (NCLEX style). It is the phone and tablet version of the QBank web app. Both talk to the same private QBank server, which one person runs for himself and a few invited students. You sign in with the account the owner set up for you; the app has no sign-up of its own.
+QBank is an iPhone and iPad app for practicing nursing exam questions (NCLEX style). It is the phone and tablet version of the QBank web app. Both talk to the same private QBank server, which one person runs for himself and a few invited users. You sign in with the account the owner set up for you; the app has no sign-up of its own.
 
 ## What we do not do
 
@@ -26,7 +26,7 @@ QBank is an iPhone and iPad app for practicing nursing exam questions (NCLEX sty
 - **Email address and password.** You sign in with the email address and password of your QBank account. The server stores the email address and a one-way hash of the password, never the password itself. The app sends your password only to the QBank server, over HTTPS, at sign-in, and does not store it. iOS may offer to save it in your own Passwords app; that is Apple's feature and under your control.
 - **Passkeys.** You can save a passkey for your account, in the app or on the web, and sign in with it instead of your password. The passkey's private key stays in your Passwords app, or the passkey app you chose, and never leaves your devices; iOS checks your face, fingerprint, or passcode before using it. When you save one, the server keeps its public key and id, a name (in the app, the device it was saved on, such as "iPhone"), when it was saved, and what the device reported about it (whether it syncs between your devices, and how it can be used). Signing in sends only a signature over a one-time challenge. Settings lists your passkeys and removes them; a removed passkey no longer signs you in, and its copy in your Passwords app stays until you delete it there.
 - **Display name.** Your account has a name, set by the owner when the account is made. The app may show it; it does not ask you for one.
-- **Account role.** Whether the account is a student or the owner's admin account, and whether you must choose a new password at your next sign-in.
+- **Account role.** Whether the account is a user account or the owner's admin account, and whether you must choose a new password at your next sign-in.
 
 ### 2. Your sign-in session
 
@@ -44,9 +44,9 @@ This is what the app is for. For your account the server keeps:
 - your study sessions: practice sets, Review runs, and exams, with when they started and ended, the folders and question pool you picked for an exam, the time limit, and the score;
 - the course you opened most recently, so the app and the web app open where you left off.
 
-Your answers and progress are yours alone among students: other students cannot see them. The question bank itself (semesters, courses, their exam pages and folders, sets, questions, and terms) is shared by everyone on the server and is not personal data.
+Your answers and progress are yours alone among users: other users cannot see them. The question bank itself (semesters, courses, their exam pages and folders, sets, questions, and terms) is shared by everyone on the server and is not personal data.
 
-**The owner can see your progress.** The server's admin account can look at a student's answers and progress (to help with studying) and can set a temporary password for a student who forgot theirs. No email is sent; the owner gives you the temporary password himself.
+**The owner can see your progress.** The server's admin account can look at a user's answers and progress (to help with studying) and can set a temporary password for a user who forgot theirs. No email is sent; the owner gives you the temporary password himself.
 
 ### 4. Importing and making questions
 
