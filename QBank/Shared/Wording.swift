@@ -53,9 +53,59 @@ nonisolated enum Wording {
         return "\(count(courses.count, "course")) · updated \(time(latest, now: now))"
     }
 
+    // MARK: Courses and study topics
+
+    /// Every word a study topic says differently from a course, from the kind the server sends, as
+    /// the web's `kindWords` says them (`apps/web/src/course/pages.ts`). Her courses keep the words
+    /// she knows; a topic calls its exam pages study pages. Everything inside works the same, the
+    /// timed exam included, so nothing else differs. A kind this version does not know reads as a
+    /// course.
+    static func words(_ kind: CourseKind) -> KindWords {
+        kind == .topic ? .topic : .course
+    }
+
+    /// What the screens call a course or topic: a course by its code ("NURS 420"), a topic by its
+    /// name, since its code is empty.
+    static func name(_ course: some CourseNaming) -> String {
+        course.kind == .topic ? course.title : course.code
+    }
+
+    /// A course's code and name ("NURS 420 · Health assessment"), and a topic's name alone.
+    static func line(_ course: some CourseNaming) -> String {
+        course.kind == .topic ? course.title : "\(course.code) · \(course.title)"
+    }
+
+    /// The kind of a course or topic from a body that carries no kind, such as a question job's
+    /// course: the server leaves only a topic's code empty, and refuses an empty one for a course.
+    static func kind(code: String) -> CourseKind {
+        code.isEmpty ? .topic : .course
+    }
+
+    /// What to call a course or topic from a body that carries no kind: its code, or a topic's name.
+    static func name(code: String, title: String) -> String {
+        kind(code: code) == .topic ? title : code
+    }
+
+    /// The next free page name: "Exam 3" in a course with two exam pages, or "Page 3" in a topic
+    /// with two study pages, skipping a name already used, in any case.
+    static func nextPageName(after names: [String], kind: CourseKind) -> String {
+        let word = words(kind).numbered
+        let taken = Set(names.map { $0.trimmingCharacters(in: .whitespaces).lowercased() })
+        var number = names.count + 1
+        while taken.contains("\(word.lowercased()) \(number)") { number += 1 }
+        return "\(word) \(number)"
+    }
+
     /// The course line on Home and under the Course title: "86 questions · 3 folders".
     static func size(questions: Int, folders: Int) -> String {
         "\(count(questions, "question")) · \(count(folders, "folder"))"
+    }
+
+    /// The line under a course's title: "Mental Health · 86 questions · 3 folders". A topic's name
+    /// is its title already, so it says only "3 questions · 2 folders".
+    static func summary(_ course: CourseDetail) -> String {
+        let size = size(questions: course.questionCount, folders: course.folderCount)
+        return course.kind == .topic ? size : "\(course.title) · \(size)"
     }
 
     /// "35 of 86 answered · 24 fully right · 61 of 92 points", or nil before her first answer.
@@ -220,3 +270,30 @@ nonisolated enum Wording {
         }
     }
 }
+
+/// The words a course and a study topic say differently; `Wording.words(_:)` picks them by kind.
+nonisolated struct KindWords: Equatable {
+    /// "course" or "topic", inside a sentence: "This topic has no question sets yet."
+    let container: String
+    /// "exam page" or "study page", inside a sentence.
+    let page: String
+    /// "Exam page" or "Study page", at the start of a line or as a title.
+    let pageTitle: String
+    /// Its list of them: "Exam pages" or "Study pages".
+    let pages: String
+    /// What New names them, with a number: "Exam" (Exam 1) or "Page" (Page 1).
+    let numbered: String
+
+    static let course = KindWords(container: "course", page: "exam page", pageTitle: "Exam page", pages: "Exam pages", numbered: "Exam")
+    static let topic = KindWords(container: "topic", page: "study page", pageTitle: "Study page", pages: "Study pages", numbered: "Page")
+}
+
+/// A course or topic as the screens name it: its kind, code and name.
+nonisolated protocol CourseNaming {
+    var kind: CourseKind { get }
+    var code: String { get }
+    var title: String { get }
+}
+
+nonisolated extension CourseSummary: CourseNaming {}
+nonisolated extension CourseDetail: CourseNaming {}

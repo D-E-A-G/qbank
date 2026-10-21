@@ -37,7 +37,7 @@ struct ExamSetupView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: QBankSpacing.gapSection) {
                 VStack(alignment: .leading, spacing: QBankSpacing.space4) {
-                    Text("\(model.course.code) · \(model.course.title)")
+                    Text(Wording.line(model.course))
                         .qbankFont(.subheadline)
                         .foregroundStyle(.qbank(.text2))
                     if model.needsConnection {
@@ -79,7 +79,7 @@ struct ExamSetupView: View {
             start()
         }
         .fullScreenCover(item: $running, onDismiss: closed) { route in
-            ExamView(app: app, examID: route.id) { how in
+            ExamView(app: app, examID: route.id, kind: model.course.kind) { how in
                 exit = how
                 running = nil
             }
@@ -90,7 +90,7 @@ struct ExamSetupView: View {
     private var content: some View {
         if let setup = model.setup {
             if setup.folders.isEmpty {
-                EmptyCard(message: "This course has no questions yet. An exam draws from the sets in the folders you tick.", systemImage: "timer")
+                EmptyCard(message: "This \(model.words.container) has no questions yet. An exam draws from the sets in the folders you tick.", systemImage: "timer")
             } else {
                 wrongOnlySwitch
                 folderPicker

@@ -3,7 +3,7 @@ import Observation
 import QBankKit
 
 /// Import, as the web's Import screen does it: a question file from Files or pasted, checked by the
-/// server's importer, then filed under a course and folder. The set goes to the course's Unsorted
+/// server's importer, then filed under a course or study topic and folder. The set goes to the course's Unsorted
 /// folder unless she picks one; "Import here" on a folder opens it with that folder picked. A set
 /// whose name the course already has asks first: replace it, or import it as a separate set.
 @Observable
@@ -13,10 +13,17 @@ final class ImportModel {
         case paste
     }
 
-    /// The set the import wrote, and the exam page its folder is on.
+    /// The set the import wrote, the exam page its folder is on, and the course or topic it went
+    /// into, from her list read again, which has one the import made.
     struct Done: Equatable {
         let set: ImportedSet
         let examPageName: String?
+        var course: CourseSummary?
+
+        /// The course's code or the topic's name, which titles its screen until it loads.
+        nonisolated var courseName: String {
+            course.map(Wording.name) ?? set.courseCode
+        }
     }
 
     var mode: Source = .file
@@ -133,8 +140,9 @@ final class ImportModel {
             case .imported(let set):
                 // Done names the exam page the folder is on, read from the course it landed in.
                 let landed = set.examPageID == nil ? nil : try? await app.client.course(id: set.courseID)
-                done = Done(set: set, examPageName: landed?.exams.first { $0.id == set.examPageID }?.name)
-                await saveForOffline()
+                let catalog = try? await app.client.catalog()
+                done = Done(set: set, examPageName: landed?.exams.first { $0.id == set.examPageID }?.name, course: catalog?.course(id: set.courseID))
+                saveForOffline(catalog)
             }
         } catch {
             if app.handle(error) { return }
@@ -151,6 +159,8 @@ final class ImportModel {
         let course: ImportRequest.Course
         if let id = destination.courseID {
             course = .existing(id: id)
+        } else if destination.makesTopic {
+            course = .newTopic(title: destination.newTopicName.trimmingCharacters(in: .whitespaces))
         } else {
             course = .new(
                 code: destination.newCode.trimmingCharacters(in: .whitespaces),
@@ -163,9 +173,9 @@ final class ImportModel {
     }
 
     /// The new set is saved for offline at once, with the course list it belongs to.
-    private func saveForOffline() async {
-        guard let offline = app.offline, let semesters = try? await app.client.semesters() else { return }
-        offline.saveCourses(in: semesters, force: true)
+    private func saveForOffline(_ catalog: Catalog?) {
+        guard let offline = app.offline, let catalog else { return }
+        offline.saveCourses(in: catalog, force: true)
     }
 
     /// The errors, one per line, for Codex or her AI chat to fix.
@@ -201,18 +211,18 @@ nonisolated enum ImportWording {
     }
 
     static func replaceMessage(_ conflict: ImportConflict) -> String {
-        "\(conflict.courseCode), \(conflict.folderName) already has a set with this name. Replacing swaps its \(conflict.existingQuestionCount) questions for the \(conflict.incomingQuestionCount) in this file, and it stays in \(conflict.folderName). Answers on unchanged questions are kept, and the old version stays restorable."
+        "\(Wording.name(code: conflict.courseCode, title: conflict.courseTitle)), \(conflict.folderName) already has a set with this name. Replacing swaps its \(conflict.existingQuestionCount) questions for the \(conflict.incomingQuestionCount) in this file, and it stays in \(conflict.folderName). Answers on unchanged questions are kept, and the old version stays restorable."
     }
 
-    /// "“Title” · 18 questions in NURS 406, Week 3. It is on Exam 1."
+    /// "“Title” · 18 questions in NURS 406, Week 3. It is on Exam 1." A topic is named by its name.
     static func doneCopy(_ done: ImportModel.Done) -> String {
         let set = done.set
         let noun = set.questionCount == 1 ? "question" : "questions"
-        var copy = "“\(set.title)” · \(set.questionCount) \(set.setKind == .exam ? "exam " : "")\(noun) in \(set.courseCode), \(set.folderName)."
+        var copy = "“\(set.title)” · \(set.questionCount) \(set.setKind == .exam ? "exam " : "")\(noun) in \(done.courseName), \(set.folderName)."
         if let page = done.examPageName {
             copy += " It is on \(page)."
         } else if set.folderName == SetDestination.unsorted {
-            copy += " It is in the course’s Folders list until you move it."
+            copy += " It is in the \(Wording.words(done.course?.kind ?? .course).container)’s Folders list until you move it."
         }
         if set.setKind == .exam {
             copy += " Exams now ask them instead of that folder’s practice questions."

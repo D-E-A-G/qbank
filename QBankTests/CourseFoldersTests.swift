@@ -234,7 +234,7 @@ struct CourseFoldersTests {
             "PATCH /api/folders/f1": .ok(StudyBodies.folder("f1", "Week 1", order: 3, sets: [])),
         ])
         let model = await loaded(server)
-        #expect(model.nextExamName == "Exam 2")
+        #expect(model.nextPageName == "Exam 2")
         #expect(await model.put(try #require(model.folder("f3")), on: .new(name: " Exam 2 ")) == nil)
         #expect(body(server.requests.first { $0.httpMethod == "POST" }) == #"{"folderIds":["f3"],"name":"Exam 2"}"#)
         #expect(await model.put(try #require(model.folder("f1")), on: .none) == nil)
@@ -343,9 +343,9 @@ struct CourseFoldersTests {
     }
 
     @Test func nextExamNameSkipsTakenOnes() {
-        #expect(CourseModel.nextExamName(after: []) == "Exam 1")
-        #expect(CourseModel.nextExamName(after: ["Exam 1"]) == "Exam 2")
-        #expect(CourseModel.nextExamName(after: ["Final", "exam 2"]) == "Exam 3")
+        #expect(Wording.nextPageName(after: [], kind: .course) == "Exam 1")
+        #expect(Wording.nextPageName(after: ["Exam 1"], kind: .course) == "Exam 2")
+        #expect(Wording.nextPageName(after: ["Final", "exam 2"], kind: .course) == "Exam 3")
     }
 
     @Test func anExamPagesStartButtonTicksItsFolders() async throws {

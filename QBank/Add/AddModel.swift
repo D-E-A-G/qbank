@@ -73,8 +73,14 @@ nonisolated enum MakeWording {
     }
 
     /// A set being made, as the In progress row says it: "NURS 406 · Week 4 · 9 of 15 written".
+    /// A topic is named by its name.
     static func progress(_ job: QuestionJob) -> String {
-        "\(job.course.code) · \(job.folder.name) · \(state(job))"
+        "\(course(job)) · \(job.folder.name) · \(state(job))"
+    }
+
+    /// The course's code, or the topic's name.
+    static func course(_ job: QuestionJob) -> String {
+        Wording.name(code: job.course.code, title: job.course.title)
     }
 
     /// Where a set being made is, in a few words.
@@ -130,7 +136,7 @@ nonisolated enum MakeWording {
 
     /// "Schizophrenia and Antipsychotics · NURS 406 · Week 4".
     static func place(_ job: QuestionJob) -> String {
-        "\(title(job)) · \(job.course.code) · \(job.folder.name)"
+        "\(title(job)) · \(course(job)) · \(job.folder.name)"
     }
 
     /// The title of the screen that follows a running set.
@@ -213,7 +219,7 @@ nonisolated enum MakeWording {
     /// "From 2 photos · NURS 402 · Week 3. Tap a question to check its answer or leave it out."
     static func copiesNote(_ copies: QuestionCopies, _ job: QuestionJob) -> String {
         let from = copies.photoCount > 0 ? "From \(Wording.count(copies.photoCount, "photo"))" : "From your material"
-        return "\(from) · \(job.course.code) · \(job.folder.name). Tap a question to check its answer or leave it out."
+        return "\(from) · \(course(job)) · \(job.folder.name). Tap a question to check its answer or leave it out."
     }
 
     /// "4 questions found".
@@ -241,7 +247,7 @@ nonisolated enum MakeWording {
     }
 
     /// "“Title” · 15 questions in NURS 406, Week 4."
-    static func finished(_ result: QuestionResult, code: String) -> String {
-        "“\(result.set.title)” · \(Wording.count(result.set.questionCount, "question")) in \(code), \(result.set.folderName)."
+    static func finished(_ result: QuestionResult, course: String) -> String {
+        "“\(result.set.title)” · \(Wording.count(result.set.questionCount, "question")) in \(course), \(result.set.folderName)."
     }
 }

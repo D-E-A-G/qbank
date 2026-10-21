@@ -101,7 +101,7 @@ struct WordingTests {
 
     @Test func savedCoursesInWords() {
         func course(_ code: String, saved: Int, of total: Int, at date: Date) -> SavedCourse {
-            SavedCourse(id: code, code: code, title: "T", questionCount: total, savedQuestionCount: saved, isComplete: saved == total, savedAt: date)
+            SavedCourse(id: code, kind: .course, code: code, title: "T", questionCount: total, savedQuestionCount: saved, isComplete: saved == total, savedAt: date)
         }
         let old = now.addingTimeInterval(-9 * 86_400)
         let updated = "updated \(Wording.time(now, now: now))"
@@ -109,5 +109,45 @@ struct WordingTests {
         #expect(Wording.savedCourse(course("A", saved: 70, of: 86, at: now), now: now) == "70 of 86 questions · \(updated)")
         #expect(Wording.savedCourses([course("A", saved: 1, of: 1, at: old), course("B", saved: 1, of: 1, at: now)], now: now) == "2 courses · \(updated)")
         #expect(Wording.savedCourses([], now: now) == "Nothing saved yet")
+    }
+
+    // MARK: Courses and study topics
+
+    /// A course says what it always said; a topic says topic and study page. Nothing else differs.
+    @Test func aCourseKeepsItsWordsAndATopicSaysStudyPages() {
+        #expect(Wording.words(.course) == KindWords(container: "course", page: "exam page", pageTitle: "Exam page", pages: "Exam pages", numbered: "Exam"))
+        #expect(Wording.words(.topic) == KindWords(container: "topic", page: "study page", pageTitle: "Study page", pages: "Study pages", numbered: "Page"))
+        #expect(Wording.words(CourseKind(rawValue: "shelf")) == Wording.words(.course), "a kind this version does not know reads as a course")
+    }
+
+    @Test func aCourseIsCalledByItsCodeAndATopicByItsName() {
+        let course = CourseRef(id: "c1", code: "NURS 420", title: "Health assessment")
+        let topic = CourseRef(id: "t1", code: "", title: "Invented Systems Design", kind: .topic)
+        #expect(Wording.name(course) == "NURS 420")
+        #expect(Wording.line(course) == "NURS 420 · Health assessment")
+        #expect(Wording.name(topic) == "Invented Systems Design")
+        #expect(Wording.line(topic) == "Invented Systems Design")
+    }
+
+    @Test func aBodyWithoutAKindNamesATopicByItsName() {
+        #expect(Wording.kind(code: "NURS 310") == .course)
+        #expect(Wording.kind(code: "") == .topic)
+        #expect(Wording.name(code: "NURS 310", title: "Mental Health") == "NURS 310")
+        #expect(Wording.name(code: "", title: "Invented Systems Design") == "Invented Systems Design")
+    }
+
+    @Test func newMakesExamOneInACourseAndPageOneInATopic() {
+        #expect(Wording.nextPageName(after: [], kind: .course) == "Exam 1")
+        #expect(Wording.nextPageName(after: [], kind: .topic) == "Page 1")
+        #expect(Wording.nextPageName(after: ["Page 1"], kind: .topic) == "Page 2")
+        #expect(Wording.nextPageName(after: ["Caching", " page 2 "], kind: .topic) == "Page 3")
+        #expect(Wording.nextPageName(after: ["Page 1"], kind: .course) == "Exam 2", "a course counts exams, whatever its pages are called")
+    }
+
+    @Test func aTopicsLineUnderItsTitleLeavesOutItsName() throws {
+        let course = try QBankJSON.decoder.decode(CourseDetail.self, from: Data(Bodies.courseDetail().utf8))
+        #expect(Wording.summary(course) == "Invented Basics · 10 questions · 1 folder")
+        let topic = try QBankJSON.decoder.decode(CourseDetail.self, from: Data(StudyBodies.topicDetail().utf8))
+        #expect(Wording.summary(topic) == "4 questions · 2 folders")
     }
 }

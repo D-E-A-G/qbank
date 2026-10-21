@@ -2,9 +2,10 @@ import Foundation
 import Testing
 @testable import QBankKit
 
-/// A server with study topics, before the app shows them: a topic is a course row of kind `topic`
-/// with no semester and an empty code. The bodies in `Fixtures/topics` are written to the planned
-/// API, not recorded; this version must decode them and show her courses exactly as before.
+/// A server with study topics: a topic is a course row of kind `topic` with no semester and an
+/// empty code. The bodies in `Fixtures/topics` are written by hand to the server's contract at
+/// qbank-server `c1ac3f4` (`Fixtures/openapi.json`), not recorded; they must decode, and her courses
+/// must read exactly as before.
 @Suite("Topics on the server, before the app shows them")
 struct TopicToleranceTests {
     static let topicID = "70000000-0000-4000-8000-000000000001"
@@ -38,9 +39,9 @@ struct TopicToleranceTests {
     @Test func homeListsHerCoursesAsBeforeWhenTheServerAlsoSendsTopics() async throws {
         let transport = FixtureTransport(bodies: [try Self.body("semesters")])
         let (client, _) = TestClient.make(transport)
-        let semesters = try await client.semesters()
+        let semesters = try await client.catalog().semesters
         #expect(transport.requests.first?.url?.path == "/api/semesters")
-        let before = try QBankJSON.decoder.decode(SemestersResponse.self, from: Self.removing(["topics"], from: Self.body("semesters")))
+        let before = try QBankJSON.decoder.decode(Catalog.self, from: Self.removing(["topics"], from: Self.body("semesters")))
         #expect(semesters == before.semesters, "the topics key changes nothing Home shows")
         #expect(semesters.flatMap(\.courses).map(\.code) == ["NURS 101"])
         #expect(semesters.flatMap(\.courses).map(\.kind) == [.course])
@@ -81,7 +82,7 @@ struct TopicToleranceTests {
         let course = try Fixture.load("course").decodeBody(CourseDetail.self)
         #expect(course.kind == .course)
         #expect(course.semester?.name == "Semester 1")
-        let cards = try Fixture.load("semesters").decodeBody(SemestersResponse.self).semesters.flatMap(\.courses)
+        let cards = try Fixture.load("semesters").decodeBody(Catalog.self).semesters.flatMap(\.courses)
         #expect(!cards.isEmpty)
         #expect(cards.allSatisfy { $0.kind == .course })
         let topic = try QBankJSON.decoder.decode(CourseDetail.self, from: Self.removing(["kind"], from: Self.body("topic")))
@@ -96,7 +97,7 @@ struct TopicToleranceTests {
         #expect(detail.semester == nil)
         #expect(detail.folders.count == 2)
 
-        let catalog = try QBankJSON.decoder.decode(SemestersResponse.self, from: Self.withUnknownKind("semesters"))
+        let catalog = try QBankJSON.decoder.decode(Catalog.self, from: Self.withUnknownKind("semesters"))
         #expect(catalog.semesters.flatMap(\.courses).map(\.code) == ["NURS 101"])
 
         let card = try QBankJSON.decoder.decode(

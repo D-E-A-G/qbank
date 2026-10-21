@@ -30,7 +30,7 @@ struct TwinJobView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: QBankSpacing.gapSection) {
                 VStack(alignment: .leading, spacing: QBankSpacing.space4) {
-                    Text("\(model.course.code) · \(model.course.title)")
+                    Text(Wording.line(model.course))
                         .qbankFont(.subheadline)
                         .foregroundStyle(.qbank(.text2))
                     if let problem = model.problem {
@@ -80,7 +80,7 @@ struct TwinJobView: View {
             start()
         }
         .fullScreenCover(item: $running, onDismiss: closed) { route in
-            ExamView(app: app, examID: route.id) { how in
+            ExamView(app: app, examID: route.id, kind: model.course.kind) { how in
                 exit = how
                 running = nil
             }

@@ -8,11 +8,13 @@ enum SettingsRoute: Hashable {
     case passkeys
     case semester(String)
     case course(String)
+    case topic(String)
     case savedForOffline
 }
 
-/// The Settings tab, as the web's Settings for a student: her account, her semesters and
-/// courses, and Look and Color, then what is saved on this phone. Export stays on the web.
+/// The Settings tab, as the web's Settings for a user account: her account, her semesters and
+/// courses, her study topics, and Look and Color, then what is saved on this phone. Export stays
+/// on the web.
 struct SettingsView: View {
     let app: AppModel
     @State private var catalog: CatalogModel
@@ -36,6 +38,9 @@ struct SettingsView: View {
                     lock
                     if catalog.isEditable {
                         semesters
+                        if catalog.catalog != nil {
+                            TopicsGroup(catalog: catalog)
+                        }
                     }
                     look
                     onThisPhone
@@ -66,6 +71,8 @@ struct SettingsView: View {
                     SemesterView(catalog: catalog, id: id)
                 case .course(let id):
                     CourseEditView(catalog: catalog, id: id)
+                case .topic(let id):
+                    TopicEditView(catalog: catalog, id: id)
                 case .savedForOffline:
                     SavedForOfflineView(app: app)
                 }
@@ -183,7 +190,7 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: QBankSpacing.space3) {
             QBankListGroup(
                 header: "Semesters and courses",
-                footer: "Rename, move between semesters, archive or unarchive a course."
+                footer: "Rename, move between semesters, archive or unarchive a course. Archive a semester you finished."
             ) {
                 if let semesters = catalog.semesters {
                     ForEach(semesters) { semester in

@@ -30,9 +30,10 @@ nonisolated struct WaitingGroup: Identifiable, Equatable {
     let lastAnsweredAt: Date
 }
 
-/// A course saved on the phone, as Saved for offline lists it.
-nonisolated struct SavedCourse: Identifiable, Equatable {
+/// A course or topic saved on the phone, as Saved for offline lists it.
+nonisolated struct SavedCourse: Identifiable, Equatable, CourseNaming {
     let id: String
+    let kind: CourseKind
     let code: String
     let title: String
     /// The course's practice questions.
@@ -163,14 +164,15 @@ final class OfflineStore {
         try? await cache.value(for: key)
     }
 
-    /// Saves every course on Home with its sets and questions, so any set can be practiced without
-    /// signal, not only the ones she opened. Runs in the background, at most every few minutes
-    /// unless `force`. Sets already saved are not loaded again: a set's questions never change, a
-    /// new version of a set is a new set.
-    func saveCourses(in semesters: [Semester], force: Bool = false) {
+    /// Saves every course and topic she studies on Home with its sets and questions, so any set can
+    /// be practiced without signal, not only the ones she opened. Runs in the background, at most
+    /// every few minutes unless `force`. Sets already saved are not loaded again: a set's questions
+    /// never change, a new version of a set is a new set.
+    func saveCourses(in catalog: Catalog, force: Bool = false) {
         guard !isClosed, saving == nil, connection.isOnline else { return }
         if !force, let coursesSavedAt, now().timeIntervalSince(coursesSavedAt) < Self.saveInterval { return }
-        let ids = semesters.flatMap(\.courses).filter { $0.archivedAt == nil }.map(\.id)
+        let studied = catalog.semesters.filter { $0.archivedAt == nil }.flatMap(\.courses) + catalog.topics
+        let ids = studied.filter { $0.archivedAt == nil }.map(\.id)
         isSavingCourses = true
         saving = Task {
             if await saveAll(ids) {
@@ -243,9 +245,10 @@ final class OfflineStore {
         guard let entries = try? await cache.entries() else { return [] }
         let names = Set(entries.map(\.name))
         let coursePrefix = CacheKey<CourseDetail>.course("").name
-        let homeOrder = await saved(.semesters)?.value.flatMap { semester in
+        let catalog = await saved(.catalog)?.value
+        let homeOrder = (catalog?.semesters.flatMap { semester in
             semester.courses.sorted { ($0.sortOrder, $0.code) < ($1.sortOrder, $1.code) }.map(\.id)
-        } ?? []
+        } ?? []) + (catalog?.topics.map(\.id) ?? [])
         var courses: [SavedCourse] = []
         for entry in entries where entry.name.hasPrefix(coursePrefix) {
             guard let saved = try? await cache.value(for: .course(String(entry.name.dropFirst(coursePrefix.count)))) else { continue }
@@ -253,6 +256,7 @@ final class OfflineStore {
             let savedSets = sets.filter { names.contains(CacheKey<PracticeSet>.practiceSet($0.id).name) }
             courses.append(SavedCourse(
                 id: saved.value.id,
+                kind: saved.value.kind,
                 code: saved.value.code,
                 title: saved.value.title,
                 questionCount: saved.value.questionCount,
@@ -413,7 +417,7 @@ final class OfflineStore {
         for attempt in waiting {
             let found = lookup[attempt.submission.questionID]
             let id = found?.set.id ?? attempt.courseID ?? ""
-            let title = found?.set.title ?? found?.courseCode ?? "Practice"
+            let title = found?.set.title ?? found?.courseName ?? "Practice"
             if let index = groups.firstIndex(where: { $0.id == id }) {
                 let group = groups[index]
                 groups[index] = WaitingGroup(
@@ -430,7 +434,8 @@ final class OfflineStore {
 
     private struct SavedQuestion {
         let set: PracticeSetSummary
-        let courseCode: String
+        /// Its course's code, or its topic's name.
+        let courseName: String
         let question: Question?
     }
 
@@ -448,7 +453,7 @@ final class OfflineStore {
                         sets[set.id] = .some(await saved(.practiceSet(set.id))?.value)
                     }
                     let question = sets[set.id]??.questions.first { $0.id == questionID }
-                    found[questionID] = SavedQuestion(set: set, courseCode: course.code, question: question)
+                    found[questionID] = SavedQuestion(set: set, courseName: Wording.name(course), question: question)
                 }
             }
         }

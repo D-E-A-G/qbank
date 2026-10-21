@@ -18,6 +18,11 @@ struct JobView: View {
 
     /// `seed` is the set as the screen that opens this one last read it, so the title and the
     /// step show from the first frame.
+    /// "course", or "topic" for a set going into a topic.
+    private var container: String {
+        Wording.words(model.job.map { Wording.kind(code: $0.course.code) } ?? .course).container
+    }
+
     init(app: AppModel, id: String, seed: QuestionJob?, close: @escaping () -> Void, startOver: @escaping () -> Void) {
         self.app = app
         self.close = close
@@ -80,7 +85,7 @@ struct JobView: View {
             }
             .accessibilityIdentifier("make.stop.confirm")
         } message: {
-            Text("Nothing is added to your course, and your material is deleted.")
+            Text("Nothing is added to your \(container), and your material is deleted.")
         }
     }
 
@@ -99,7 +104,7 @@ struct JobView: View {
                     }
                 } else if let samples = model.samples {
                     SamplesView(model: model, job: job, samples: samples) { question, number in
-                        practicing = PracticeRoute(source: .sample(jobID: job.id, sampleID: question.id), courseID: job.course.id, title: "Sample \(number)")
+                        practicing = PracticeRoute(source: .sample(jobID: job.id, sampleID: question.id), courseID: job.course.id, title: "Sample \(number)", kind: Wording.kind(code: job.course.code))
                     }
                 } else {
                     loading
@@ -107,9 +112,9 @@ struct JobView: View {
             case .done:
                 if let result = model.result {
                     FinishedView(job: job, result: result, close: close) {
-                        practicing = PracticeRoute(source: .set(id: result.set.setID), courseID: job.course.id, title: result.set.title)
+                        practicing = PracticeRoute(source: .set(id: result.set.setID), courseID: job.course.id, title: result.set.title, kind: Wording.kind(code: job.course.code))
                     } open: {
-                        tabs.openFolder(courseID: job.course.id, code: job.course.code, folderID: result.set.folderID)
+                        tabs.openFolder(courseID: job.course.id, name: Wording.name(code: job.course.code, title: job.course.title), folderID: result.set.folderID)
                     }
                 } else {
                     loading
@@ -649,7 +654,7 @@ private struct FinishedView: View {
                 .foregroundStyle(.qbank(.text1))
                 .accessibilityAddTraits(.isHeader)
                 .accessibilityIdentifier("make.done.title")
-            Text(MakeWording.finished(result, code: job.course.code))
+            Text(MakeWording.finished(result, course: Wording.name(code: job.course.code, title: job.course.title)))
                 .qbankFont(.subheadline)
                 .foregroundStyle(.qbank(.text2))
                 .multilineTextAlignment(.center)
@@ -704,9 +709,10 @@ private struct StoppedView: View {
 
     var body: some View {
         JobColumn {
+            let container = Wording.words(Wording.kind(code: job.course.code)).container
             Text(job.status == .cancelled
-                 ? "You stopped this set. Nothing was added to your course."
-                 : job.failure ?? "QBank could not finish this set. Nothing was added to your course.")
+                 ? "You stopped this set. Nothing was added to your \(container)."
+                 : job.failure ?? "QBank could not finish this set. Nothing was added to your \(container).")
                 .qbankFont(.body)
                 .foregroundStyle(.qbank(.text1))
                 .accessibilityIdentifier("make.stopped")

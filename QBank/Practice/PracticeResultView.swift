@@ -7,6 +7,7 @@ import SwiftUI
 /// stem, rationale and takeaway.
 struct PracticeResultView: View {
     let result: PracticeResult
+    var kind: CourseKind = .course
     let done: () -> Void
     @State private var expanded: Set<Int> = []
 
@@ -50,7 +51,7 @@ struct PracticeResultView: View {
                         }
                     }
                 }
-                Button("Back to course", action: done)
+                Button("Back to \(Wording.words(kind).container)", action: done)
                     .buttonStyle(.qbank(.primary, size: .large, fullWidth: true))
                     .accessibilityIdentifier("result.back")
             }

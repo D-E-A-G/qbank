@@ -46,11 +46,16 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary, Fak
         var name: String
         var startsOn: String?
         var endsOn: String?
+        /// Set by hand in Settings; nothing archives a semester on its own.
+        var archivedAt: String?
     }
 
-    /// A course with the counts Home shows. Courses added in Settings start at zero.
+    /// A course with the counts Home shows. Courses added in Settings start at zero. A study topic
+    /// is one too, of kind "topic", with no semester and no code.
     private struct FakeCourse {
         let id: String
+        var kind = "course"
+        /// Empty for a topic.
         var semesterID: String
         var code: String
         var title: String
@@ -243,7 +248,11 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary, Fak
         }
         switch (method, path) {
         case ("GET", "/api/semesters"):
-            return (200, ["semesters": semesters()])
+            return (200, catalog())
+        case ("POST", "/api/topics"):
+            return addTopic(title: body["title"] as? String ?? "")
+        case ("PUT", "/api/topic-order"):
+            return setTopicOrder(body["topicIds"] as? [String])
         case ("POST", "/api/semesters"):
             return addSemester(number: body["number"] as? Int)
         case ("POST", "/api/courses"):
@@ -362,19 +371,25 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary, Fak
 
     // MARK: Courses
 
-    private func semesters() -> [[String: Any]] {
+    /// Her semesters with their courses, and her study topics in her order.
+    private func catalog() -> [String: Any] {
         state.withLock { state in
-            state.semesters.sorted { $0.number < $1.number }.map { semester in
-                semesterJSON(semester, in: state)
-            }
+            [
+                "semesters": state.semesters.sorted { $0.number < $1.number }.map { semesterJSON($0, in: state) },
+                "topics": Self.topics(in: state).map { courseJSON($0, in: state) },
+            ]
         }
+    }
+
+    private static func topics(in state: State) -> [FakeCourse] {
+        state.courses.filter { $0.kind == "topic" }.sorted { $0.sortOrder < $1.sortOrder }
     }
 
     private func semesterJSON(_ semester: FakeSemester, in state: State) -> [String: Any] {
         [
             "id": semester.id, "number": semester.number, "name": semester.name,
-            "startsOn": json(semester.startsOn), "endsOn": json(semester.endsOn),
-            "courses": state.courses.filter { $0.semesterID == semester.id }.sorted { $0.sortOrder < $1.sortOrder }.map { courseJSON($0, in: state) },
+            "startsOn": json(semester.startsOn), "endsOn": json(semester.endsOn), "archivedAt": json(semester.archivedAt),
+            "courses": state.courses.filter { $0.kind == "course" && $0.semesterID == semester.id }.sorted { $0.sortOrder < $1.sortOrder }.map { courseJSON($0, in: state) },
         ]
     }
 
@@ -383,7 +398,7 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary, Fak
         // The two studied courses count the folders she has now; the others, their invented count.
         let folders = study.knows(course.id) ? study.folders(course.id) : nil
         return [
-            "id": course.id, "code": course.code, "title": course.title, "sortOrder": course.sortOrder,
+            "id": course.id, "kind": course.kind, "code": course.code, "title": course.title, "sortOrder": course.sortOrder,
             "archivedAt": json(course.archivedAt),
             "questionCount": course.questions + importedQuestions(course.id, in: state),
             "weekCount": folders.map { Set($0.filter { !$0.sets.isEmpty }.map(\.name)).count } ?? course.folders,
@@ -464,6 +479,9 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary, Fak
                 let date = value?.isEmpty == false ? value : nil
                 if key == "startsOn" { semester.startsOn = date } else { semester.endsOn = date }
             }
+            if let archived = body["archived"] as? Bool {
+                semester.archivedAt = archived ? QBankJSON.formatDate(.now) : nil
+            }
             state.semesters[index] = semester
             return (200, semesterJSON(semester, in: state))
         }
@@ -498,6 +516,15 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary, Fak
                 return failure(404, "request_refused", "That course is not in the app.")
             }
             var course = state.courses[index]
+            if course.kind == "topic" {
+                switch updateTopic(course, body: body, in: state) {
+                case .success(let edited):
+                    state.courses[index] = edited
+                    return (200, courseJSON(edited, in: state))
+                case .failure(let refusal):
+                    return refusal.reply
+                }
+            }
             if let code = body["code"] as? String {
                 guard let text = requiredText(code, label: "Course code", maxLength: 32) else {
                     return failure(400, "request_refused", textProblem(code, label: "Course code"))
@@ -526,6 +553,64 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary, Fak
         }
     }
 
+    // MARK: Study topics, with the content service's rules
+
+    private func addTopic(title: String) -> Reply {
+        state.withLock { state -> Reply in
+            guard let text = requiredText(title, label: "Topic name", maxLength: 160) else {
+                return failure(400, "request_refused", textProblem(title, label: "Topic name"))
+            }
+            if let taken = topicTaken(text, except: nil, in: state) { return taken.reply }
+            state.tokenCount += 1
+            let topic = FakeCourse(
+                id: String(format: "7a0e0000-0000-4000-8000-%012d", 900 + state.tokenCount), kind: "topic",
+                semesterID: "", code: "", title: text, sortOrder: (Self.topics(in: state).map(\.sortOrder).max() ?? 0) + 1
+            )
+            state.courses.append(topic)
+            study.register(course: topic.id)
+            return (201, courseJSON(topic, in: state))
+        }
+    }
+
+    /// Refuses a list that does not name exactly her topics, archived ones too, once each.
+    private func setTopicOrder(_ ids: [String]?) -> Reply {
+        state.withLock { state -> Reply in
+            let topics = Self.topics(in: state)
+            guard let ids, ids.count == topics.count, Set(ids) == Set(topics.map(\.id)) else {
+                return failure(409, "request_refused", "Your topics changed. Reload and try again.")
+            }
+            for (position, id) in ids.enumerated() {
+                guard let index = state.courses.firstIndex(where: { $0.id == id }) else { continue }
+                state.courses[index].sortOrder = position + 1
+            }
+            return (200, ["topics": Self.topics(in: state).map { courseJSON($0, in: state) }])
+        }
+    }
+
+    /// A topic takes its name and archiving only.
+    private func updateTopic(_ topic: FakeCourse, body: [String: Any], in state: State) -> Result<FakeCourse, FakeStudy.Failure> {
+        if body["code"] != nil || body["semesterId"] != nil {
+            return .failure(FakeStudy.Failure(status: 400, message: "A topic has no code or semester."))
+        }
+        var edited = topic
+        if let title = body["title"] as? String {
+            guard let text = requiredText(title, label: "Topic name", maxLength: 160) else {
+                return .failure(FakeStudy.Failure(status: 400, message: textProblem(title, label: "Topic name")))
+            }
+            if let taken = topicTaken(text, except: topic.id, in: state) { return .failure(taken) }
+            edited.title = text
+        }
+        if let archived = body["archived"] as? Bool {
+            edited.archivedAt = archived ? QBankJSON.formatDate(.now) : nil
+        }
+        return .success(edited)
+    }
+
+    private func topicTaken(_ title: String, except id: String?, in state: State) -> FakeStudy.Failure? {
+        let taken = Self.topics(in: state).contains { $0.id != id && $0.title.lowercased() == title.lowercased() }
+        return taken ? FakeStudy.Failure(status: 409, message: "You already have a topic named \(title).") : nil
+    }
+
     private func requiredText(_ value: String, label: String, maxLength: Int) -> String? {
         let text = value.trimmingCharacters(in: .whitespacesAndNewlines)
         return text.isEmpty || text.count > maxLength ? nil : text
@@ -544,10 +629,10 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary, Fak
     private func stored(_ id: String) -> [String: Any] {
         state.withLock { state in
             let course = state.courses.first { $0.id == id }!
-            let semester = state.semesters.first { $0.id == course.semesterID }!
+            let semester = state.semesters.first { $0.id == course.semesterID }
             return [
-                "id": course.id, "code": course.code, "title": course.title, "archivedAt": json(course.archivedAt),
-                "semester": ["id": semester.id, "number": semester.number, "name": semester.name],
+                "id": course.id, "kind": course.kind, "code": course.code, "title": course.title, "archivedAt": json(course.archivedAt),
+                "semester": semester.map { ["id": $0.id, "number": $0.number, "name": $0.name] as Any } ?? NSNull(),
             ]
         }
     }
@@ -698,12 +783,14 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary, Fak
             guard !title.isEmpty else { return failure(400, "request_refused", "Set name is required.") }
         }
         let courseID = body["courseId"] as? String, newCourse = body["newCourse"] as? [String: Any]
+        let newTopic = body["newTopic"] as? [String: Any]
         let folderID = body["folderId"] as? String
         let folderName = ((body["folderName"] ?? body["weekLabel"]) as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
-        if courseID != nil, newCourse != nil { return failure(400, "request_refused", "Choose a course or a new course, not both.") }
-        if courseID == nil, newCourse == nil { return failure(400, "request_refused", "Choose a course.") }
+        let chosen = [courseID != nil, newCourse != nil, newTopic != nil].count { $0 }
+        if chosen > 1 { return failure(400, "request_refused", "Choose a course, a new course or a new topic, not more than one.") }
+        if chosen == 0 { return failure(400, "request_refused", "Choose a course.") }
         if folderID != nil, folderName != nil { return failure(400, "request_refused", "Choose a folder or a folder name, not both.") }
-        if folderID != nil, newCourse != nil {
+        if folderID != nil, newCourse != nil || newTopic != nil {
             return failure(400, "request_refused", "A new course has no folders yet. Name a folder, or leave it for Unsorted.")
         }
         if let folderName, folderName.isEmpty { return failure(400, "request_refused", "Folder name is required.") }
@@ -713,6 +800,12 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary, Fak
             case .success(let made): course = made
             case .failure(let refusal): return refusal.reply
             }
+        } else if let newTopic {
+            let (status, made) = addTopic(title: newTopic["title"] as? String ?? "")
+            guard status == 201, let id = made["id"] as? String, let topic = state.withLock({ state in state.courses.first { $0.id == id } }) else {
+                return (status, made)
+            }
+            course = topic
         } else if let known = state.withLock({ state in state.courses.first { $0.id == courseID } }) {
             course = known
         } else {
@@ -750,7 +843,7 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary, Fak
         if check.kind == "exam" {
             study.file(bank: FakeStudy.ids("bank-\(id)", check.questionCount), in: folder.id)
         } else {
-            study.file(set: id, in: folder.id, replacing: replace)
+            study.file(set: id, in: folder.id, replacing: replace, questionCount: check.questionCount)
         }
         let page = study.folders(course.id).first { $0.id == folder.id }?.examPageID
         return (201, [
@@ -977,7 +1070,7 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary, Fak
             )
             return (setID, examID)
         }
-        study.file(set: setID, in: folder.id, replacing: nil)
+        study.file(set: setID, in: folder.id, replacing: nil, questionCount: questionCount)
         if let examID { study.file(bank: FakeStudy.ids("bank-\(examID)", examTwins), in: folder.id) }
         return FakeQuestionMaker.Filed(setID: setID, folderID: folder.id, folderName: folder.name, examPageID: folder.examPageID, examSetID: examID)
     }

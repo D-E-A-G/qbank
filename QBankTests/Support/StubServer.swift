@@ -159,17 +159,24 @@ enum Bodies {
         #"{"id":"\#(id)","code":"\#(code)","title":"Invented \#(code)","sortOrder":\#(order),"archivedAt":\#(archived ? #""2026-01-01T00:00:00.000Z""# : "null"),"questionCount":10,"weekCount":2,"reviewCount":\#(review),"answeredCount":\#(answered),"fullyRightCount":0,"points":0,"maxPoints":0}"#
     }
 
-    static func semester(id: String, number: Int, name: String? = nil, startsOn: String? = nil, endsOn: String? = nil, courses: [String] = []) -> String {
+    /// A study topic's card: a course of kind topic, with no code.
+    static func topic(id: String, title: String, order: Int = 1, archived: Bool = false, review: Int = 0, answered: Int = 0) -> String {
+        #"{"id":"\#(id)","kind":"topic","code":"","title":"\#(title)","sortOrder":\#(order),"archivedAt":\#(archived ? #""2026-01-01T00:00:00.000Z""# : "null"),"questionCount":10,"weekCount":2,"folderCount":2,"reviewCount":\#(review),"answeredCount":\#(answered),"fullyRightCount":0,"points":0,"maxPoints":0}"#
+    }
+
+    static func semester(
+        id: String, number: Int, name: String? = nil, startsOn: String? = nil, endsOn: String? = nil, archived: Bool = false, courses: [String] = []
+    ) -> String {
         let date = { (day: String?) in day.map { "\"\($0)\"" } ?? "null" }
-        return #"{"id":"\#(id)","number":\#(number),"name":"\#(name ?? "Semester \(number)")","startsOn":\#(date(startsOn)),"endsOn":\#(date(endsOn)),"courses":[\#(courses.joined(separator: ","))]}"#
+        return #"{"id":"\#(id)","number":\#(number),"name":"\#(name ?? "Semester \(number)")","startsOn":\#(date(startsOn)),"endsOn":\#(date(endsOn)),"archivedAt":\#(archived ? #""2026-01-01T00:00:00.000Z""# : "null"),"courses":[\#(courses.joined(separator: ","))]}"#
     }
 
-    static func catalog(_ semesters: [String]) -> String {
-        #"{"semesters":[\#(semesters.joined(separator: ","))]}"#
+    static func catalog(_ semesters: [String], topics: [String] = []) -> String {
+        #"{"semesters":[\#(semesters.joined(separator: ","))],"topics":[\#(topics.joined(separator: ","))]}"#
     }
 
-    static func semesters(_ courses: [String] = [course(id: "c1", code: "NURS 101")]) -> String {
-        #"{"semesters":[{"id":"s1","number":1,"name":"Semester 1","startsOn":null,"endsOn":null,"courses":[\#(courses.joined(separator: ","))]}]}"#
+    static func semesters(_ courses: [String] = [course(id: "c1", code: "NURS 101")], topics: [String] = []) -> String {
+        #"{"semesters":[{"id":"s1","number":1,"name":"Semester 1","startsOn":null,"endsOn":null,"courses":[\#(courses.joined(separator: ","))]}],"topics":[\#(topics.joined(separator: ","))]}"#
     }
 
     static func set(
@@ -184,10 +191,9 @@ enum Bodies {
         #"{"id":"\#(id)","code":"NURS 101","title":"Invented Basics","archivedAt":null,"semester":{"id":"s1","number":1,"name":"Semester 1"},"questionCount":10,"examQuestionCount":12,"weekCount":1,"termCount":3,"reviewCount":2,"answeredCount":0,"fullyRightCount":0,"points":0,"maxPoints":0,"weeks":[{"label":"Week 1","sets":[\#(sets.joined(separator: ","))],"examBankCount":2}]}"#
     }
 
-    /// The semesters of a `semesters` or `catalog` body.
-    static func decodeSemesters(_ body: String) throws -> [Semester] {
-        struct Response: Decodable { let semesters: [Semester] }
-        return try QBankJSON.decoder.decode(Response.self, from: Data(body.utf8)).semesters
+    /// A `semesters` or `catalog` body, as Home reads it.
+    static func decodeCatalog(_ body: String) throws -> Catalog {
+        try QBankJSON.decoder.decode(Catalog.self, from: Data(body.utf8))
     }
 
     /// The challenge cookie a passkey options answer sets.

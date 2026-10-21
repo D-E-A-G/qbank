@@ -14,7 +14,7 @@ struct ClientTests {
     @Test func noSessionMeansNothingIsSent() async throws {
         let transport = try FixtureTransport("semesters")
         let (client, _) = TestClient.make(transport, token: nil)
-        let error = await #expect(throws: QBankError.self) { try await client.semesters() }
+        let error = await #expect(throws: QBankError.self) { try await client.catalog() }
         #expect(error == .notSignedIn)
         #expect(error?.needsSignIn == true)
         #expect(transport.requests.isEmpty)
@@ -30,7 +30,7 @@ struct ClientTests {
     @Test func requestsAskForJSONAndCarryNoCookies() async throws {
         let transport = try FixtureTransport("semesters")
         let (client, _) = TestClient.make(transport)
-        _ = try await client.semesters()
+        _ = try await client.catalog()
         let request = try #require(transport.requests.first)
         #expect(request.value(forHTTPHeaderField: "Accept") == "application/json")
         #expect(request.value(forHTTPHeaderField: "Cookie") == nil)
@@ -40,7 +40,7 @@ struct ClientTests {
     @Test func noSignalIsATransportError() async throws {
         let transport = FixtureTransport(failing: URLError(.notConnectedToInternet))
         let (client, _) = TestClient.make(transport)
-        let error = await #expect(throws: QBankError.self) { try await client.semesters() }
+        let error = await #expect(throws: QBankError.self) { try await client.catalog() }
         #expect(error == .transport(.notConnectedToInternet))
         #expect(error?.isTemporary == true)
     }
@@ -48,14 +48,14 @@ struct ClientTests {
     @Test func cancellationIsReportedAsSuch() async throws {
         let transport = FixtureTransport(failing: URLError(.cancelled))
         let (client, _) = TestClient.make(transport)
-        let error = await #expect(throws: QBankError.self) { try await client.semesters() }
+        let error = await #expect(throws: QBankError.self) { try await client.catalog() }
         #expect(error == .cancelled)
     }
 
     @Test func proxyErrorPageIsUnexpectedAndTemporary() async throws {
         let transport = FixtureTransport(status: 502, body: "<html><body>Bad Gateway</body></html>")
         let (client, _) = TestClient.make(transport)
-        let error = await #expect(throws: QBankError.self) { try await client.semesters() }
+        let error = await #expect(throws: QBankError.self) { try await client.catalog() }
         guard case .unexpectedResponse(let status, let detail)? = error else {
             Issue.record("Expected an unexpected response, got \(String(describing: error))")
             return
@@ -68,7 +68,7 @@ struct ClientTests {
     @Test func bodyThatDoesNotMatchTheModelIsUnexpected() async throws {
         let transport = FixtureTransport(status: 200, body: #"{"semesters": [{"id": 1}]}"#)
         let (client, _) = TestClient.make(transport)
-        let error = await #expect(throws: QBankError.self) { try await client.semesters() }
+        let error = await #expect(throws: QBankError.self) { try await client.catalog() }
         guard case .unexpectedResponse(let status, _)? = error else {
             Issue.record("Expected an unexpected response")
             return
@@ -95,7 +95,7 @@ struct ClientTests {
     @Test func unknownErrorCodesStillDecode() async throws {
         let transport = FixtureTransport(status: 400, body: #"{"error": "something_new", "message": "A new refusal."}"#)
         let (client, _) = TestClient.make(transport)
-        let error = await #expect(throws: QBankError.self) { try await client.semesters() }
+        let error = await #expect(throws: QBankError.self) { try await client.catalog() }
         #expect(error?.serverCode == "something_new")
     }
 
@@ -129,14 +129,14 @@ struct ClientTests {
             transport: transport,
             sessionStore: store
         )
-        _ = try await client.semesters()
+        _ = try await client.catalog()
         #expect(transport.requests.first?.url?.absoluteString == "https://example.invalid/qbank/api/semesters")
     }
 
     @Test func storageFailureIsReported() async throws {
         let transport = try FixtureTransport("semesters")
         let client = QBankClient(configuration: APIConfiguration(baseURL: TestClient.baseURL), transport: transport, sessionStore: BrokenSessionStore())
-        let error = await #expect(throws: QBankError.self) { try await client.semesters() }
+        let error = await #expect(throws: QBankError.self) { try await client.catalog() }
         guard case .storage(let storage)? = error else {
             Issue.record("Expected a storage error")
             return

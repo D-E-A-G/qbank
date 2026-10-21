@@ -137,7 +137,7 @@ struct MakeQuestionsTests {
         #expect(result.set.folderName == "Unsorted")
         #expect(result.examSet?.questionCount == 15)
         #expect(MakeWording.blindCheck(try #require(result.blindCheck)) == "14 of 15 passed the blind check · 1 fixed")
-        #expect(MakeWording.finished(result, code: "NURS 310") == "“Unsorted Practice” · 15 questions in NURS 310, Unsorted.")
+        #expect(MakeWording.finished(result, course: "NURS 310") == "“Unsorted Practice” · 15 questions in NURS 310, Unsorted.")
 
         let course = CourseModel(app: app, id: FakeQBankServer.mentalHealthID)
         await course.load()

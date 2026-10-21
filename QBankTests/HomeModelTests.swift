@@ -111,7 +111,7 @@ struct HomeModelTests {
         let (app, _) = TestApp.make(server, account: .student())
         let model = HomeModel(app: app)
         await model.load()
-        #expect(await model.landingCourse() == CourseRoute(id: "c1", code: "NURS 101"))
+        #expect(await model.landingCourse() == CourseRoute(id: "c1", name: "NURS 101"))
         #expect(await model.landingCourse() == nil)
         #expect(server.calls.filter { $0 == "GET /api/me/place" }.count == 1)
     }

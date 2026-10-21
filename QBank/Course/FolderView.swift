@@ -46,7 +46,7 @@ struct FolderView: View {
                     .padding(.bottom, QBankSpacing.space7)
             } else if model.course != nil, !isDeleted {
                 // Removed elsewhere, such as on the web, while it was open here.
-                EmptyCard(message: "This folder is not in the course anymore.", systemImage: "folder")
+                EmptyCard(message: "This folder is not in the \(model.words.container) anymore.", systemImage: "folder")
                     .screenColumn()
                     .padding(.top, QBankSpacing.space4)
             }
@@ -90,7 +90,7 @@ struct FolderView: View {
                         Task { await model.load() }
                         // A replaced set stays in its own folder, which may be another one.
                         if set.folderID != id {
-                            tabs?.openFolder(courseID: set.courseID, code: set.courseCode, folderID: set.folderID)
+                            tabs?.openFolder(courseID: set.courseID, name: model.course.map(Wording.name), folderID: set.folderID)
                         }
                     }
                 }
@@ -105,7 +105,7 @@ struct FolderView: View {
 
     private func content(_ folder: Folder) -> some View {
         VStack(alignment: .leading, spacing: QBankSpacing.space4) {
-            Text(FolderWording.folderNote(folder, page: model.page(of: folder)))
+            Text(FolderWording.folderNote(folder, page: model.page(of: folder), words: model.words))
                 .qbankFont(.subheadline)
                 .foregroundStyle(.qbank(.text2))
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -127,7 +127,7 @@ struct FolderView: View {
                 Button {
                     sheet = .page
                 } label: {
-                    Label(model.page(of: folder)?.name ?? "Exam page", systemImage: "square.stack.3d.up")
+                    Label(model.page(of: folder)?.name ?? model.words.pageTitle, systemImage: "square.stack.3d.up")
                 }
                 .accessibilityLabel("Exam page: \(model.page(of: folder)?.name ?? "none")")
                 .accessibilityIdentifier("folder.page")
@@ -175,7 +175,7 @@ struct FolderView: View {
                             }
                         } else {
                             SetRow(set: set, isRestoring: model.isRestoring, isStudent: model.isStudent) {
-                                practicing = PracticeRoute(source: .set(id: set.id), courseID: model.id, title: set.title)
+                                practicing = PracticeRoute(source: .set(id: set.id), courseID: model.id, title: set.title, kind: model.course?.kind ?? .course)
                             } restore: {
                                 Task { await model.restore(set) }
                             }

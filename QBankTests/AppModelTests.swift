@@ -90,13 +90,13 @@ struct AppModelTests {
         let server = StubServer(["GET /api/semesters": .ok(Bodies.semesters()), "POST /api/sign-out": .ok(#"{"status":"ok"}"#)])
         let (app, _) = TestApp.make(server, account: .student(), storage: storage, connection: Connection(isOnline: false))
         try await Self.waitingAnswer(app)
-        _ = try await app.offline?.load(.semesters) { () async throws(QBankError) in try await app.client.semesters() }
+        _ = try await app.offline?.load(.catalog) { () async throws(QBankError) in try await app.client.catalog() }
         await app.signOut()
         #expect(app.offline == nil)
 
         let (again, _) = TestApp.make(server, account: .student(), storage: storage)
         #expect(again.offline?.waiting.isEmpty == true)
-        #expect(await again.offline?.saved(.semesters) == nil)
+        #expect(await again.offline?.saved(.catalog) == nil)
     }
 
     @Test func signOutLeavesNoFilesOfHersOnThePhone() async throws {

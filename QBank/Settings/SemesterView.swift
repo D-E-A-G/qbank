@@ -2,7 +2,8 @@ import QBankDesign
 import QBankKit
 import SwiftUI
 
-/// One semester, with the web's fields: its name and dates, its courses, and adding a course.
+/// One semester, with the web's fields: its name and dates, its courses, adding a course, and
+/// archiving it by hand.
 struct SemesterView: View {
     @State private var model: SemesterModel
     @FocusState private var focus: Field?
@@ -23,6 +24,7 @@ struct SemesterView: View {
                 details
                 courses
                 addCourse
+                archive
             }
             .screenColumn()
             .padding(.top, QBankSpacing.space3)
@@ -129,6 +131,39 @@ struct SemesterView: View {
             .buttonStyle(.qbank(.secondary, size: .large, fullWidth: true))
             .disabled(model.isAddingCourse)
             .accessibilityIdentifier("semester.addCourse")
+        }
+    }
+
+    /// By hand only: nothing archives a semester when it ends.
+    private var archive: some View {
+        VStack(alignment: .leading, spacing: QBankSpacing.space3) {
+            QBankListGroup(footer: model.isArchived
+                ? "Unarchiving brings the semester and its courses back to Home."
+                : "An archived semester moves to Archived, at the bottom of Home, with its courses. Your answers in them stay."
+            ) {
+                Button {
+                    focus = nil
+                    Task { await model.toggleArchived() }
+                } label: {
+                    QBankListRow(
+                        "\(model.isArchived ? "Unarchive" : "Archive") \(model.semester?.name ?? "semester")",
+                        systemImage: model.isArchived ? "tray.and.arrow.up" : "archivebox"
+                    ) {
+                        if model.isArchiving {
+                            ProgressView()
+                        }
+                    }
+                }
+                .buttonStyle(.qbankRow)
+                .disabled(model.isArchiving || model.isSaving)
+                .accessibilityIdentifier("semester.archive")
+            }
+            if let problem = model.archiveProblem {
+                ProblemText(text: problem)
+            }
+            if let note = model.archiveNote {
+                SavedText(text: note)
+            }
         }
     }
 
