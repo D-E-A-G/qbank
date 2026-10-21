@@ -2,8 +2,9 @@ import Foundation
 import Observation
 import QBankKit
 
-/// One course: its score line, the Exam, Review and Terms tiles, its exam pages and its folders.
-/// The course page, an exam page and a folder share one model, so an edit on one shows on all.
+/// One course or study topic: its score line, the Exam, Review and Terms tiles, its exam pages (a
+/// topic's study pages) and its folders. The course page, an exam page and a folder share one
+/// model, so an edit on one shows on all.
 /// Without a connection it shows the copy saved on the phone, with her waiting answers counted in.
 @Observable
 final class CourseModel {
@@ -57,7 +58,12 @@ final class CourseModel {
 
     /// The course as the study screens name it.
     var ref: CourseRef? {
-        course.map { CourseRef(id: $0.id, code: $0.code, title: $0.title) }
+        course.map { CourseRef(id: $0.id, code: $0.code, title: $0.title, kind: $0.kind) }
+    }
+
+    /// The words its screens say: a topic's say topic and study page. A course's until it loads.
+    var words: KindWords {
+        Wording.words(course?.kind ?? .course)
     }
 
     var layout: CourseLayout? {
@@ -142,16 +148,9 @@ final class CourseModel {
 
     // MARK: Editing her folders
 
-    /// The next free exam page name: Exam 1, Exam 2, ...
-    var nextExamName: String {
-        Self.nextExamName(after: course?.exams.map(\.name) ?? [])
-    }
-
-    nonisolated static func nextExamName(after names: [String]) -> String {
-        let taken = Set(names.map { $0.trimmingCharacters(in: .whitespaces).lowercased() })
-        var number = names.count + 1
-        while taken.contains("exam \(number)") { number += 1 }
-        return "Exam \(number)"
+    /// The next free page name: Exam 1, Exam 2, ... in a course, Page 1, Page 2, ... in a topic.
+    var nextPageName: String {
+        Wording.nextPageName(after: course?.exams.map(\.name) ?? [], kind: course?.kind ?? .course)
     }
 
     /// Renames a folder. Returns what went wrong in her words, or nil once it is saved.

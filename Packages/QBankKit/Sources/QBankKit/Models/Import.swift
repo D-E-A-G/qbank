@@ -27,18 +27,21 @@ public struct ImportReport: Codable, Sendable, Equatable {
 /// What `QBankClient.importSet` sends: the file, its course and folder, and what to do about a set
 /// of the same name.
 public struct ImportRequest: Sendable, Equatable {
-    /// The course the set goes into.
+    /// The course or topic the set goes into.
     public enum Course: Sendable, Equatable {
+        /// One of her courses or topics.
         case existing(id: String)
         /// A course made by the import, in semester `semesterNumber` (1, 2, or 3).
         case new(code: String, title: String, semesterNumber: Int)
+        /// A study topic made by the import, named `title`.
+        case newTopic(title: String)
     }
 
     /// The folder the set goes into.
     public enum Folder: Sendable, Equatable {
         /// The course's Unsorted folder, made at the top of its Folders list the first time.
         case unsorted
-        /// One of the course's folders. Not with a new course, which has none yet.
+        /// One of the course's folders. Not with a new course or topic, which has none yet.
         case id(String)
         /// A folder by name: the course's folder of that name on no exam page, else its only folder
         /// of that name, else a new folder at the end of its Folders list.
@@ -155,8 +158,12 @@ struct ImportSetRequest: Encodable {
         let semesterNumber: Int
     }
 
+    private struct NewTopic: Encodable {
+        let title: String
+    }
+
     private enum CodingKeys: String, CodingKey {
-        case source, title, courseId, newCourse, folderId, folderName, decision
+        case source, title, courseId, newCourse, newTopic, folderId, folderName, decision
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -168,6 +175,8 @@ struct ImportSetRequest: Encodable {
             try container.encode(id, forKey: .courseId)
         case .new(let code, let title, let semesterNumber):
             try container.encode(NewCourse(code: code, title: title, semesterNumber: semesterNumber), forKey: .newCourse)
+        case .newTopic(let title):
+            try container.encode(NewTopic(title: title), forKey: .newTopic)
         }
         switch request.folder {
         case .unsorted:

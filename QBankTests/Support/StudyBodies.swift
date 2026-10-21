@@ -20,10 +20,23 @@ enum StudyBodies {
         return #"{"id":"\#(id)","title":"Invented \#(id)","description":"","questionCount":\#(questions),"importedAt":"2026-10-01T00:00:00.000Z","activeSince":"2026-10-01T00:00:00.000Z","status":"imported","canRestore":false,"answeredCount":\#(answered),"fullyRightCount":\#(right),"lastAnsweredAt":\#(last),"questionIds":[\#(ids)]}"#
     }
 
-    static func courseExam(_ id: String, _ name: String, order: Int, weeks: [String], folders: [String]? = nil) -> String {
+    static func courseExam(_ id: String, _ name: String, order: Int, weeks: [String], folders: [String]? = nil, link: String? = nil) -> String {
         let list = { (items: [String]) in items.map { "\"\($0)\"" }.joined(separator: ",") }
         let folderField = folders.map { #","folderIds":[\#(list($0))]"# } ?? ""
-        return #"{"id":"\#(id)","name":"\#(name)","sortOrder":\#(order),"weekLabels":[\#(list(weeks))]\#(folderField)}"#
+        let linkField = link.map { #","linkUrl":"\#($0)""# } ?? ""
+        return #"{"id":"\#(id)","name":"\#(name)","sortOrder":\#(order),"weekLabels":[\#(list(weeks))]\#(folderField)\#(linkField)}"#
+    }
+
+    /// A study topic, as `GET /api/courses/{id}` answers for one: no semester, no code, a study
+    /// page Page 1 holding its first folder, with a primer link, and Unsorted on no page.
+    static func topicDetail(id: String = "t1", title: String = "Invented Systems Design", link: String? = "https://notes.example.com/caching") -> String {
+        let folders = [
+            folder("tf1", "Caching", page: "tp1", order: 1, sets: [set("cache", questions: 3)]),
+            folder("tf2", "Unsorted", order: 1, sets: [set("loose", questions: 1)]),
+        ]
+        let page = courseExam("tp1", "Page 1", order: 1, weeks: ["Caching"], folders: ["tf1"], link: link)
+        let weeks = [week("Caching", sets: [set("cache", questions: 3)]), week("Unsorted", sets: [set("loose", questions: 1)])]
+        return #"{"id":"\#(id)","kind":"topic","code":"","title":"\#(title)","archivedAt":null,"semester":null,"questionCount":4,"examQuestionCount":4,"weekCount":2,"folderCount":2,"termCount":0,"reviewCount":0,"answeredCount":0,"fullyRightCount":0,"points":0,"maxPoints":0,"weeks":[\#(weeks.joined(separator: ","))],"exams":[\#(page)],"folders":[\#(folders.joined(separator: ","))]}"#
     }
 
     /// The three folders of `course()`, by id, name, and sets: Week 1 done, Week 2 started, Week 3

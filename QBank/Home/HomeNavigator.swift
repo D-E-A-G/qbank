@@ -1,4 +1,5 @@
 import Observation
+import QBankKit
 import SwiftUI
 
 /// The Home tab's navigation, so a screen deep in it can open another one or step back, as the
@@ -77,11 +78,13 @@ enum StudyRoute: Hashable {
     case twinJob(TwinJobRoute)
 }
 
-/// The course a study screen belongs to, with what its subtitle says before anything loads.
-struct CourseRef: Hashable {
+/// The course or topic a study screen belongs to, with what its subtitle says before anything loads.
+nonisolated struct CourseRef: Hashable, CourseNaming {
     let id: String
     let code: String
     let title: String
+    /// Picks the words of the screens it leads to: a topic's say topic and study page.
+    var kind: CourseKind = .course
 }
 
 /// The Exam setup screen, from the Exam tile with nothing ticked, or from an exam page's Start

@@ -10,7 +10,7 @@ struct ImportView: View {
     let app: AppModel
     @State private var model: ImportModel
     /// Opens the folder the set went into.
-    let openFolder: (ImportedSet) -> Void
+    let openFolder: (ImportModel.Done) -> Void
     @State private var picksFile = false
     @FocusState private var focus: Field?
 
@@ -18,13 +18,14 @@ struct ImportView: View {
         case paste
         case code
         case courseName
+        case topicName
         case folderName
         case title
     }
 
     /// - Parameters:
     ///   - courseID: With `folderID`, the folder "Import here" was tapped on, picked when it opens.
-    init(app: AppModel, courseID: String? = nil, folderID: String? = nil, openFolder: @escaping (ImportedSet) -> Void) {
+    init(app: AppModel, courseID: String? = nil, folderID: String? = nil, openFolder: @escaping (ImportModel.Done) -> Void) {
         self.app = app
         self.openFolder = openFolder
         _model = State(initialValue: ImportModel(app: app, courseID: courseID, folderID: folderID))
@@ -36,7 +37,7 @@ struct ImportView: View {
                 Group {
                     if let done = model.done {
                         DoneView(done: done) {
-                            openFolder(done.set)
+                            openFolder(done)
                         } another: {
                             Task { await model.startOver() }
                         }
@@ -90,8 +91,12 @@ struct ImportView: View {
             case .paste: pasteField
             }
             CourseMenu(destination: model.destination)
-            if model.destination.courseID == nil, model.destination.courses != nil {
-                newCourseFields
+            if model.destination.courses != nil {
+                if model.destination.makesTopic {
+                    newTopicField
+                } else if model.destination.makesCourse {
+                    newCourseFields
+                }
             }
             FolderPicker(destination: model.destination, focus: $focus, nameField: .folderName)
             LabeledField(label: "Set name", hint: "Filled from the file’s title. You can change it.") {
@@ -176,6 +181,18 @@ struct ImportView: View {
                 .accessibilityLabel("Paste JSON")
                 .accessibilityIdentifier("import.paste")
             FieldHint("Paste the JSON from Codex.")
+        }
+    }
+
+    /// A new topic needs only its name.
+    private var newTopicField: some View {
+        @Bindable var destination = model.destination
+        return LabeledField(label: "Topic name") {
+            TextField("Spanish verbs", text: $destination.newTopicName)
+                .textInputAutocapitalization(.words)
+                .focused($focus, equals: .topicName)
+                .accessibilityLabel("Topic name")
+                .accessibilityIdentifier("import.newTopicName")
         }
     }
 
@@ -267,7 +284,7 @@ struct ImportHereSheet: View {
 
     var body: some View {
         NavigationStack {
-            ImportView(app: app, courseID: courseID, folderID: folderID, openFolder: finished)
+            ImportView(app: app, courseID: courseID, folderID: folderID) { finished($0.set) }
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
@@ -279,8 +296,8 @@ struct ImportHereSheet: View {
     }
 }
 
-/// The course a new set goes into, as a menu of her courses, with New course last when the
-/// import can make one.
+/// The course a new set goes into, as a menu of her courses, then New course and New topic when
+/// the import can make one. Once she has a study topic, her courses and her topics are two groups.
 struct CourseMenu: View {
     let destination: SetDestination
 
@@ -288,14 +305,21 @@ struct CourseMenu: View {
         VStack(alignment: .leading, spacing: 6) {
             FieldTitle("Course")
             Menu {
-                Picker("Course", selection: Binding(get: { destination.courseID.map(SetDestination.CourseChoice.existing) ?? .new }, set: { next in
+                Picker("Course", selection: Binding(get: { destination.menuChoice }, set: { next in
                     Task { await destination.chooseCourse(next) }
                 })) {
-                    ForEach(destination.courses ?? []) { course in
-                        Text(SetDestination.label(course)).tag(SetDestination.CourseChoice.existing(course.id))
+                    let courses = destination.courses ?? []
+                    if destination.topics.isEmpty {
+                        options(courses)
+                    } else {
+                        if !courses.isEmpty {
+                            Section("Courses") { options(courses) }
+                        }
+                        Section("Study topics") { options(destination.topics) }
                     }
                     if destination.allowsNewCourse {
                         Text("New course").tag(SetDestination.CourseChoice.new)
+                        Text("New topic").tag(SetDestination.CourseChoice.newTopic)
                     }
                 }
             } label: {
@@ -304,6 +328,12 @@ struct CourseMenu: View {
             .disabled(destination.courses == nil)
             .accessibilityLabel("Course: \(destination.courseLabel)")
             .accessibilityIdentifier("import.course")
+        }
+    }
+
+    private func options(_ courses: [CourseSummary]) -> some View {
+        ForEach(courses) { course in
+            Text(SetDestination.label(course)).tag(SetDestination.CourseChoice.existing(course.id))
         }
     }
 }

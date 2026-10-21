@@ -4,7 +4,8 @@ import SwiftUI
 
 /// A course: score line, the Exam, Review and Terms tiles, then two lists, as the iPhone Files app
 /// lists things: her exam pages, and the folders on no exam page. Each exam page and each folder
-/// opens as its own screen, sharing this screen's model.
+/// opens as its own screen, sharing this screen's model. A study topic is the same screen, called
+/// by its name, with study pages for exam pages; `Wording.words(_:)` picks what differs.
 struct CourseView: View {
     let app: AppModel
     let route: CourseRoute
@@ -32,7 +33,7 @@ struct CourseView: View {
                 .padding(.bottom, QBankSpacing.space7)
         }
         .qbankScreenBackground()
-        .navigationTitle(model.course?.code ?? route.code ?? "Course")
+        .navigationTitle(model.course.map(Wording.name) ?? route.name ?? "Course")
         .screenColumnTitle()
         .refreshable { await model.load() }
         .reloadsWithConnection(app) { await model.load() }
@@ -92,7 +93,7 @@ struct CourseView: View {
                 }
                 tiles(course, ref: ref)
                 if course.folders.isEmpty, layout.pages.isEmpty {
-                    EmptyCard(message: "This course has no question sets yet.")
+                    EmptyCard(message: "This \(model.words.container) has no question sets yet.")
                         .padding(.top, QBankSpacing.space3)
                 } else {
                     examPages(layout)
@@ -110,13 +111,13 @@ struct CourseView: View {
                 Task { await model.load() }
             }
         } else {
-            Loading(title: "Loading the course")
+            Loading(title: "Loading the \(Wording.words(route.kind).container)")
         }
     }
 
     private func summary(_ course: CourseDetail) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("\(course.title) · \(Wording.size(questions: course.questionCount, folders: course.folderCount))")
+            Text(Wording.summary(course))
             if let score = Wording.score(course) {
                 Text(score)
             }
@@ -148,11 +149,12 @@ struct CourseView: View {
 
     private func examPages(_ layout: CourseLayout) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            SectionHead(title: "Exam pages", action: "New", label: "New exam page", identifier: "course.newPage", isEnabled: model.canEdit && order == nil) {
+            let words = model.words
+            SectionHead(title: words.pages, action: "New", label: "New \(words.page)", identifier: "course.newPage", isEnabled: model.canEdit && order == nil) {
                 makesPage = true
             }
             if layout.pages.isEmpty {
-                EmptyCard(message: "No exam pages yet. Tap New to make \(model.nextExamName).", systemImage: "square.stack.3d.up")
+                EmptyCard(message: "No \(words.pages.lowercased()) yet. Tap New to make \(model.nextPageName).", systemImage: "square.stack.3d.up")
                     .accessibilityIdentifier("course.noPages")
             } else {
                 QBankListGroup {
@@ -180,7 +182,7 @@ struct CourseView: View {
                 editOrder(layout.looseFolders)
             }
             FolderList(folders: layout.looseFolders, order: $order)
-            Text(order == nil ? "Folders on no exam page. Open one to see its sets." : "Drag a folder by its grip, or use the arrows, to put them in your order.")
+            Text(order == nil ? "Folders on no \(model.words.page). Open one to see its sets." : "Drag a folder by its grip, or use the arrows, to put them in your order.")
                 .qbankFont(.footnote)
                 .foregroundStyle(.qbank(.text3))
                 .padding(.horizontal, QBankSpacing.space5)
@@ -248,7 +250,7 @@ private struct ExamCover: ViewModifier {
 
     func body(content: Content) -> some View {
         content.fullScreenCover(item: $route, onDismiss: closed) { route in
-            ExamView(app: app, examID: route.id) { how in
+            ExamView(app: app, examID: route.id, kind: model.course?.kind ?? .course) { how in
                 exit = how
                 self.route = nil
             }

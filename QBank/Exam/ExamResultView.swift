@@ -10,6 +10,7 @@ struct ExamResultView: View {
     let exam: Exam
     let result: ExamResult
     let isStudent: Bool
+    var kind: CourseKind = .course
     let close: (ExamExit) -> Void
     @State private var expanded: Set<String> = []
 
@@ -27,7 +28,7 @@ struct ExamResultView: View {
                 }
                 breakdown("By clinical judgment step", rows: result.byStep) { _ in nil }
                 questions
-                Button("Back to course") { close(.backToCourse) }
+                Button("Back to \(Wording.words(kind).container)") { close(.backToCourse) }
                     .buttonStyle(.qbank(.secondary, size: .large, fullWidth: true))
                     .accessibilityIdentifier("examResult.back")
             }

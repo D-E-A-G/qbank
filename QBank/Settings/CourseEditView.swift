@@ -80,7 +80,7 @@ struct CourseEditView: View {
                 }
                 QBankListGroup(footer: model.isArchived
                     ? "Unarchiving brings the course back to Home."
-                    : "An archived course leaves Home. Your answers in it stay."
+                    : "An archived course moves to Archived, at the bottom of Home. Your answers in it stay."
                 ) {
                     Button {
                         Task { await model.toggleArchived() }

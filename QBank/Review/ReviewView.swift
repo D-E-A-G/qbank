@@ -18,7 +18,7 @@ struct ReviewView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: QBankSpacing.space4) {
-                Text("\(model.course.code) · what you missed or guessed")
+                Text("\(Wording.name(model.course)) · what you missed or guessed")
                     .qbankFont(.subheadline)
                     .foregroundStyle(.qbank(.text2))
                 if model.savedAt != nil {

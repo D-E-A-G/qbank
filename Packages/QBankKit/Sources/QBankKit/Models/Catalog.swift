@@ -1,5 +1,45 @@
 import Foundation
 
+/// `GET /api/semesters`: her semesters, each with its courses, and her study topics.
+public struct Catalog: Codable, Sendable, Equatable {
+    public let semesters: [Semester]
+    /// Her study topics in her order, archived ones included. Empty from a server before topics.
+    public let topics: [CourseSummary]
+
+    public init(semesters: [Semester], topics: [CourseSummary] = []) {
+        self.semesters = semesters
+        self.topics = topics
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case semesters, topics
+    }
+
+    public init(from decoder: any Decoder) throws {
+        // A copy saved on the phone before topics holds the semesters alone, as a list.
+        if let semesters = try? decoder.singleValueContainer().decode([Semester].self) {
+            self.init(semesters: semesters)
+            return
+        }
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            semesters: try container.decode([Semester].self, forKey: .semesters),
+            // Added with topics.
+            topics: try container.decodeIfPresent([CourseSummary].self, forKey: .topics) ?? []
+        )
+    }
+
+    /// Every course and topic, the archived ones too.
+    public var everyCourse: [CourseSummary] {
+        semesters.flatMap(\.courses) + topics
+    }
+
+    /// Her course or topic with this id.
+    public func course(id: String) -> CourseSummary? {
+        everyCourse.first { $0.id == id }
+    }
+}
+
 /// A semester and its courses, as Home lists them.
 public struct Semester: Codable, Sendable, Equatable, Identifiable {
     public let id: String
@@ -8,7 +48,19 @@ public struct Semester: Codable, Sendable, Equatable, Identifiable {
     /// A calendar date such as `2026-01-12`, or nil.
     public let startsOn: String?
     public let endsOn: String?
+    /// When she archived it by hand, or nil. Nil from a server before archiving semesters.
+    public let archivedAt: Date?
     public let courses: [CourseSummary]
+
+    public init(id: String, number: Int, name: String, startsOn: String?, endsOn: String?, archivedAt: Date? = nil, courses: [CourseSummary]) {
+        self.id = id
+        self.number = number
+        self.name = name
+        self.startsOn = startsOn
+        self.endsOn = endsOn
+        self.archivedAt = archivedAt
+        self.courses = courses
+    }
 }
 
 /// What a course row is: a course in a semester, or a study topic, which has no semester and an
@@ -190,8 +242,8 @@ public struct CourseDetail: Codable, Sendable, Equatable, Identifiable {
     }
 }
 
-/// An exam page of a course, such as "Exam 1", and the folders on it. A folder is on one exam
-/// page of its course at most.
+/// An exam page of a course, such as "Exam 1", and the folders on it; in a topic, a study page.
+/// A folder is on one exam page of its course at most.
 public struct CourseExam: Codable, Sendable, Equatable, Identifiable {
     public let id: String
     public let name: String
@@ -201,18 +253,23 @@ public struct CourseExam: Codable, Sendable, Equatable, Identifiable {
     /// Its folders (`CourseDetail.folders` with this `examPageID`), in her order on the page.
     /// Empty from a server older than folders.
     public let folderIDs: [String]
+    /// Its primer: the web address where she wrote the page up, which the page opens, or nil.
+    /// Nil from a server before primer links.
+    public let linkURL: String?
 
-    public init(id: String, name: String, sortOrder: Int, weekLabels: [String], folderIDs: [String] = []) {
+    public init(id: String, name: String, sortOrder: Int, weekLabels: [String], folderIDs: [String] = [], linkURL: String? = nil) {
         self.id = id
         self.name = name
         self.sortOrder = sortOrder
         self.weekLabels = weekLabels
         self.folderIDs = folderIDs
+        self.linkURL = linkURL
     }
 
     enum CodingKeys: String, CodingKey {
         case id, name, sortOrder, weekLabels
         case folderIDs = "folderIds"
+        case linkURL = "linkUrl"
     }
 
     public init(from decoder: any Decoder) throws {
@@ -222,13 +279,44 @@ public struct CourseExam: Codable, Sendable, Equatable, Identifiable {
         sortOrder = try container.decode(Int.self, forKey: .sortOrder)
         weekLabels = try container.decode([String].self, forKey: .weekLabels)
         folderIDs = try container.decodeIfPresent([String].self, forKey: .folderIDs) ?? []
+        linkURL = try container.decodeIfPresent(String.self, forKey: .linkURL)
     }
+}
+
+/// What saving an exam page does to its primer link.
+public enum PrimerLink: Sendable, Equatable {
+    /// Leaves it as it is, or none on a new page: a course's exam page has no link field.
+    case unchanged
+    /// Takes it off.
+    case none
+    /// An http or https address, which the server checks.
+    case url(String)
 }
 
 /// The body of `POST /api/courses/{id}/course-exams` and `PUT /api/course-exams/{id}`.
 struct CourseExamRequest: Encodable {
     let name: String
     let folderIds: [String]
+    let link: PrimerLink
+
+    private enum CodingKeys: String, CodingKey {
+        case name, folderIds, linkUrl
+    }
+
+    func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(name, forKey: .name)
+        try container.encode(folderIds, forKey: .folderIds)
+        switch link {
+        case .unchanged:
+            // Left out, PUT keeps the page's link.
+            break
+        case .none:
+            try container.encodeNil(forKey: .linkUrl)
+        case .url(let url):
+            try container.encode(url, forKey: .linkUrl)
+        }
+    }
 }
 
 /// A folder of a course: her practice sets, on one exam page or none. Its id is its identity, so

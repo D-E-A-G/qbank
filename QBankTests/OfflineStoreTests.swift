@@ -241,19 +241,19 @@ struct OfflineStoreTests {
         let savedAt = Date(timeIntervalSince1970: 1_790_000_000)
         let store = Self.store(server, storage: PhoneStorage.memory().open("a1"), now: { savedAt })
         let client = Self.client(server)
-        let fresh = try await store.load(.semesters) { () async throws(QBankError) in try await client.semesters() }
+        let fresh = try await store.load(.catalog) { () async throws(QBankError) in try await client.catalog() }
         #expect(fresh.savedAt == nil)
 
         for reply in [StubServer.Reply.offline, .error(503, "auth_unavailable", "Down."), StubServer.Reply(status: 502, body: "<html>")] {
             server["GET /api/semesters"] = reply
-            let copy = try await store.load(.semesters) { () async throws(QBankError) in try await client.semesters() }
+            let copy = try await store.load(.catalog) { () async throws(QBankError) in try await client.catalog() }
             #expect(copy.savedAt == savedAt)
             #expect(copy.value == fresh.value)
         }
 
         server["GET /api/semesters"] = .error(404, "request_refused", "Gone.")
         await #expect(throws: QBankError.server(ServerError(status: 404, code: .requestRefused, message: "Gone."))) {
-            _ = try await store.load(.semesters) { () async throws(QBankError) in try await client.semesters() }
+            _ = try await store.load(.catalog) { () async throws(QBankError) in try await client.catalog() }
         }
     }
 
@@ -262,7 +262,7 @@ struct OfflineStoreTests {
         let store = Self.store(server, storage: PhoneStorage.memory().open("a1"), connection: Connection(isOnline: false))
         let client = Self.client(server)
         await #expect(throws: QBankError.transport(.notConnectedToInternet)) {
-            _ = try await store.load(.semesters) { () async throws(QBankError) in try await client.semesters() }
+            _ = try await store.load(.catalog) { () async throws(QBankError) in try await client.catalog() }
         }
         #expect(server.calls == ["GET /api/semesters"], "with nothing saved it tries the server anyway")
     }
@@ -275,7 +275,7 @@ struct OfflineStoreTests {
             "GET /api/practice-sets/set2": .ok(PracticeModelTests.practiceSet()),
             "GET /api/practice-sets/set3": .ok(PracticeModelTests.practiceSet()),
         ])
-        let semesters = try Bodies.decodeSemesters(Bodies.semesters([
+        let semesters = try Bodies.decodeCatalog(Bodies.semesters([
             Bodies.course(id: "c1", code: "NURS 101"),
             Bodies.course(id: "c9", code: "NURS 900", archived: true),
         ]))
@@ -312,7 +312,7 @@ struct OfflineStoreTests {
             "GET /api/practice-sets/set1": .ok(PracticeModelTests.practiceSet()),
             "GET /api/practice-sets/set2": .offline,
         ])
-        let semesters = try Bodies.decodeSemesters(Bodies.semesters())
+        let semesters = try Bodies.decodeCatalog(Bodies.semesters())
         let store = Self.store(server, storage: PhoneStorage.memory().open("a1"))
         store.saveCourses(in: semesters)
         await store.finishSavingCourses()
@@ -335,7 +335,7 @@ struct OfflineStoreTests {
         let clock = Locked(Date(timeIntervalSince1970: 1_790_000_000))
         let connection = Connection()
         let store = Self.store(server, storage: PhoneStorage.memory().open("a1"), connection: connection, now: { clock.value })
-        let semesters = try Bodies.decodeSemesters(Bodies.semesters())
+        let semesters = try Bodies.decodeCatalog(Bodies.semesters())
         store.saveCourses(in: semesters)
         await store.finishSavingCourses()
 

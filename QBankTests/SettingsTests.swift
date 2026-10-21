@@ -355,7 +355,7 @@ struct CourseEditModelTests {
         let body = try #require(server.requests.last { $0.httpMethod == "PATCH" }?.httpBody)
         #expect(String(decoding: body, as: UTF8.self) == #"{"archived":true}"#)
         #expect(model.isArchived)
-        #expect(model.note == "Archived. It no longer shows on Home.")
+        #expect(model.note == "Archived. It moves to Archived on Home.")
 
         server["GET /api/semesters"] = .ok(Self.catalog)
         await model.toggleArchived()

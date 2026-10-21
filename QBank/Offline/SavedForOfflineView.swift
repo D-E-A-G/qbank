@@ -127,7 +127,7 @@ struct SavedForOfflineView: View {
 
     private var courses: some View {
         QBankListGroup(
-            header: "Courses on this \(Device.noun)",
+            header: model.courses?.contains { $0.kind == .topic } == true ? "Courses and topics on this \(Device.noun)" : "Courses on this \(Device.noun)",
             footer: "Courses save by themselves while the app is online, so every set can be practiced without signal."
         ) {
             if let courses = model.courses {
@@ -135,8 +135,9 @@ struct SavedForOfflineView: View {
                     QBankListRow("Nothing saved yet", detail: "Open Home with a connection to save your courses.")
                 }
                 ForEach(courses) { course in
-                    QBankListRow("\(course.code) \(course.title)", detail: Wording.savedCourse(course))
-                        .accessibilityIdentifier("savedForOffline.course.\(course.code)")
+                    // A topic is called by its name alone.
+                    QBankListRow(course.kind == .topic ? course.title : "\(course.code) \(course.title)", detail: Wording.savedCourse(course))
+                        .accessibilityIdentifier("savedForOffline.course.\(Wording.name(course))")
                 }
             } else {
                 QBankListRow("Reading what is saved") {

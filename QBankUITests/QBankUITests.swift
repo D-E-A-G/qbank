@@ -256,7 +256,7 @@ final class QBankUITests: XCTestCase {
         let archive = app.buttons["course.archive"]
         XCTAssertTrue(archive.appears(timeout: 5))
         archive.tap()
-        XCTAssertTrue(app.staticTexts["Archived. It no longer shows on Home."].appears(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Archived. It moves to Archived on Home."].appears(timeout: 5))
         XCTAssertTrue(archive.label.contains("Unarchive NURS 220"), archive.label)
 
         app.tabBars.buttons["Home"].tap()

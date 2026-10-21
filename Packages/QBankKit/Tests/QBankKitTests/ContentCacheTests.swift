@@ -16,21 +16,21 @@ struct ContentCacheTests {
     @Test func storesAndReadsRecordedContent() async throws {
         for (kind, cache, directory) in Self.caches() {
             defer { directory.map { try? FileManager.default.removeItem(at: $0) } }
-            let semesters = try Fixture.load("semesters").decodeBody(SemestersResponse.self).semesters
+            let catalog = try Fixture.load("semesters").decodeBody(Catalog.self)
             let course = try Fixture.load("course").decodeBody(CourseDetail.self)
             let set = try Fixture.load("practice-set").decodeBody(PracticeSet.self)
             let terms = try Fixture.load("terms").decodeBody(TermsResponse.self).terms
             let review = try Fixture.load("review").decodeBody(ReviewList.self)
             let savedAt = Date(timeIntervalSince1970: 1_790_000_000.25)
 
-            #expect(try await cache.value(for: .semesters) == nil, "\(kind)")
-            try await cache.store(semesters, for: .semesters, savedAt: savedAt)
+            #expect(try await cache.value(for: .catalog) == nil, "\(kind)")
+            try await cache.store(catalog, for: .catalog, savedAt: savedAt)
             try await cache.store(course, for: .course(course.id), savedAt: savedAt)
             try await cache.store(set, for: .practiceSet(set.id), savedAt: savedAt)
             try await cache.store(terms, for: .terms(courseID: course.id), savedAt: savedAt)
             try await cache.store(review, for: .review(courseID: course.id), savedAt: savedAt)
 
-            #expect(try await cache.value(for: .semesters) == Cached(value: semesters, savedAt: savedAt), "\(kind)")
+            #expect(try await cache.value(for: .catalog) == Cached(value: catalog, savedAt: savedAt), "\(kind)")
             #expect(try await cache.value(for: .course(course.id)) == Cached(value: course, savedAt: savedAt), "\(kind)")
             #expect(try await cache.value(for: .practiceSet(set.id))?.value == set, "\(kind)")
             #expect(try await cache.value(for: .terms(courseID: course.id))?.value == terms, "\(kind)")

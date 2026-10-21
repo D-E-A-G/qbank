@@ -159,7 +159,7 @@ struct ContentContractTests {
     @Test func semesters() async throws {
         let transport = try FixtureTransport("semesters")
         let (client, _) = TestClient.make(transport)
-        let semesters = try await client.semesters()
+        let semesters = try await client.catalog().semesters
         try expectRequest(transport.requests.first, matches: Fixture.load("semesters"))
         let course = try #require(semesters.first?.courses.first)
         #expect(semesters.first?.number == 1)
@@ -692,7 +692,7 @@ struct CatalogContractTests {
     }
 
     @Test func editedCatalogDecodes() throws {
-        let semesters = try Fixture.load("semesters-edited").decodeBody(SemestersResponse.self).semesters
+        let semesters = try Fixture.load("semesters-edited").decodeBody(Catalog.self).semesters
         #expect(semesters.map(\.name) == ["Fall 2026", "Semester 2"])
         #expect(semesters[0].courses.map(\.code) == ["NURS 102"])
         #expect(semesters[1].courses.first?.archivedAt != nil)

@@ -2,17 +2,21 @@ import Foundation
 import Observation
 import QBankKit
 
-/// Settings' Semesters and courses, as the web's catalog editor: the semesters she has, adding
-/// one of the three, and the screens that rename, date, add, move and archive.
+/// Settings' Semesters and courses and Study topics, as the web's catalog editor: the semesters
+/// she has, adding one of the three, her topics in her order, adding one, and the screens that
+/// rename, date, add, move and archive.
 @Observable
 final class CatalogModel {
-    private(set) var semesters: [Semester]?
+    private(set) var catalog: Catalog?
     private(set) var isLoading = false
     /// Why the first load failed. A failed reload keeps the list and says nothing.
     private(set) var loadProblem: String?
     private(set) var isAdding = false
     /// Why adding a semester failed.
     private(set) var addProblem: String?
+    private(set) var isAddingTopic = false
+    /// Why adding a topic, or saving her order of them, failed.
+    private(set) var topicProblem: String?
 
     /// The web offers Semesters 1, 2 and 3; the server refuses any other number.
     static let semesterNumbers = 1...3
@@ -28,14 +32,25 @@ final class CatalogModel {
         app.account?.role == .student
     }
 
+    /// Every semester, archived ones included. Nil until loaded.
+    var semesters: [Semester]? {
+        catalog?.semesters
+    }
+
+    /// Her topics in her order: the ones she studies, then the archived ones.
+    var topics: [CourseSummary] {
+        let all = catalog?.topics ?? []
+        return all.filter { $0.archivedAt == nil } + all.filter { $0.archivedAt != nil }
+    }
+
     func load() async {
         isLoading = true
         defer { isLoading = false }
         do {
-            semesters = try await app.client.semesters()
+            catalog = try await app.client.catalog()
             loadProblem = nil
         } catch {
-            guard !app.handle(error), semesters == nil else { return }
+            guard !app.handle(error), catalog == nil else { return }
             loadProblem = Wording.problem(error)
         }
     }
@@ -65,6 +80,45 @@ final class CatalogModel {
         semesters?.first { $0.id == id }
     }
 
+    func topic(id: String) -> CourseSummary? {
+        catalog?.topics.first { $0.id == id }
+    }
+
+    /// Makes a topic, after her others. Returns true once it is made.
+    @discardableResult
+    func addTopic(named name: String) async -> Bool {
+        guard !isAddingTopic else { return false }
+        let title = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty else {
+            topicProblem = "Give the topic a name."
+            return false
+        }
+        isAddingTopic = true
+        topicProblem = nil
+        defer { isAddingTopic = false }
+        topicProblem = await perform { () async throws(QBankError) in
+            _ = try await app.client.createTopic(title: title)
+        }
+        return topicProblem == nil
+    }
+
+    /// Saves her order of the topics she studies. The server takes every topic of hers, archived
+    /// ones too, so they go after the others, in the order they had.
+    func saveTopicOrder(_ studied: [String]) async {
+        let archived = topics.filter { $0.archivedAt != nil }.map(\.id)
+        topicProblem = nil
+        topicProblem = await perform { () async throws(QBankError) in
+            _ = try await app.client.setTopicOrder(studied + archived)
+        }
+    }
+
+    /// A topic's line in Settings: "12 questions · 2 folders", with "Archived" after it once she
+    /// archived it.
+    static func line(of topic: CourseSummary) -> String {
+        let size = Wording.size(questions: topic.questionCount, folders: topic.folderCount)
+        return topic.archivedAt == nil ? size : "\(size) · Archived"
+    }
+
     /// A course and the semester it is in now.
     func course(id: String) -> (course: CourseSummary, semester: Semester)? {
         for semester in semesters ?? [] {
@@ -81,14 +135,15 @@ final class CatalogModel {
     }
 
     /// The line under a semester in Settings: "NURS 406, NURS 402", "NURS 406 · 1 archived", or
-    /// "No courses yet".
+    /// "No courses yet", after "Archived" when she archived the semester.
     static func summary(of semester: Semester) -> String {
         let courses = courses(in: semester)
-        guard !courses.isEmpty else { return "No courses yet" }
+        let lead = semester.archivedAt == nil ? nil : "Archived"
+        guard !courses.isEmpty else { return [lead, "No courses yet"].compactMap { $0 }.joined(separator: " · ") }
         let active = courses.filter { $0.archivedAt == nil }.map(\.code)
         let archived = courses.count - active.count
         let archivedText = archived > 0 ? "\(archived) archived" : nil
-        return [active.isEmpty ? nil : active.joined(separator: ", "), archivedText]
+        return [lead, active.isEmpty ? nil : active.joined(separator: ", "), archivedText]
             .compactMap { $0 }
             .joined(separator: " · ")
     }
@@ -125,6 +180,10 @@ final class SemesterModel {
     var newTitle = ""
     private(set) var isSaving = false
     private(set) var isAddingCourse = false
+    private(set) var isArchiving = false
+    /// Why archiving failed, or what it did.
+    private(set) var archiveProblem: String?
+    private(set) var archiveNote: String?
     private(set) var saveProblem: String?
     private(set) var addProblem: String?
     /// True after a save, until she edits again.
@@ -143,6 +202,26 @@ final class SemesterModel {
 
     var semester: Semester? {
         catalog.semester(id: id)
+    }
+
+    var isArchived: Bool {
+        semester?.archivedAt != nil
+    }
+
+    /// Archives the semester by hand, with its courses, or brings it back to Home.
+    func toggleArchived() async {
+        guard !isArchiving, semester != nil else { return }
+        let archive = !isArchived
+        isArchiving = true
+        archiveProblem = nil
+        archiveNote = nil
+        defer { isArchiving = false }
+        archiveProblem = await catalog.perform { () async throws(QBankError) in
+            _ = try await catalog.app.client.setSemesterArchived(id: id, archive)
+        }
+        if archiveProblem == nil {
+            archiveNote = archive ? "Archived. It moves to Archived on Home, with its courses." : "Unarchived. It shows on Home again."
+        }
     }
 
     func save() async {
@@ -210,7 +289,7 @@ final class CourseEditModel {
     private(set) var isSaving = false
     private(set) var isArchiving = false
     private(set) var problem: String?
-    /// What was just done, such as "Saved." or "Archived. It no longer shows on Home."
+    /// What was just done, such as "Saved." or "Archived. It moves to Archived on Home."
     private(set) var note: String?
 
     let catalog: CatalogModel
@@ -272,7 +351,75 @@ final class CourseEditModel {
             _ = try await catalog.app.client.setCourseArchived(id: id, archive)
         }
         if problem == nil {
-            note = archive ? "Archived. It no longer shows on Home." : "Unarchived. It shows on Home again."
+            note = archive ? "Archived. It moves to Archived on Home." : "Unarchived. It shows on Home again."
+        }
+    }
+}
+
+/// One study topic's screen: its name, and archiving.
+@Observable
+final class TopicEditModel {
+    let id: String
+    var title: String {
+        didSet { if title != oldValue { note = nil } }
+    }
+    private(set) var isSaving = false
+    private(set) var isArchiving = false
+    private(set) var problem: String?
+    /// What was just done, such as "Saved." or "Archived. It moves to Archived on Home."
+    private(set) var note: String?
+
+    let catalog: CatalogModel
+
+    init(catalog: CatalogModel, id: String) {
+        self.catalog = catalog
+        self.id = id
+        title = catalog.topic(id: id)?.title ?? ""
+    }
+
+    var topic: CourseSummary? {
+        catalog.topic(id: id)
+    }
+
+    var isArchived: Bool {
+        topic?.archivedAt != nil
+    }
+
+    /// Renames the topic. Its folders, pages, sets and her answers stay with it.
+    func save() async {
+        guard !isSaving else { return }
+        if title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            problem = "Give the topic a name."
+            return
+        }
+        isSaving = true
+        problem = nil
+        note = nil
+        defer { isSaving = false }
+        let title = title
+        problem = await catalog.perform { () async throws(QBankError) in
+            _ = try await catalog.app.client.renameTopic(id: id, title: title)
+        }
+        if problem == nil, let saved = topic {
+            // Show what the server kept, such as the name without its outer spaces.
+            self.title = saved.title
+            note = "Saved."
+        }
+    }
+
+    /// Archives the topic by hand, or brings it back under Study topics.
+    func toggleArchived() async {
+        guard !isArchiving, topic != nil else { return }
+        let archive = !isArchived
+        isArchiving = true
+        problem = nil
+        note = nil
+        defer { isArchiving = false }
+        problem = await catalog.perform { () async throws(QBankError) in
+            _ = try await catalog.app.client.setCourseArchived(id: id, archive)
+        }
+        if problem == nil {
+            note = archive ? "Archived. It moves to Archived on Home." : "Unarchived. It shows under Study topics again."
         }
     }
 }

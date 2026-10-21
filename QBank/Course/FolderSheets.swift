@@ -114,7 +114,7 @@ struct RenameFolderSheet: View {
             if let problem {
                 ProblemText(text: problem)
             }
-            SheetHint(text: "Only the name changes. Its sets, their progress, its exam page and your past exams stay with it.")
+            SheetHint(text: "Only the name changes. Its sets, their progress, its \(model.words.page) and your past exams stay with it.")
         }
         .onAppear { focused = true }
         .presentationDetents([.medium, .large])
@@ -135,7 +135,8 @@ struct RenameFolderSheet: View {
     }
 }
 
-/// Exam page: which page a folder is on, none, or a new one. Its sets and progress stay put.
+/// Exam page, or Study page in a topic: which page a folder is on, none, or a new one. Its sets and
+/// progress stay put.
 struct ExamPageSheet: View {
     let model: CourseModel
     let folder: Folder
@@ -152,9 +153,10 @@ struct ExamPageSheet: View {
 
     var body: some View {
         let pages = model.layout?.pages ?? []
-        let newName = model.nextExamName
-        EditSheet(title: "Exam page", confirm: "Done", identifier: "examPage", isSaving: isSaving, hasChanges: choice != current, save: save) {
-            SheetHint(text: "\(folder.name) can be on one exam page. Its sets and progress stay in the folder.")
+        let newName = model.nextPageName
+        let words = model.words
+        EditSheet(title: words.pageTitle, confirm: "Done", identifier: "examPage", isSaving: isSaving, hasChanges: choice != current, save: save) {
+            SheetHint(text: "\(folder.name) can be on one \(words.page). Its sets and progress stay in the folder.")
             if let problem {
                 ProblemText(text: problem)
             }
@@ -165,11 +167,11 @@ struct ExamPageSheet: View {
                     }
                     .accessibilityIdentifier("examPage.page.\(page.exam.name)")
                 }
-                ChoiceRow(title: "No exam page", detail: "Stays in the course’s Folders list", isPicked: choice == .none) {
+                ChoiceRow(title: "No \(words.page)", detail: "Stays in the \(words.container)’s Folders list", isPicked: choice == .none) {
                     choice = .none
                 }
                 .accessibilityIdentifier("examPage.none")
-                ChoiceRow(title: "New exam page", detail: newName, isPicked: choice == .new(name: newName)) {
+                ChoiceRow(title: "New \(words.page)", detail: newName, isPicked: choice == .new(name: newName)) {
                     choice = .new(name: newName)
                 }
                 .accessibilityIdentifier("examPage.new")
@@ -223,14 +225,14 @@ struct MoveSetsSheet: View {
                     group(page.exam.name, page.folders)
                 }
                 if !layout.looseFolders.isEmpty {
-                    group("On no exam page", layout.looseFolders)
+                    group("On no \(model.words.page)", layout.looseFolders)
                 }
             }
             VStack(alignment: .leading, spacing: 6) {
                 QBankSectionHeader("Or")
                     .padding(.horizontal, QBankSpacing.space5)
                 QBankListGroup {
-                    ChoiceRow(title: "New folder", detail: "On no exam page", isPicked: destination == .new) {
+                    ChoiceRow(title: "New folder", detail: "On no \(model.words.page)", isPicked: destination == .new) {
                         destination = .new
                         naming = true
                     }

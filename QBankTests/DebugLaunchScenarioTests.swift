@@ -33,7 +33,7 @@ struct DebugLaunchScenarioTests {
         let home = HomeModel(app: app)
         await home.load()
         #expect(home.semesters?.map(\.name) == ["Semester 1", "Semester 2"])
-        #expect(await home.landingCourse() == CourseRoute(id: FakeQBankServer.mentalHealthID, code: "NURS 310"))
+        #expect(await home.landingCourse() == CourseRoute(id: FakeQBankServer.mentalHealthID, name: "NURS 310"))
     }
 
     @Test func examInProgressScenarioLeavesAnExamOverWeeks1And2Going() async throws {
@@ -268,14 +268,14 @@ struct DebugLaunchScenarioTests {
         let app = try #require(Self.launch(environment))
         #expect(!app.connection.isOnline)
         await #expect(throws: QBankError.transport(.notConnectedToInternet)) {
-            _ = try await app.client.semesters()
+            _ = try await app.client.catalog()
         }
 
         // As a UI test does from its own process.
         let center = CFNotificationCenterGetDarwinNotifyCenter()
         CFNotificationCenterPostNotification(center, CFNotificationName(DebugLaunchScenario.networkOnlineNotification as CFString), nil, nil, true)
         try await waitUntil { app.connection.isOnline }
-        #expect(try await app.client.semesters().count == 2)
+        #expect(try await app.client.catalog().semesters.count == 2)
 
         CFNotificationCenterPostNotification(center, CFNotificationName(DebugLaunchScenario.networkOfflineNotification as CFString), nil, nil, true)
         try await waitUntil { !app.connection.isOnline }

@@ -90,12 +90,12 @@ final class ReviewModel {
 
     /// The runner over the filtered list, shuffled by the server, or over one question of it.
     func practice(_ question: ReviewQuestion? = nil) -> PracticeRoute {
-        PracticeRoute(source: .review(filter: filter, questionID: question?.questionID), courseID: course.id, title: "Review")
+        PracticeRoute(source: .review(filter: filter, questionID: question?.questionID), courseID: course.id, title: "Review", kind: course.kind)
     }
 
     /// The confirmation she answers before the list is emptied, in the web's words.
     var clearTitle: String {
-        "Clear all \(Wording.count(allCount, "question")) from this course's Review list?"
+        "Clear all \(Wording.count(allCount, "question")) from this \(Wording.words(course.kind).container)'s Review list?"
     }
 
     static func count(of filter: ReviewFilter, in counts: ReviewList.Counts) -> Int {

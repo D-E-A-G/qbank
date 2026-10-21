@@ -107,13 +107,12 @@ public struct QBankClient: Sendable {
 
     // MARK: Courses
 
-    /// Home: every semester with its courses.
-    public func semesters() async throws(QBankError) -> [Semester] {
-        let response: SemestersResponse = try await send(Request(.get, "/api/semesters"))
-        return response.semesters
+    /// Home: her semesters with their courses, and her study topics.
+    public func catalog() async throws(QBankError) -> Catalog {
+        try await send(Request(.get, "/api/semesters"))
     }
 
-    /// A course, its folders and exam pages, and its practice sets.
+    /// A course or topic, its folders and exam pages, and its practice sets.
     public func course(id: String) async throws(QBankError) -> CourseDetail {
         try await send(Request(.get, "/api/courses/\(id)"))
     }
@@ -363,14 +362,16 @@ public struct QBankClient: Sendable {
     /// Adds an exam page, such as "Exam 1", with some of the course's folders on it in that order,
     /// after its other pages. A folder on another page is refused with 409, naming it ("Week 2 is
     /// in Exam 1."), as is a name the course already uses.
-    public func createCourseExam(courseID: String, name: String, folderIDs: [String]) async throws(QBankError) -> CourseExam {
-        try await send(Request(.post, "/api/courses/\(courseID)/course-exams", body: CourseExamRequest(name: name, folderIds: folderIDs)))
+    /// A topic's study page can take a primer link, an http or https address the server checks.
+    public func createCourseExam(courseID: String, name: String, folderIDs: [String], link: PrimerLink = .unchanged) async throws(QBankError) -> CourseExam {
+        try await send(Request(.post, "/api/courses/\(courseID)/course-exams", body: CourseExamRequest(name: name, folderIds: folderIDs, link: link)))
     }
 
     /// Renames an exam page and replaces its folders, in the order sent, with the same refusals as
-    /// `createCourseExam`. A folder taken off goes to the end of the course's Folders list.
-    public func updateCourseExam(id: String, name: String, folderIDs: [String]) async throws(QBankError) -> CourseExam {
-        try await send(Request(.put, "/api/course-exams/\(id)", body: CourseExamRequest(name: name, folderIds: folderIDs)))
+    /// `createCourseExam`. A folder taken off goes to the end of the course's Folders list. The
+    /// primer link stays as it is unless `link` says otherwise.
+    public func updateCourseExam(id: String, name: String, folderIDs: [String], link: PrimerLink = .unchanged) async throws(QBankError) -> CourseExam {
+        try await send(Request(.put, "/api/course-exams/\(id)", body: CourseExamRequest(name: name, folderIds: folderIDs, link: link)))
     }
 
     /// Removes an exam page. Its folders go back to the end of the course's Folders list; their sets
@@ -394,6 +395,11 @@ public struct QBankClient: Sendable {
         return try await send(Request(.patch, "/api/semesters/\(id)", body: body))
     }
 
+    /// Archives a semester by hand, or brings it back. Nothing archives one on its own.
+    public func setSemesterArchived(id: String, _ archived: Bool) async throws(QBankError) -> Semester {
+        try await send(Request(.patch, "/api/semesters/\(id)", body: ArchiveSemesterRequest(archived: archived)))
+    }
+
     /// Adds an empty course to a semester. A code the semester already has, in any case, is
     /// refused with 409 `request_refused`.
     public func addCourse(semesterID: String, code: String, title: String) async throws(QBankError) -> CourseSummary {
@@ -406,10 +412,32 @@ public struct QBankClient: Sendable {
         return try await send(Request(.patch, "/api/courses/\(id)", body: body))
     }
 
-    /// Archives a course, which leaves Home, or brings it back. Her answers stay.
+    /// Archives a course or topic, which moves to Home's Archived group, or brings it back. Her
+    /// answers stay.
     public func setCourseArchived(id: String, _ archived: Bool) async throws(QBankError) -> CourseSummary {
         let body = UpdateCourseRequest(code: nil, title: nil, semesterId: nil, archived: archived)
         return try await send(Request(.patch, "/api/courses/\(id)", body: body))
+    }
+
+    // MARK: Study topics
+
+    /// Makes a study topic of hers, after her other topics: a course with no semester, called by
+    /// its name. A name another of her topics has, in any case, is refused with 409.
+    public func createTopic(title: String) async throws(QBankError) -> CourseSummary {
+        try await send(Request(.post, "/api/topics", body: AddTopicRequest(title: title)))
+    }
+
+    /// Renames a topic. Its folders, pages, sets and her answers stay with it.
+    public func renameTopic(id: String, title: String) async throws(QBankError) -> CourseSummary {
+        let body = UpdateCourseRequest(code: nil, title: title, semesterId: nil, archived: nil)
+        return try await send(Request(.patch, "/api/courses/\(id)", body: body))
+    }
+
+    /// Puts her topics in this order. The list names every topic of hers, archived ones included,
+    /// once each, or it is refused with 409, so a stale screen cannot drop one.
+    public func setTopicOrder(_ topicIDs: [String]) async throws(QBankError) -> [CourseSummary] {
+        let response: TopicsResponse = try await send(Request(.put, "/api/topic-order", body: TopicOrderRequest(topicIds: topicIDs)))
+        return response.topics
     }
 
     // MARK: Answers

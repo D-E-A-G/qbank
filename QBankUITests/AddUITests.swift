@@ -144,45 +144,10 @@ final class AddUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Import"].appears(timeout: 5))
     }
 
-    /// Puts text in the Paste JSON field the way she does: from the pasteboard, with Paste.
-    @MainActor
-    private func paste(_ text: String, in app: XCUIApplication) {
-        if !app.textViews["import.paste"].exists {
-            app.buttons["Paste JSON"].tap()
-        }
-        let editor = app.textViews["import.paste"]
-        XCTAssertTrue(editor.appears(timeout: 5))
-        UIPasteboard.general.string = text
-        reveal(editor, in: app)
-        editor.tap()
-        let paste = app.menuItems["Paste"]
-        if !paste.appears(timeout: 2) {
-            editor.tap()
-        }
-        XCTAssertTrue(paste.appears(timeout: 5))
-        paste.tap()
-        waitForLabel(editor, valueContaining: "\"questions\"")
-        // The keyboard covers the buttons below. An iPad's has a key that hides it, and there a
-        // swipe down would close the sheet the field can be in.
-        let hide = app.keyboards.buttons["Hide keyboard"]
-        if hide.exists {
-            hide.tap()
-        } else {
-            app.swipeDown(velocity: .fast)
-        }
-    }
-
     @MainActor
     private func waitForSelected(_ element: XCUIElement, timeout: TimeInterval = 5) {
         let predicate = NSPredicate(format: "isSelected == true")
         let result = XCTWaiter.wait(for: [expectation(for: predicate, evaluatedWith: element)], timeout: timeout)
         XCTAssertEqual(result, .completed, "\(element) never became selected")
-    }
-
-    @MainActor
-    private func waitForLabel(_ element: XCUIElement, valueContaining text: String, timeout: TimeInterval = 5) {
-        let predicate = NSPredicate(format: "value CONTAINS %@", text)
-        let result = XCTWaiter.wait(for: [expectation(for: predicate, evaluatedWith: element)], timeout: timeout)
-        XCTAssertEqual(result, .completed, "the field never held \(text)")
     }
 }

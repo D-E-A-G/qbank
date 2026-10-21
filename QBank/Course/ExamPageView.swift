@@ -4,6 +4,7 @@ import SwiftUI
 
 /// An exam page: its folders and sets, Start exam over them, its folders in her order, and the
 /// exams she took over them. Edit puts the folders in order and offers the page's name and folders.
+/// A topic's study page is the same screen, with its primer link when it has one.
 struct ExamPageView: View {
     let app: AppModel
     let model: CourseModel
@@ -28,13 +29,13 @@ struct ExamPageView: View {
                     .padding(.bottom, QBankSpacing.space7)
             } else if model.course != nil, !isRemoved {
                 // Removed elsewhere, such as on the web, while it was open here.
-                EmptyCard(message: "This exam page is not in the course anymore. Its folders are under Folders.", systemImage: "square.stack.3d.up")
+                EmptyCard(message: "This \(model.words.page) is not in the \(model.words.container) anymore. Its folders are under Folders.", systemImage: "square.stack.3d.up")
                     .screenColumn()
                     .padding(.top, QBankSpacing.space4)
             }
         }
         .qbankScreenBackground()
-        .navigationTitle(model.layout?.page(id)?.exam.name ?? "Exam page")
+        .navigationTitle(model.layout?.page(id)?.exam.name ?? model.words.pageTitle)
         .screenColumnTitle()
         .refreshable { await model.load() }
         .onAppear {
@@ -68,6 +69,9 @@ struct ExamPageView: View {
                 .foregroundStyle(.qbank(.text2))
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityIdentifier("page.note")
+            if let link = page.exam.linkURL {
+                PrimerRow(address: link)
+            }
             if let problem = problem ?? model.problem {
                 ProblemText(text: problem)
             }
@@ -210,5 +214,36 @@ struct ExamPageView: View {
             isSavingOrder = false
             order = nil
         }
+    }
+}
+
+/// A study page's primer: the page where she wrote it up, opened in the browser. Nothing of it is
+/// shown here but where it lives.
+private struct PrimerRow: View {
+    let address: String
+
+    var body: some View {
+        QBankListGroup {
+            if let url = URL(string: address), url.host() != nil {
+                Link(destination: url) {
+                    row(detail: url.host() ?? address) {
+                        Image(systemName: "arrow.up.right")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(.qbank(.text4))
+                            .accessibilityHidden(true)
+                    }
+                }
+                .buttonStyle(.qbankRow)
+                .accessibilityHint("Opens in Safari")
+                .accessibilityIdentifier("page.primer")
+            } else {
+                row(detail: address) { EmptyView() }
+                    .accessibilityIdentifier("page.primer")
+            }
+        }
+    }
+
+    private func row(detail: String, @ViewBuilder accessory: () -> some View) -> some View {
+        QBankListRow("Open the primer", detail: detail, systemImage: "link", accessory: accessory)
     }
 }

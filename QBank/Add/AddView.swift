@@ -60,8 +60,8 @@ struct AddView: View {
     private func destination(_ route: AddRoute) -> some View {
         switch route {
         case .importFile:
-            ImportView(app: app) { set in
-                tabs.openFolder(courseID: set.courseID, code: set.courseCode, folderID: set.folderID)
+            ImportView(app: app) { done in
+                tabs.openFolder(courseID: done.set.courseID, name: done.courseName, folderID: done.set.folderID)
             }
         case .material:
             if let making {

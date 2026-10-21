@@ -2,8 +2,9 @@ import QBankDesign
 import QBankKit
 import SwiftUI
 
-/// The Home tab: her courses by semester. Opens the course she used last on arrival. Without a
-/// connection it shows the courses saved on the phone, and how many answers wait to be sent.
+/// The Home tab: her courses by semester, then her study topics, then what she archived, closed
+/// until she opens it. Opens the course or topic she used last on arrival. Without a connection it
+/// shows the courses saved on the phone, and how many answers wait to be sent.
 ///
 /// On iPhone, a course opens over the list. On iPad, the list stays in a sidebar and the course
 /// opens beside it, with its own screens; an iPad sharing its screen narrows it to one column.
@@ -11,6 +12,10 @@ struct HomeView: View {
     let app: AppModel
     @State private var model: HomeModel
     @Bindable private var navigator: HomeNavigator
+    /// New topic's sheet is up, and once she made one, the topic to open when it is down.
+    @State private var makesTopic = false
+    @State private var madeTopic: CourseRoute?
+    @State private var showsArchived = false
 
     init(app: AppModel, navigator: HomeNavigator) {
         self.app = app
@@ -27,6 +32,15 @@ struct HomeView: View {
             }
         }
         .environment(navigator)
+        .sheet(isPresented: $makesTopic, onDismiss: {
+            guard let topic = madeTopic else { return }
+            madeTopic = nil
+            navigator.open(topic)
+        }, content: {
+            NewTopicView(app: app) { topic in
+                madeTopic = await model.made(topic)
+            }
+        })
         .task {
             await model.load()
             model.saveForOffline()
@@ -42,7 +56,7 @@ struct HomeView: View {
             courses
                 .onAppear {
                     // Back from a course: its counts may have changed.
-                    guard model.semesters != nil else { return }
+                    guard model.catalog != nil else { return }
                     Task { await model.load() }
                 }
                 .navigationDestination(for: CourseRoute.self) { route in
@@ -66,7 +80,7 @@ struct HomeView: View {
                             // Another course gets a screen of its own.
                             .id(course.id)
                     } else {
-                        NoCourseChosen(hasCourses: model.semesters.map { !$0.flatMap(\.courses).isEmpty })
+                        NoCourseChosen(hasCourses: model.catalog.map { !$0.everyCourse.isEmpty })
                     }
                 }
                 .studyDestinations(app: app)
@@ -133,7 +147,7 @@ struct HomeView: View {
 
     @ViewBuilder
     private var content: some View {
-        if let semesters = model.semesters {
+        if let catalog = model.catalog {
             LazyVStack(alignment: .leading, spacing: QBankSpacing.space4) {
                 if model.savedAt != nil {
                     OfflineBanner.showingSaved(phoneIsOnline: app.connection.isOnline)
@@ -144,11 +158,11 @@ struct HomeView: View {
                     ProblemText(text: problem)
                         .padding(.top, QBankSpacing.space3)
                 }
-                if semesters.isEmpty {
+                if catalog.semesters.isEmpty {
                     EmptyCard(message: "A course appears here when its first question file is imported.")
                         .padding(.top, QBankSpacing.space3)
                 }
-                ForEach(semesters) { semester in
+                ForEach(model.studiedSemesters) { semester in
                     let courses = model.courses(in: semester)
                     QBankSectionHeader(semester.name)
                         .padding(.horizontal, QBankSpacing.space1)
@@ -159,8 +173,11 @@ struct HomeView: View {
                     }
                     ForEach(courses) { course in
                         courseLink(course)
-                            .accessibilityIdentifier("home.course.\(course.code)")
                     }
+                }
+                topics
+                if !model.archived.isEmpty {
+                    archived
                 }
             }
         } else if let problem = model.problem {
@@ -172,11 +189,82 @@ struct HomeView: View {
         }
     }
 
-    /// A course card: pushes the course on iPhone, and on iPad shows it beside the list, marked
+    /// Her study topics, with New at the header's right edge, which asks only for a name.
+    @ViewBuilder
+    private var topics: some View {
+        let topics = model.topics
+        HStack(alignment: .firstTextBaseline) {
+            QBankSectionHeader("Study topics")
+            Spacer(minLength: QBankSpacing.space3)
+            if model.showsNewTopic {
+                Button("New") { makesTopic = true }
+                    .buttonStyle(.qbank(.plain, size: .small))
+                    .disabled(!model.canMakeTopic)
+                    .accessibilityLabel("New topic")
+                    .accessibilityIdentifier("home.newTopic")
+            }
+        }
+        .padding(.horizontal, QBankSpacing.space1)
+        .padding(.top, QBankSpacing.space5)
+        .padding(.bottom, -QBankSpacing.space2)
+        if topics.isEmpty {
+            EmptyCard(message: "A topic is a place for questions that are not a course: a certification, a language, your own notes.", systemImage: "book.closed")
+                .accessibilityIdentifier("home.noTopics")
+        }
+        ForEach(topics) { topic in
+            courseLink(topic)
+        }
+    }
+
+    /// What she archived, last and closed until she opens it, as the web's Archived group.
+    @ViewBuilder
+    private var archived: some View {
+        Button {
+            withAnimation(QBankMotion.reveal) { showsArchived.toggle() }
+        } label: {
+            HStack(spacing: 6) {
+                QBankSectionHeader("Archived")
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.qbank(.text3))
+                    .rotationEffect(.degrees(showsArchived ? 90 : 0))
+                    .accessibilityHidden(true)
+                Spacer(minLength: 0)
+            }
+            .frame(minHeight: QBankSpacing.rowMin)
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, QBankSpacing.space1)
+        .padding(.top, QBankSpacing.space3)
+        .padding(.bottom, -QBankSpacing.space3)
+        .accessibilityValue(showsArchived ? "Open" : "Closed")
+        .accessibilityHint(showsArchived ? "Closes the archived courses and topics" : "Opens the archived courses and topics")
+        .accessibilityIdentifier("home.archived")
+        if showsArchived {
+            ForEach(model.archived) { group in
+                Text(group.title)
+                    .qbankFont(.subheadline, weight: .semibold)
+                    .foregroundStyle(.qbank(.text2))
+                    .padding(.horizontal, QBankSpacing.space1)
+                    .padding(.top, QBankSpacing.space3)
+                    .padding(.bottom, -QBankSpacing.space2)
+                    .accessibilityAddTraits(.isHeader)
+                if group.courses.isEmpty {
+                    EmptyCard(message: "No courses.")
+                }
+                ForEach(group.courses) { course in
+                    courseLink(course)
+                }
+            }
+        }
+    }
+
+    /// A course or topic card: pushes it on iPhone, and on iPad shows it beside the list, marked
     /// as the one open.
     @ViewBuilder
     private func courseLink(_ course: CourseSummary) -> some View {
-        let route = CourseRoute(id: course.id, code: course.code)
+        let route = CourseRoute(id: course.id, name: Wording.name(course), kind: course.kind)
         let card = CourseCard(course: course, savedAt: model.savedAt(course), isNarrow: navigator.isSplit)
         if navigator.isSplit {
             let isOpen = navigator.course?.id == course.id
@@ -193,12 +281,19 @@ struct HomeView: View {
                 }
             }
             .accessibilityAddTraits(isOpen ? .isSelected : [])
+            .accessibilityIdentifier(Self.identifier(course))
         } else {
             NavigationLink(value: route) {
                 card
             }
             .buttonStyle(QBankCardButtonStyle(padding: QBankSpacing.space4))
+            .accessibilityIdentifier(Self.identifier(course))
         }
+    }
+
+    /// "home.course.NURS 310", or for a topic, "home.topic." and its name.
+    private static func identifier(_ course: CourseSummary) -> String {
+        course.kind == .topic ? "home.topic.\(course.title)" : "home.course.\(course.code)"
     }
 }
 
@@ -251,7 +346,8 @@ private struct NoCourseChosen: View {
 }
 
 /// A course on Home: code, title, size, what is waiting in Review, and how much she has answered.
-/// Shown from the phone's copy, it says how old the copy is instead of the Review count.
+/// A topic's card has its name alone, without a code. Shown from the phone's copy, it says how old
+/// the copy is instead of the Review count.
 struct CourseCard: View {
     let course: CourseSummary
     var savedAt: Date?
@@ -260,9 +356,11 @@ struct CourseCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: QBankSpacing.space1) {
-            Text(course.code)
-                .qbankFont(.caption1)
-                .foregroundStyle(.qbank(.text3))
+            if course.kind != .topic {
+                Text(course.code)
+                    .qbankFont(.caption1)
+                    .foregroundStyle(.qbank(.text3))
+            }
             Text(course.title)
                 .qbankFont(.headline)
                 .foregroundStyle(.qbank(.text1))

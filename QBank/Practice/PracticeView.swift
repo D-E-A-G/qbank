@@ -15,6 +15,8 @@ struct PracticeRoute: Identifiable, Hashable {
     let source: Source
     let courseID: String
     let title: String
+    /// Whether the set is in a course or a topic, which the result's way back names.
+    var kind: CourseKind = .course
 
     var id: String {
         switch source {
@@ -33,19 +35,23 @@ struct PracticeView: View {
     @State private var model: PracticeModel
     @State private var showsWaiting = false
     @Environment(\.dismiss) private var dismiss
+    /// Whether the set is in a course or a topic, which the result's way back names.
+    private let kind: CourseKind
 
     init(app: AppModel, route: PracticeRoute) {
         _model = State(initialValue: PracticeModel(app: app, source: route.source, courseID: route.courseID, title: route.title))
+        kind = route.kind
     }
 
-    init(model: PracticeModel) {
+    init(model: PracticeModel, kind: CourseKind = .course) {
         _model = State(initialValue: model)
+        self.kind = kind
     }
 
     var body: some View {
         Group {
             if let result = model.result {
-                PracticeResultView(result: result) { dismiss() }
+                PracticeResultView(result: result, kind: kind) { dismiss() }
                     .transition(.opacity)
             } else {
                 runner

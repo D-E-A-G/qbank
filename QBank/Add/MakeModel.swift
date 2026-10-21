@@ -145,16 +145,16 @@ final class MakeModel {
         return references?.lazy.flatMap(\.sets).first { $0.id == referenceSetID }?.title ?? "None"
     }
 
-    /// Her practice sets in every course she studies, for the reference picker.
+    /// Her practice sets in every course and topic she studies, for the reference picker.
     func loadReferences() async {
         guard references == nil else { return }
-        let semesters = try? await app.load(.semesters) { () async throws(QBankError) in try await app.client.semesters() }.value
+        let catalog = try? await app.load(.catalog) { () async throws(QBankError) in try await app.client.catalog() }.value
         var groups: [ReferenceGroup] = []
-        for course in (semesters ?? []).flatMap(\.courses) where course.archivedAt == nil {
+        for course in catalog?.everyCourse ?? [] where course.archivedAt == nil {
             let id = course.id
             guard let detail = try? await app.load(.course(id), from: { () async throws(QBankError) in try await app.client.course(id: id) }).value else { continue }
             let sets = detail.folders.flatMap(\.sets).map { ReferenceGroup.Choice(id: $0.id, title: $0.title) }
-            if !sets.isEmpty { groups.append(ReferenceGroup(id: course.id, title: course.code, sets: sets)) }
+            if !sets.isEmpty { groups.append(ReferenceGroup(id: course.id, title: Wording.name(course), sets: sets)) }
         }
         references = groups
     }

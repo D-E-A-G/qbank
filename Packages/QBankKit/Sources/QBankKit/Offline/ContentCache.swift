@@ -10,9 +10,10 @@ public struct CacheKey<Value: Codable & Sendable>: Hashable, Sendable {
     }
 }
 
-extension CacheKey where Value == [Semester] {
-    /// Home's semesters and courses.
-    public static var semesters: CacheKey { CacheKey("semesters") }
+extension CacheKey where Value == Catalog {
+    /// Home's semesters, courses and study topics. The name is the one it had when it held the
+    /// semesters alone, so a copy saved then is still read.
+    public static var catalog: CacheKey { CacheKey("semesters") }
 }
 
 extension CacheKey where Value == CourseDetail {

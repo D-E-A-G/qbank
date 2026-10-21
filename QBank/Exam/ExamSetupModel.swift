@@ -64,6 +64,11 @@ final class ExamSetupModel {
         groups.flatMap(\.folders)
     }
 
+    /// The words of the course's screens, or the topic's.
+    var words: KindWords {
+        Wording.words(detail?.kind ?? course.kind)
+    }
+
     /// The folders by exam page, in her order, then those on no exam page. Without the course's
     /// pages, the folders as the setup lists them.
     var groups: [Group] {
@@ -73,7 +78,8 @@ final class ExamSetupModel {
         let byID = Dictionary(setup.folders.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         var placed = Set<String>()
         var groups: [Group] = []
-        for (title, folders) in layout.pages.map({ ($0.exam.name, $0.folders) }) + [("On no exam page", layout.looseFolders)] {
+        let loose = "On no \(words.page)"
+        for (title, folders) in layout.pages.map({ ($0.exam.name, $0.folders) }) + [(loose, layout.looseFolders)] {
             let pools = folders.compactMap { byID[$0.id] }
             placed.formUnion(pools.map(\.id))
             if !pools.isEmpty { groups.append(Group(title: title, folders: pools)) }
@@ -81,10 +87,10 @@ final class ExamSetupModel {
         // A folder the course read does not have yet still shows, at the end.
         let rest = setup.folders.filter { !placed.contains($0.id) }
         if !rest.isEmpty {
-            if let last = groups.last, last.title == "On no exam page" {
+            if let last = groups.last, last.title == loose {
                 groups[groups.count - 1] = Group(title: last.title, folders: last.folders + rest)
             } else {
-                groups.append(Group(title: "On no exam page", folders: rest))
+                groups.append(Group(title: loose, folders: rest))
             }
         }
         return groups
@@ -94,7 +100,7 @@ final class ExamSetupModel {
     func name(_ folder: ExamSetup.Folder) -> String {
         let all = setup?.folders ?? []
         guard all.contains(where: { $0.id != folder.id && $0.name.lowercased() == folder.name.lowercased() }) else { return folder.name }
-        let page = detail?.exams.first { $0.id == folder.examPageID }?.name ?? "no exam page"
+        let page = detail?.exams.first { $0.id == folder.examPageID }?.name ?? "no \(words.page)"
         return "\(folder.name) (\(page))"
     }
 
@@ -160,7 +166,7 @@ final class ExamSetupModel {
         if picked.isEmpty {
             if !wrongOnly { return "Tick at least one folder." }
             return folders.allSatisfy { $0.wrongCount == 0 }
-                ? "No wrong questions in this course right now."
+                ? "No wrong questions in this \(words.container) right now."
                 : "Tick at least one folder with wrong questions."
         }
         let split = plan.draws.map { "\($0.drawn) from \($0.name)" }.joined(separator: " · ")

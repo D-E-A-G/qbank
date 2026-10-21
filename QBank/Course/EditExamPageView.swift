@@ -3,11 +3,13 @@ import QBankKit
 import SwiftUI
 
 /// The exam page editor, as a sheet: Cancel, New exam page or Edit Exam 2, Done; the page's name,
-/// the course's folders as chips, and how many questions its folders hold. A page that exists can
-/// be removed here; its folders go back under Folders.
+/// the course's folders as chips, and how many questions its folders hold. A topic's study page
+/// also has its primer link. A page that exists can be removed here; its folders go back under
+/// Folders.
 struct EditExamPageView: View {
     @State private var model: EditExamPageModel
     @FocusState private var naming: Bool
+    @FocusState private var linking: Bool
     @Environment(\.dismiss) private var dismiss
     /// Called when the sheet closes, with how.
     let finished: (EditExamPageModel.Outcome) -> Void
@@ -19,7 +21,7 @@ struct EditExamPageView: View {
 
     var body: some View {
         EditSheet(
-            title: model.isNew ? "New exam page" : "Edit \(model.name.isEmpty ? "exam page" : model.name)",
+            title: model.isNew ? "New \(model.words.page)" : "Edit \(model.name.isEmpty ? model.words.page : model.name)",
             confirm: "Done",
             identifier: "editPage",
             isSaving: model.isSaving,
@@ -31,8 +33,22 @@ struct EditExamPageView: View {
             }
             card
             SheetHint(text: "Tap the folders on this page. A folder on another page is greyed and says which.")
+            if model.hasLink {
+                LabeledField(label: "Primer link", hint: "Where you wrote this page up. The page opens it; leave it empty for none.") {
+                    TextField("Primer link", text: $model.link, prompt: Text(verbatim: "https://").foregroundStyle(.qbank(.text4)))
+                        .keyboardType(.URL)
+                        .textContentType(.URL)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .submitLabel(.done)
+                        .focused($linking)
+                        .accessibilityIdentifier("editPage.link")
+                }
+                .padding(.top, QBankSpacing.space2)
+                .disabled(model.isSaving)
+            }
             if !model.isNew {
-                Button("Remove this exam page", role: .destructive) {
+                Button("Remove this \(model.words.page)", role: .destructive) {
                     Task { if let outcome = await model.remove() { close(outcome) } }
                 }
                 .buttonStyle(.qbank(.destructive, size: .large, fullWidth: true))
@@ -47,7 +63,7 @@ struct EditExamPageView: View {
     private var card: some View {
         let shape = RoundedRectangle(cornerRadius: QBankRadius.md, style: .continuous)
         return VStack(alignment: .leading, spacing: QBankSpacing.space3) {
-            TextField("Exam page name", text: $model.name)
+            TextField("\(model.words.pageTitle) name", text: $model.name)
                 .qbankFont(.body)
                 .foregroundStyle(.qbank(.text1))
                 .textInputAutocapitalization(.words)
@@ -56,10 +72,10 @@ struct EditExamPageView: View {
                 .padding(.horizontal, QBankSpacing.space4)
                 .frame(minHeight: QBankButtonStyle.Size.medium.minHeight)
                 .background(.qbank(.surfaceSunken), in: .rect(cornerRadius: QBankRadius.sm, style: .continuous))
-                .accessibilityLabel("Exam page name")
+                .accessibilityLabel("\(model.words.pageTitle) name")
                 .accessibilityIdentifier("editPage.name")
             if model.chips.isEmpty {
-                Text("This course has no folders yet.")
+                Text("This \(model.words.container) has no folders yet.")
                     .qbankFont(.subheadline)
                     .foregroundStyle(.qbank(.text2))
             } else {
@@ -86,6 +102,7 @@ struct EditExamPageView: View {
 
     private func save() {
         naming = false
+        linking = false
         Task {
             if let outcome = await model.save() { close(outcome) }
         }

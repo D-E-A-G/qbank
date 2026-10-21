@@ -42,6 +42,11 @@ struct UpdateSemesterRequest: Encodable {
     }
 }
 
+/// Archives a semester by hand, or brings it back; nothing else of it changes.
+struct ArchiveSemesterRequest: Encodable {
+    let archived: Bool
+}
+
 struct AddCourseRequest: Encodable {
     let semesterId: String
     let code: String
@@ -56,6 +61,18 @@ struct UpdateCourseRequest: Encodable {
     let archived: Bool?
 }
 
+struct AddTopicRequest: Encodable {
+    let title: String
+}
+
+struct TopicOrderRequest: Encodable {
+    let topicIds: [String]
+}
+
+struct TopicsResponse: Decodable {
+    let topics: [CourseSummary]
+}
+
 struct StudyPlaceBody: Codable {
     let courseId: String?
 }
@@ -66,10 +83,6 @@ struct ClearReviewRequest: Encodable {
 
 struct ClearReviewResponse: Decodable {
     let cleared: Int
-}
-
-struct SemestersResponse: Decodable {
-    let semesters: [Semester]
 }
 
 struct TermsResponse: Decodable {
