@@ -8,7 +8,7 @@ This policy will be published at the privacy policy URL named in [app-store-list
 
 ## What this app is
 
-QBank is an iPhone and iPad app for practicing nursing exam questions (NCLEX style). It is the phone and tablet version of the QBank web app. Both talk to the same private QBank server, which one person runs for himself and a few invited users. You sign in with the account the owner set up for you; the app has no sign-up of its own.
+QBank is an iPhone and iPad app for practicing nursing exam questions (NCLEX style). It is the phone and tablet version of the QBank web app. Both talk to the same private QBank server, which one person runs for himself and a few invited users. You sign in with the account the owner set up for you, or sign up in the app or on the web with an email he added; no other email can make an account.
 
 ## What we do not do
 
@@ -23,17 +23,18 @@ QBank is an iPhone and iPad app for practicing nursing exam questions (NCLEX sty
 
 ### 1. Your account
 
-- **Email address and password.** You sign in with the email address and password of your QBank account. The server stores the email address and a one-way hash of the password, never the password itself. The app sends your password only to the QBank server, over HTTPS, at sign-in, and does not store it. iOS may offer to save it in your own Passwords app; that is Apple's feature and under your control.
+- **Email address and password.** You sign in with the email address and password of your QBank account. The server stores the email address and a one-way hash of the password, never the password itself. The app sends your password only to the QBank server, over HTTPS, at sign-up and sign-in, and does not store it. iOS may offer to save it in your own Passwords app; that is Apple's feature and under your control.
 - **Passkeys.** You can save a passkey for your account, in the app or on the web, and sign in with it instead of your password. The passkey's private key stays in your Passwords app, or the passkey app you chose, and never leaves your devices; iOS checks your face, fingerprint, or passcode before using it. When you save one, the server keeps its public key and id, a name (in the app, the device it was saved on, such as "iPhone"), when it was saved, and what the device reported about it (whether it syncs between your devices, and how it can be used). Signing in sends only a signature over a one-time challenge. Settings lists your passkeys and removes them; a removed passkey no longer signs you in, and its copy in your Passwords app stays until you delete it there.
-- **Display name.** Your account has a name, set by the owner when the account is made. The app may show it; it does not ask you for one.
+- **Display name.** Your account has a name: the one the owner set when he made the account, or, when you signed up, the part of your email address before the @. The app may show it; it does not ask you for one.
 - **Account role.** Whether the account is a user account or the owner's admin account, and whether you must choose a new password at your next sign-in.
+- **Sign-up list.** The email addresses the owner adds so their people can sign up, with when he added each. The server keeps each until he removes it; removing one does not delete an account made with it.
 
 ### 2. Your sign-in session
 
 - When you sign in, the server creates a session and the app receives a session token. The app stores the token in the iOS Keychain on that device only, and sends it with every request so you stay signed in.
 - With each session the server stores when it was created and expires, the IP address the sign-in came from, and the device description the app sends (its user agent). The sign-in library records these by default; QBank does not use them, and never uses them to work out where you are.
 - Sessions expire on their own after a long period of no use. Signing out removes the token from the device and ends the session on the server when the device can reach it.
-- After 5 wrong passwords in a row the server locks sign-in for that email address for a short time. For that it keeps the email address, a count of failed tries, and when the lock ends.
+- After 5 wrong passwords in a row the server locks sign-in for that email address for a short time, and after 5 refused sign-ups it locks sign-up for that email the same way. For that it keeps the email address, a count of failed tries, and when the lock ends.
 
 ### 3. Your answers and progress
 
@@ -84,13 +85,13 @@ While the app is tested through Apple's TestFlight, Apple may share with the own
 
 ## Deleting your account and data
 
-The app has no in-app sign-up, so accounts are made and removed by the owner. To delete your account, ask the owner (contact below). He removes the account from the server, and with it everything linked to it: sign-in, sessions, passkeys, your study content (semesters, courses, topics, pages, folders, sets, questions, and terms), answers, progress, Review list, exams, the records of the sets you made questions for, and your last-opened course. Backup copies age out within about 30 days. To remove the copy on your device, sign out or delete the app.
+The app cannot delete an account yet, so accounts are removed by the owner. To delete your account, ask the owner (contact below). He removes the account from the server, and with it everything linked to it: sign-in, sessions, passkeys, your study content (semesters, courses, topics, pages, folders, sets, questions, and terms), answers, progress, Review list, exams, the records of the sets you made questions for, and your last-opened course. Backup copies age out within about 30 days. To remove the copy on your device, sign out or delete the app.
 
 If you only want a copy of your data, use **Export my progress** first.
 
 ## Children
 
-QBank is made for nursing students preparing for licensing exams. It is not directed at children, and accounts are only made by the owner for people he knows.
+QBank is made for nursing students preparing for licensing exams. It is not directed at children, and accounts are only made for people the owner knows and adds.
 
 ## Features that will change this policy
 

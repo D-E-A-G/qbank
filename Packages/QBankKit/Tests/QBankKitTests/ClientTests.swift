@@ -27,6 +27,25 @@ struct ClientTests {
         #expect(transport.requests.first?.value(forHTTPHeaderField: "Authorization") == nil)
     }
 
+    @Test func signUpSendsNoBearerToken() async throws {
+        let transport = try FixtureTransport("sign-up")
+        let (client, _) = TestClient.make(transport, token: "an-old-token")
+        try await client.signUp(email: "new.user@example.com", password: "synthetic-pass-2")
+        #expect(transport.requests.first?.value(forHTTPHeaderField: "Authorization") == nil)
+    }
+
+    /// The account was made but its sign-in failed: nothing is stored, and she signs in next.
+    @Test func signUpMadeButNotSignedInStoresNothing() async throws {
+        let transport = FixtureTransport(
+            status: 502,
+            body: #"{"error": "auth_failed", "message": "Your account was made, but signing in failed. Sign in to continue."}"#
+        )
+        let (client, store) = TestClient.make(transport, token: nil)
+        let error = await #expect(throws: QBankError.self) { try await client.signUp(email: "a@example.com", password: "synthetic-pass-2") }
+        #expect(error?.serverCode == .authFailed)
+        #expect(try store.load() == nil)
+    }
+
     @Test func requestsAskForJSONAndCarryNoCookies() async throws {
         let transport = try FixtureTransport("semesters")
         let (client, _) = TestClient.make(transport)

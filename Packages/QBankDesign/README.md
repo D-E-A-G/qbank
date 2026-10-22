@@ -47,6 +47,7 @@ Picked from the approved iPhone wireframes:
 | `QBankProgressBar`, `QBankProgressPill` | The progress track, and the course card's track with its percentage |
 | `QBankTimerPill` | The exam countdown, with its low-time state |
 | `QBankSegmentedControl` | One choice of a few, such as Look in Settings (Match device, Light, Dark) |
+| `QBankMark`, `QBankMarkShape` | The app icon's Q on its Dusk tile, over the sign-in and lock screens; the same in every palette and in dark mode, as the icon is |
 
 Every component file has SwiftUI previews, and `QBankGallery` shows them all together in light, dark and every palette.
 

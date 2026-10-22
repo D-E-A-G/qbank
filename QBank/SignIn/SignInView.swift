@@ -5,14 +5,19 @@ struct SignInView: View {
     @State private var model: SignInModel
     @State private var showsForgotPassword = false
     @FocusState private var focus: Field?
+    /// To the Sign up screen.
+    private let signUp: () -> Void
 
     private enum Field {
         case email
         case password
     }
 
-    init(app: AppModel) {
-        _model = State(initialValue: SignInModel(app: app))
+    /// - Parameter handoff: The email and sentence sign-up left, when it made the account but
+    ///   could not sign it in.
+    init(app: AppModel, handoff: SignInHandoff? = nil, signUp: @escaping () -> Void) {
+        _model = State(initialValue: SignInModel(app: app, handoff: handoff))
+        self.signUp = signUp
     }
 
     var body: some View {
@@ -99,6 +104,11 @@ struct SignInView: View {
             .accessibilityIdentifier("signIn.passkey")
 
             forgotPassword
+
+            Button("Sign up", action: signUp)
+                .buttonStyle(.qbank(.plain))
+                .disabled(model.isBusy)
+                .accessibilityIdentifier("signIn.signUp")
         }
     }
 
@@ -128,17 +138,5 @@ struct SignInView: View {
     private func signInWithPasskey() {
         focus = nil
         Task { await model.signInWithPasskey() }
-    }
-}
-
-/// The app's "Q" mark, over the sign-in form and the lock screen.
-struct QBankMark: View {
-    var body: some View {
-        Text("Q")
-            .font(.system(size: 30, weight: .black, design: .rounded))
-            .foregroundStyle(.qbank(.textOnTint))
-            .frame(width: 64, height: 64)
-            .background(.qbank(.tint), in: .rect(cornerRadius: 16, style: .continuous))
-            .accessibilityHidden(true)
     }
 }

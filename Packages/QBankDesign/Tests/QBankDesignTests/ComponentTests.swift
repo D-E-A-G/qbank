@@ -41,6 +41,25 @@ struct ComponentTests {
         }
     }
 
+    @Test("The mark draws the app icon's Q where the icon has it")
+    func markGeometry() {
+        let icon = QBankMarkShape().path(in: CGRect(x: 0, y: 0, width: 1024, height: 1024))
+        let bounds = icon.boundingRect
+        // The bowl's left, top and centre line, and the tail's far corners: (706, 716) pushed 50
+        // to each side of the line.
+        #expect(abs(bounds.minX - 265) < 0.5 && abs(bounds.minY - 240) < 0.5, "\(bounds)")
+        #expect(abs(bounds.maxX - (706 + 50 / 2.squareRoot())) < 0.5, "\(bounds)")
+        #expect(abs(bounds.maxY - (716 + 50 / 2.squareRoot())) < 0.5, "\(bounds)")
+        #expect(icon.contains(CGPoint(x: 290, y: 495)), "the bowl's left side")
+        #expect(!icon.contains(CGPoint(x: 500, y: 495)), "the counter is open")
+        #expect(icon.contains(CGPoint(x: 680, y: 690)), "the tail")
+        #expect(!icon.contains(CGPoint(x: 100, y: 100)), "the field around it")
+
+        // A 64 point tile scales the same drawing.
+        let tile = QBankMarkShape().path(in: CGRect(x: 0, y: 0, width: 64, height: 64)).boundingRect
+        #expect(abs(tile.minX - 265 / 16) < 0.05 && abs(tile.minY - 240 / 16) < 0.05, "\(tile)")
+    }
+
     @Test("Button sizes keep the web heights")
     func buttonSizes() {
         #expect(QBankButtonStyle.Size.large.minHeight == 50)

@@ -37,7 +37,9 @@ struct ColorTokenTests {
         #expect(Set(rootSemantic).subtracting(themed).sorted() == [])
     }
 
-    @Test("Accent, guess and app icon ramps equal the web palette blocks", arguments: QBankPalette.allCases)
+    // The web's per-palette `--icon-*` colors have no Swift twin: the iPhone's mark is the app
+    // icon's own drawing, the same in every palette (`QBankMark`).
+    @Test("Accent and guess ramps equal the web palette blocks", arguments: QBankPalette.allCases)
     func palettesMatch(palette: QBankPalette) throws {
         let accent = palette.accent
         let guess = palette.guess
@@ -52,8 +54,6 @@ struct ColorTokenTests {
             ("--guess-50", guess.shade50), ("--guess-300", guess.shade300), ("--guess-400", guess.shade400),
             ("--guess-600", guess.shade600), ("--guess-900", guess.shade900),
             ("--guess-border-dark", guess.borderDark),
-            ("--icon-top", palette.appIcon.top), ("--icon-bottom", palette.appIcon.bottom),
-            ("--icon-fg", palette.appIcon.foreground),
         ]
         for (name, value) in expectations {
             #expect(try web.color(name, palette: palette, appearance: .light) == value, "\(name) in \(palette.rawValue)")
@@ -131,7 +131,6 @@ struct ColorTokenTests {
             #expect(token.value(palette: .slate, appearance: .dark) == QBankRGBA(hex), "\(token.cssName) dark")
         }
         #expect(QBankPalette.slate.displayName == "Slate")
-        #expect(QBankPalette.slate.appIcon == QBankAppIconColors(top: QBankRGBA(0x6E7C89), bottom: QBankRGBA(0x37444F), foreground: QBankRGBA(0xF7F4EE)))
         // Everything outside the accent and the guess is Dusk's.
         let accentTokens: Set<QBankColorToken> = [.tint, .tintPressed, .tintSoft, .tintSoftBorder, .focusRing, .textOnTint,
                                                    .guess, .guessSoft, .guessBorder, .progressFill]

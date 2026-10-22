@@ -67,7 +67,7 @@ Private by design
 - Lock QBank with Face ID, Touch ID or your passcode.
 - Export your answers and progress as a file whenever you like.
 
-QBank works with an account on a QBank server. The app has no sign-up; accounts are made by the server's owner.
+QBank works with an account on a QBank server. Sign up in the app with an email the server's owner has added, or sign in with the account he made for you.
 
 NCLEX and NCLEX-RN are registered trademarks of the National Council of State Boards of Nursing, Inc. QBank is not affiliated with or endorsed by NCSBN.
 ```

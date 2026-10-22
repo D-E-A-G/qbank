@@ -9,7 +9,7 @@ struct RootView: View {
         Group {
             switch model.route {
             case .signedOut:
-                SignInView(app: model)
+                SignedOutView(app: model)
                     .transition(.opacity)
             case .choosingPassword:
                 ChoosePasswordView(app: model)

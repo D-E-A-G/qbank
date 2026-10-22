@@ -59,6 +59,68 @@ struct SessionContractTests {
         #expect(error?.isTemporary == true)
     }
 
+    @Test func signUpMakesASignedInUserAccount() async throws {
+        let transport = try FixtureTransport("sign-up")
+        let (client, store) = TestClient.make(transport, token: nil)
+        let signedIn = try await client.signUp(email: "new.user@example.com", password: "synthetic-pass-2")
+        try expectRequest(transport.requests.first, matches: Fixture.load("sign-up"))
+        #expect(transport.requests.first?.value(forHTTPHeaderField: "Authorization") == nil)
+        #expect(signedIn.token == "synthetic-session-token")
+        #expect(signedIn.user.email == "new.user@example.com")
+        #expect(signedIn.user.role == .student)
+        #expect(signedIn.user.mustChangePassword == false)
+        #expect(signedIn.user.palette == .dusk)
+        let stored = try #require(try store.load())
+        #expect(stored.token == "synthetic-session-token")
+        #expect(stored.account == signedIn.user)
+        #expect(stored.expiresAt == signedIn.expiresAt)
+    }
+
+    @Test func refusedSignUpStoresNothing() async throws {
+        let transport = try FixtureTransport("sign-up-refused")
+        let (client, store) = TestClient.make(transport, token: nil)
+        let error = await #expect(throws: QBankError.self) {
+            try await client.signUp(email: "stranger@example.com", password: "synthetic-pass-3")
+        }
+        try expectRequest(transport.requests.first, matches: Fixture.load("sign-up-refused"))
+        guard case .server(let server)? = error else {
+            Issue.record("Expected a server error, got \(String(describing: error))")
+            return
+        }
+        #expect(server.status == 403)
+        #expect(server.code == .signUpRefused)
+        #expect(server.message == "This email can't sign up here. If you already have an account, sign in. Otherwise, ask the owner to add your email.")
+        #expect(error?.needsSignIn == false)
+        #expect(try store.load() == nil)
+    }
+
+    @Test func lockedSignUpSaysHowLong() async throws {
+        let transport = try FixtureTransport("sign-up-locked")
+        let (client, _) = TestClient.make(transport, token: nil)
+        let error = await #expect(throws: QBankError.self) {
+            try await client.signUp(email: "locked@example.com", password: "synthetic-pass-3")
+        }
+        guard case .server(let server)? = error else {
+            Issue.record("Expected a server error, got \(String(describing: error))")
+            return
+        }
+        #expect(server.status == 429)
+        #expect(server.code == .tooManyAttempts)
+        #expect(server.retryAfterSeconds == 900)
+        #expect(server.message == "Too many tries. Try again in 15 minutes.")
+    }
+
+    @Test func shortSignUpPasswordIsRefused() async throws {
+        let transport = try FixtureTransport("sign-up-short-password")
+        let (client, store) = TestClient.make(transport, token: nil)
+        let error = await #expect(throws: QBankError.self) {
+            try await client.signUp(email: "new.user@example.com", password: "short")
+        }
+        try expectRequest(transport.requests.first, matches: Fixture.load("sign-up-short-password"))
+        #expect(error?.serverCode == .invalidRequest)
+        #expect(try store.load() == nil)
+    }
+
     @Test func sessionRefreshesTheStoredAccount() async throws {
         let transport = try FixtureTransport("session")
         let (client, store) = TestClient.make(transport)

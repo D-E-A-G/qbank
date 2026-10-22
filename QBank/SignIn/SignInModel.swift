@@ -18,9 +18,10 @@ final class SignInModel {
 
     private let app: AppModel
 
-    init(app: AppModel) {
+    init(app: AppModel, handoff: SignInHandoff? = nil) {
         self.app = app
-        problem = app.signedOutReason
+        email = handoff?.email ?? ""
+        problem = handoff?.problem ?? app.signedOutReason
     }
 
     func signIn() async {

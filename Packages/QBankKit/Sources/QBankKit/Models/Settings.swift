@@ -15,6 +15,11 @@ struct PasswordSignInRequest: Encodable {
     let password: String
 }
 
+struct SignUpRequest: Encodable {
+    let email: String
+    let password: String
+}
+
 struct ChangePasswordRequest: Encodable {
     let currentPassword: String
     let newPassword: String

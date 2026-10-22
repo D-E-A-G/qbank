@@ -1,0 +1,21 @@
+{
+  "recordedFrom": "c1ac3f4f59b48c760facffa39231345a01e2dc29",
+  "request": {
+    "method": "POST",
+    "path": "/api/sign-up",
+    "query": {},
+    "authorization": null,
+    "body": {
+      "email": "stranger@example.com",
+      "password": "synthetic-pass-3"
+    }
+  },
+  "response": {
+    "status": 403,
+    "headers": {},
+    "body": {
+      "error": "sign_up_refused",
+      "message": "This email can't sign up here. If you already have an account, sign in. Otherwise, ask the owner to add your email."
+    }
+  }
+}

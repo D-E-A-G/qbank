@@ -64,7 +64,8 @@ nonisolated enum DebugLaunchScenario {
 
     enum Scenario: String, CaseIterable {
         /// No session on the phone: the sign-in screen. `FakeQBankServer.student`
-        /// signs in normally; `FakeQBankServer.resetStudent` must choose a new password.
+        /// signs in normally; `FakeQBankServer.resetStudent` must choose a new password;
+        /// `FakeQBankServer.signUpEmail` is on the owner's sign-up list and signs up.
         case signedOut = "signed-out"
         /// `FakeQBankServer.student` is signed in from an earlier launch and last
         /// used the Mental Health course. The server does not let her make questions.

@@ -112,6 +112,58 @@ struct DebugLaunchScenarioTests {
         #expect(app.route == .signedIn(app.account!))
     }
 
+    @Test func fakeServerSignsUpTheListedEmailOnce() async throws {
+        let app = try #require(Self.launch("signed-out"))
+        let short = SignUpModel(app: app)
+        short.email = FakeQBankServer.signUpEmail
+        short.password = "short"
+        await short.signUp()
+        #expect(short.problem == "Choose a password of at least 8 characters.")
+
+        let model = SignUpModel(app: app)
+        model.email = " New.User@example.com "
+        model.password = "synthetic-pass-9"
+        await model.signUp()
+        #expect(model.problem == nil)
+        #expect(app.account?.email == FakeQBankServer.signUpEmail)
+        #expect(app.route == .signedIn(app.account!))
+
+        // The account it made signs in with that password, and cannot sign up again.
+        await app.signOut()
+        let again = SignUpModel(app: app)
+        again.email = FakeQBankServer.signUpEmail
+        again.password = "synthetic-pass-9"
+        await again.signUp()
+        #expect(again.problem?.hasPrefix("This email can't sign up here.") == true)
+        let signIn = SignInModel(app: app)
+        signIn.email = FakeQBankServer.signUpEmail
+        signIn.password = "synthetic-pass-9"
+        await signIn.signIn()
+        #expect(app.account?.email == FakeQBankServer.signUpEmail)
+    }
+
+    @Test func fakeServerLocksAnEmailsSignUpAfterFiveRefusals() async throws {
+        let app = try #require(Self.launch("signed-out"))
+        let model = SignUpModel(app: app)
+        model.email = "stranger@example.com"
+        var problems: [String?] = []
+        for _ in 0..<6 {
+            // A refusal empties the password, as she would type it again.
+            model.password = "synthetic-pass-9"
+            await model.signUp()
+            problems.append(model.problem)
+        }
+        let refused = "This email can't sign up here. If you already have an account, sign in. Otherwise, ask the owner to add your email."
+        let locked = "Too many tries. Try again in 15 minutes."
+        #expect(problems == [refused, refused, refused, refused, locked, locked])
+
+        // The lock is that email's sign-up only.
+        model.email = FakeQBankServer.signUpEmail
+        model.password = "synthetic-pass-9"
+        await model.signUp()
+        #expect(app.account?.email == FakeQBankServer.signUpEmail)
+    }
+
     @Test func fakeServerRestoresOnce() async throws {
         let app = try #require(Self.launch("signed-in"))
         let course = CourseModel(app: app, id: FakeQBankServer.mentalHealthID)

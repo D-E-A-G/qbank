@@ -30,6 +30,19 @@ public struct QBankClient: Sendable {
         try await send(Request(.get, "/health", authenticated: false))
     }
 
+    /// Makes a user account for an email the owner put on the sign-up list, signs it in, and stores
+    /// the session, as a password sign-in does. Any other email, or one that already has an account,
+    /// gets the same 403 `sign_up_refused`. Five refusals lock that email's sign-up for 15 minutes
+    /// (`too_many_attempts`, 429, `retryAfterSeconds`), apart from its sign-in. A 502 `auth_failed`
+    /// means the account was made but not signed in: she signs in instead.
+    @discardableResult
+    public func signUp(email: String, password: String) async throws(QBankError) -> SignedIn {
+        let body = SignUpRequest(email: email, password: password)
+        let signedIn: SignedIn = try await send(Request(.post, "/api/sign-up", body: body, authenticated: false))
+        try store(signedIn)
+        return signedIn
+    }
+
     /// Signs in with email and password and stores the session.
     /// Five wrong passwords lock the address for 15 minutes (`too_many_attempts`, 429, `retryAfterSeconds`).
     @discardableResult

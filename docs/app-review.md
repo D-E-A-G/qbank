@@ -14,13 +14,13 @@ So nothing in this file is needed for phase 2. It is ready for the day the owner
 
 ### Before submitting: who can use the app
 
-Today every QBank account is made by the owner, and the app has no sign-up (pick 18 of the plan keeps the server for him and Khine). A reviewer can sign in with the demo account below, but a stranger who downloads the app can do nothing past the sign-in screen. Apple may reject such an app, or ask for it to be distributed as an [unlisted app](https://developer.apple.com/support/unlisted-app-distribution/) instead. The plan's answer is phase 4, "free on this phone": the first screen offers using QBank on the phone without an account, so the public listing makes sense. **Submit only after that mode ships**, or request unlisted distribution if a public listing is not wanted.
+Today a QBank account exists only for an email the owner put on his sign-up list: he makes it, or its user signs up with that email in the app or on the web (pick 18 of the plan keeps the server for him and Khine). A reviewer can sign in with the demo account below, but a stranger who downloads the app can do nothing past the sign-in screen. Apple may reject such an app, or ask for it to be distributed as an [unlisted app](https://developer.apple.com/support/unlisted-app-distribution/) instead. The plan's answer is phase 4, "free on this phone": the first screen offers using QBank on the phone without an account, so the public listing makes sense. **Submit only after that mode ships**, or request unlisted distribution if a public listing is not wanted.
 
 ## How sign-in works
 
 The reviewer needs to understand this, so the review notes below say it in short.
 
-1. The app opens on **Sign in**: email and password fields, a **Sign in** button, and **Sign in with a passkey**. There is no **Sign up** button; accounts are made by the server's owner on the QBank web app.
+1. The app opens on **Sign in**: email and password fields, a **Sign in** button, **Sign in with a passkey**, and **Sign up**. Sign up makes a user account, signed in at once, only for an email the owner added to the sign-up list on the QBank web app's admin screen. Any other email, or one that already has an account, gets the same refusal, and 5 refused tries lock that email's sign-up for 15 minutes.
 2. The app sends the email and password over HTTPS to the QBank server, `https://qbank.dimitrygallego.com`, which answers with a session token. The app keeps the token in the iOS Keychain and sends it with every request. The password is never stored on the phone.
 3. After 5 wrong passwords the server locks that email for a short time and says how long; the app shows that message.
 4. **Forgot password?** explains that the app sends no email: the owner sets a temporary password from his admin account, and the user chooses a new one at the next sign-in (the **Choose a new password** screen).
@@ -30,7 +30,7 @@ The reviewer needs to understand this, so the review notes below say it in short
 Login rules this meets:
 
 - **Guideline 4.8 (Sign in with Apple)** does not apply: QBank uses only its own account system, no third-party or social login. Passkeys are a way into that same account.
-- **Guideline 5.1.1(v), account deletion:** required only for apps that let people create an account. QBank's app does not; accounts are made and removed by the owner, and the privacy policy says how to ask for deletion. If a later version adds sign-up in the app, it must add **Delete account** in the app too, which needs a new server endpoint.
+- **Guideline 5.1.1(v), account deletion:** required for apps that let people create an account, and QBank's app does: **Sign up**, for an email on the owner's list. The app has no **Delete account** yet, and it needs a server endpoint that does not exist. **Both must ship before an App Store submission.** TestFlight is not affected. Until then the privacy policy says how to ask the owner for deletion.
 - **Guideline 2.1, demo account:** required because the app has a login; see below. The server must be up during review.
 
 ## Demo account
@@ -46,7 +46,7 @@ How to make it (owner, on the web app, about five minutes):
 
 1. Pick an email address you control that is not Khine's or yours, for example a `+review` alias of your own address.
 2. On the web app's admin screen, add that email to the sign-up list.
-3. Sign out, choose **Sign up** on the web, and create the account with a strong password that is not used anywhere else.
+3. Sign out, choose **Sign up** in the app or on the web, and create the account with a strong password that is not used anywhere else.
 4. Sign in to the iPhone app with it once, answer a few questions in one course, and finish one short exam, so the reviewer sees a Review list and progress instead of empty screens.
 5. Keep the account after review: Apple may re-check it with each new version. Change its password after any version is approved if you like, and update App Store Connect at the same time.
 
@@ -56,12 +56,12 @@ Before every submission, a worker signs in to the TestFlight build of that versi
 
 ## Review notes
 
-Paste into App Store Connect (App Review Information > Notes). Fill the two marked lines first.
+Paste into App Store Connect (App Review Information > Notes). Fill the marked words first: the review contact, and ACCOUNT_DELETION_NOTE, which says where **Delete account** is in the app once it ships (Guideline 5.1.1(v) above).
 
 ```text
 QBank is an NCLEX-style practice question bank for nursing students. It is the iPhone client of a private QBank server (https://qbank.dimitrygallego.com) that also serves a web app.
 
-Sign in: accounts are created by the server's owner, so the app has no sign-up screen. Please use the demo account in the Sign-In Information fields. It is a normal user account with a few answers already given, so Review and progress are not empty.
+Sign in: Sign up makes an account only for an email the server's owner has added, so it refuses any other email. Please use the demo account in the Sign-In Information fields. It is a normal user account with a few answers already given, so Review and progress are not empty.
 
 What to try:
 1. Sign in. Home lists courses by semester.
@@ -70,7 +70,7 @@ What to try:
 4. Open Exam in the course, pick folders (or "Wrong questions only"), and start a timed exam. "End exam" scores what was answered.
 5. Turn on Airplane Mode and answer a practice question: it is saved on the phone and sent when the connection returns. Exams need a connection.
 
-Accounts: the app does not create accounts, so there is no in-app account deletion (Guideline 5.1.1(v)); users ask the owner to delete theirs, as the privacy policy says. There is no third-party or social login (Guideline 4.8 does not apply).
+Accounts: Sign up makes an account only for an email the owner has added. ACCOUNT_DELETION_NOTE. There is no third-party or social login (Guideline 4.8 does not apply).
 
 The app has no ads, no tracking, no analytics, and no in-app purchases. It uses only standard HTTPS encryption.
 
