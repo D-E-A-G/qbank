@@ -1,0 +1,29 @@
+{
+  "recordedFrom": "c1ac3f4f59b48c760facffa39231345a01e2dc29",
+  "request": {
+    "method": "POST",
+    "path": "/api/sign-up",
+    "query": {},
+    "authorization": null,
+    "body": {
+      "email": "new.user@example.com",
+      "password": "synthetic-pass-2"
+    }
+  },
+  "response": {
+    "status": 201,
+    "headers": {},
+    "body": {
+      "token": "synthetic-session-token",
+      "user": {
+        "id": "k69F65WbgOh9mi6FxZLgo9o6mEPayqtD",
+        "email": "new.user@example.com",
+        "name": "new.user",
+        "role": "student",
+        "mustChangePassword": false,
+        "palette": "dusk"
+      },
+      "expiresAt": "2027-11-26T15:38:21.814Z"
+    }
+  }
+}

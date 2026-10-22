@@ -19,6 +19,9 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary, Fak
     static let resetStudent = Credentials(email: "reset@example.com", password: "synthetic-temp-1")
     /// The one student the server lets make questions, with a set being written and copies to check.
     static let maker = Credentials(email: "maker@example.com", password: "synthetic-pass-2")
+    /// The one email on the owner's sign-up list, with no account yet: it signs up with any password
+    /// of 8 to 128 characters. Every other email is refused.
+    static let signUpEmail = "new.user@example.com"
     static let sessionToken = "synthetic-session-token"
 
     static let mentalHealthID = "8d7b4f0e-0000-4000-8000-000000000310"
@@ -96,6 +99,8 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary, Fak
         /// Sets imported while the app ran, by id.
         var imported: [String: ImportedEntry] = [:]
         var importCount = 0
+        /// Refused sign-ups by email; the fifth locks that email's sign-up.
+        var signUpRefusals: [String: Int] = [:]
     }
 
     private let state: Mutex<State>
@@ -220,6 +225,9 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary, Fak
         if method == "POST", path == "/api/sign-in/password" {
             return signIn(email: body["email"] as? String ?? "", password: body["password"] as? String ?? "")
         }
+        if method == "POST", path == "/api/sign-up" {
+            return signUp(email: body["email"] as? String ?? "", password: body["password"] as? String ?? "")
+        }
         guard let token, let account = account(for: token) else {
             return failure(401, "unauthenticated", "Sign in to continue.")
         }
@@ -316,6 +324,40 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary, Fak
         let normalized = email.lowercased()
         return startSession { $0.email == normalized && $0.password == password }
     }
+
+    /// A user account for the email on the sign-up list, signed in at once, as the real route makes
+    /// it: the fields' rules first, then the lock, then the list. Any other email, or one that has
+    /// an account, gets the same refusal, and the fifth refusal locks that email's sign-up.
+    private func signUp(email: String, password: String) -> Reply {
+        let normalized = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard normalized.contains("@"), (8...128).contains(password.utf16.count) else {
+            return failure(400, "invalid_request", "Check the fields and try again.")
+        }
+        let made = state.withLock { state -> Bool? in
+            if state.signUpRefusals[normalized, default: 0] >= Self.signUpLimit { return nil }
+            guard normalized == Self.signUpEmail, !state.accounts.contains(where: { $0.email == normalized }) else {
+                state.signUpRefusals[normalized, default: 0] += 1
+                return state.signUpRefusals[normalized]! >= Self.signUpLimit ? nil : false
+            }
+            state.signUpRefusals[normalized] = nil
+            let name = String(normalized.prefix { $0 != "@" })
+            state.accounts.append(Account(id: "fake-new-user", email: normalized, name: name, password: password, mustChangePassword: false))
+            return true
+        }
+        switch made {
+        case nil:
+            var reply = failure(429, "too_many_attempts", "Too many tries. Try again in 15 minutes.")
+            reply.1["retryAfterSeconds"] = 900
+            return reply
+        case false?:
+            return failure(403, "sign_up_refused", "This email can't sign up here. If you already have an account, sign in. Otherwise, ask the owner to add your email.")
+        case true?:
+            let (status, body) = startSession { $0.email == normalized }
+            return (status == 200 ? 201 : status, body)
+        }
+    }
+
+    private static let signUpLimit = 5
 
     /// A new session for the account that matches, as a sign-in answers it.
     private func startSession(for matches: (Account) -> Bool) -> Reply {

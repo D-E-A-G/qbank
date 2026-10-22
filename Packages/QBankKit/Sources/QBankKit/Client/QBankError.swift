@@ -81,6 +81,8 @@ public struct ServerError: Error, Sendable, Equatable {
         // Sign-in and session.
         public static let unauthenticated: Code = "unauthenticated"
         public static let invalidCredentials: Code = "invalid_credentials"
+        /// Sign-up for an email not on the owner's list, or one that already has an account.
+        public static let signUpRefused: Code = "sign_up_refused"
         public static let tooManyAttempts: Code = "too_many_attempts"
         public static let mustChangePassword: Code = "must_change_password"
         public static let samePassword: Code = "same_password"

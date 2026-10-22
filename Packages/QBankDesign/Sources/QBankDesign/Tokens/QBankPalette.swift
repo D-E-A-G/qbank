@@ -93,22 +93,6 @@ public enum QBankPalette: String, CaseIterable, Identifiable, Sendable {
             )
         }
     }
-
-    /// The app icon colors for this palette: a subtle vertical gradient behind a "Q".
-    public var appIcon: QBankAppIconColors {
-        switch self {
-        case .dusk:
-            QBankAppIconColors(top: QBankRGBA(0x935073), bottom: QBankRGBA(0x502D55), foreground: QBankRGBA(0xF8F4E9))
-        case .pink:
-            QBankAppIconColors(top: QBankRGBA(0xF58DB4), bottom: QBankRGBA(0xE8608F), foreground: QBankBaseColors.pink900)
-        case .ink:
-            QBankAppIconColors(top: QBankRGBA(0x3D6497), bottom: QBankRGBA(0x2A4870), foreground: QBankRGBA(0xF7F4EE))
-        case .earth:
-            QBankAppIconColors(top: QBankRGBA(0xF5A98C), bottom: QBankRGBA(0xE67A5E), foreground: QBankRGBA(0x3A1A12))
-        case .slate:
-            QBankAppIconColors(top: QBankRGBA(0x6E7C89), bottom: QBankRGBA(0x37444F), foreground: QBankRGBA(0xF7F4EE))
-        }
-    }
 }
 
 /// One palette's accent ramp (`--accent-*` on the web) plus its dark-mode picks.
@@ -121,8 +105,4 @@ public struct QBankAccentRamp: Hashable, Sendable {
 public struct QBankGuessRamp: Hashable, Sendable {
     public let shade50, shade300, shade400, shade600, shade900: QBankRGBA
     public let borderDark: QBankRGBA
-}
-
-public struct QBankAppIconColors: Hashable, Sendable {
-    public let top, bottom, foreground: QBankRGBA
 }

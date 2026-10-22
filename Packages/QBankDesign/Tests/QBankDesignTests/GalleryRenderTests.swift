@@ -37,6 +37,12 @@ struct GalleryRenderTests {
         try write(renderer, to: folder, name: "gallery-dusk-light-accessibility5", scale: 2)
     }
 
+    @Test("The mark at the app icon's size, to lay over AppIcon.png")
+    func renderMark() throws {
+        let folder = try #require(ProcessInfo.processInfo.environment["QBANK_DESIGN_RENDER_DIR"])
+        try write(ImageRenderer(content: QBankMark(size: 1024)), to: folder, name: "mark-1024", scale: 1)
+    }
+
     private func write(_ renderer: ImageRenderer<some View>, to folder: String, name: String, scale: CGFloat = 3) throws {
         renderer.scale = scale
         let image = try #require(renderer.cgImage)
