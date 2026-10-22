@@ -50,7 +50,7 @@ How to make it (owner, on the web app, about five minutes):
 4. Sign in to the iPhone app with it once, answer a few questions in one course, and finish one short exam, so the reviewer sees a Review list and progress instead of empty screens.
 5. Keep the account after review: Apple may re-check it with each new version. Change its password after any version is approved if you like, and update App Store Connect at the same time.
 
-The demo account is an ordinary user account. It sees the shared course bank and only its own answers; nothing it does touches Khine's progress.
+The demo account is an ordinary user account. It has its own sample courses and sets, and it sees only its own questions and answers. Nothing it does touches Khine's questions or progress.
 
 Before every submission, a worker signs in to the TestFlight build of that version with the demo account (the owner gives the credentials to the session, not to a file) and checks that sign-in, one practice set, Review, and an exam work against the live server.
 
