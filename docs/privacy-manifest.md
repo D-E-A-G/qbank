@@ -20,7 +20,7 @@ Everything collected is **linked** to you, because it is stored under your accou
 | Contact Info | Email Address | `NSPrivacyCollectedDataTypeEmailAddress` | the account's sign-in email | yes | no | App Functionality |
 | Identifiers | User ID | `NSPrivacyCollectedDataTypeUserID` | the server's account id that every answer is stored under | yes | no | App Functionality |
 | User Content | Photos or Videos | `NSPrivacyCollectedDataTypePhotosorVideos` | Make questions: the photos she takes or picks of her notes, slides, or practice questions, sent on to Anthropic's Claude API to read them and deleted from the server once read; the text read from them stays in the set's record | yes | no | App Functionality |
-| User Content | Other User Content | `NSPrivacyCollectedDataTypeOtherUserContent` | answers, guesses, per-question progress, the Review list, exam picks and scores; for Make questions, the notes she pastes and the file she picks, sent on like the photos; their text stays in the set's record | yes | no | App Functionality |
+| User Content | Other User Content | `NSPrivacyCollectedDataTypeOtherUserContent` | answers, guesses, per-question progress, the Review list, exam picks and scores; an imported question file, which becomes that account's own study content, private to the account, not shared course content, and is kept with the account; for Make questions, the notes she pastes and the file she picks, sent on like the photos; their text stays in the set's record | yes | no | App Functionality |
 | Usage Data | Product Interaction | `NSPrivacyCollectedDataTypeProductInteraction` | study-session start and end times and the last-opened course (Apple lists "saved place" under this type) | yes | no | App Functionality |
 
 Answer these in App Store Connect exactly this way: "Yes, we collect data from this app", then the five types above, each "linked to the user", "not used for tracking", purpose "App Functionality" only.
@@ -35,7 +35,7 @@ Answer these in App Store Connect exactly this way: "Yes, we collect data from t
 | IP address and user agent of a session | The server's sign-in library records them with each session; QBank reads them for nothing. Apple says to declare an IP address by how it is used (location, device ID, diagnostics), and QBank uses it for none of these. Cleaner still: a server task turns that recording off (see [release.md](release.md)), and this row then goes away. |
 | Crash data, performance data, other diagnostics | The app has no crash or analytics SDK and sends no diagnostics. TestFlight crash reports and feedback are collected by Apple, and Apple says developers are not responsible for disclosing data Apple collects. |
 | Audio | Not read. |
-| An imported question file | It becomes shared course content, not personal data. The export file goes where you send it; QBank never receives it. |
+| Export file | It goes where you send it; QBank never receives it. |
 | Purchases, financial info, health, location, contacts, browsing, search history, sensitive info | Not handled. |
 
 ### When later phases change the answers
@@ -44,9 +44,9 @@ Answer these in App Store Connect exactly this way: "Yes, we collect data from t
 |---|---|
 | 3 Face ID lock | shipped: nothing is collected. iOS checks Face ID, Touch ID or the passcode and tells the app only whether it matched; the on-off setting stays on the device. |
 | 3 Passkeys | shipped: nothing new is collected that Apple's labels count (see Passkey above). The answer to the offer to save one stays on the device, in `UserDefaults`. |
-| 3 Import | shipped: an imported question file becomes shared course content; it is not personal data, so no new type. Re-check if the file can carry personal notes. |
+| 3 Import | shipped: an imported question file becomes that account's own study content, private to the account, not shared course content. It is Other User Content, already declared above. No new data type. |
 | Q Make questions (the accounts the server allows) | shipped: **Photos or Videos** and **Other User Content** (notes, files) declared above; the policy names Anthropic. |
-| Q Exam twins (the same accounts) | shipped: nothing new is collected. The app sends the course, the ticked folders and the pool, the exam picks under Other User Content; the server sends those practice questions, already shared course content, to Anthropic, which the policy says. |
+| Q Exam twins (the same accounts) | shipped: nothing new is collected. The app sends the course, the ticked folders and the pool, the exam picks under Other User Content; the server sends those practice questions, the account's own study content, to Anthropic, which the policy says. |
 | Q Delete and Undo | shipped: nothing new is collected. Deleting a set, a folder or a past exam hides it on the server, where it stays with her answers until the account is deleted, which the policy says. |
 | 4 Free on this phone | data in on-phone mode is never sent anywhere and is not collected; the signed-in mode keeps the answers above. |
 
