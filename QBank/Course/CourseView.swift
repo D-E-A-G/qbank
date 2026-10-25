@@ -40,11 +40,9 @@ struct CourseView: View {
         .qbankScreenBackground()
         .navigationTitle(model.course.map(Wording.name) ?? route.name ?? "Course")
         .screenColumnTitle()
-        .toolbar {
-            if model.isStudent, let course = model.course {
-                ToolbarItem(placement: .topBarTrailing) {
-                    addMenu(course)
-                }
+        .plusMenu(model.isStudent && model.course != nil) {
+            if let course = model.course {
+                addMenu(course)
             }
         }
         .refreshable { await model.load() }

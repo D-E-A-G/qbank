@@ -118,12 +118,10 @@ struct HomeView: View {
         }
         .qbankScreenBackground()
         .navigationTitle("Home")
+        .plusMenu(model.showsEditing) {
+            addMenu
+        }
         .toolbar {
-            if model.showsEditing {
-                ToolbarItem(placement: .topBarTrailing) {
-                    addMenu
-                }
-            }
             if let waiting = app.offline?.waiting.count, waiting > 0 {
                 ToolbarItem(placement: .topBarTrailing) {
                     savedForOffline {

@@ -322,6 +322,32 @@ final class AddHereUITests: XCTestCase {
         XCTAssertTrue(app.buttons["folder.Week 5"].appears(timeout: 5), "on the page")
     }
 
+    /// Home's + left under the course she opened, once the Color changed, kept the signed-in
+    /// screens from going at sign-out, and signing in again brought back the old ones, Settings
+    /// and its spinning Sign out included.
+    @MainActor
+    func testSigningOutUnderAPlusAndInAgainStartsAfresh() throws {
+        try skipOnIPad()
+        let app = launch("signed-in")
+        XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 10))
+        openTab(app, "Settings")
+        let slate = app.buttons["Slate"]
+        reveal(slate, in: app)
+        slate.tap()
+        XCTAssertTrue(slate.isSelected)
+        app.swipeDown()
+        let signOut = app.buttons["settings.signOut"]
+        XCTAssertTrue(signOut.appears(timeout: 5))
+        signOut.tap()
+        XCTAssertTrue(app.staticTexts["signIn.title"].appears(timeout: 10))
+        signIn(app, email: "student@example.com", password: "synthetic-pass-1")
+        dismissSavePassword(app)
+        declinePasskeyOffer(app)
+        XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 10), "the course she used last, on fresh screens")
+        XCTAssertTrue(tabButton(app, "Home").isSelected)
+        XCTAssertTrue(app.buttons["course.add"].exists)
+    }
+
     // MARK: Helpers
 
     /// The signed-in scenario opens her last course; Home is one step back.

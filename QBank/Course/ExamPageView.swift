@@ -43,11 +43,9 @@ struct ExamPageView: View {
         .qbankScreenBackground()
         .navigationTitle(model.layout?.page(id)?.exam.name ?? model.words.pageTitle)
         .screenColumnTitle()
-        .toolbar {
-            if model.isStudent, let page = model.layout?.page(id) {
-                ToolbarItem(placement: .topBarTrailing) {
-                    addMenu(page)
-                }
+        .plusMenu(model.isStudent && model.layout?.page(id) != nil) {
+            if let page = model.layout?.page(id) {
+                addMenu(page)
             }
         }
         .refreshable { await model.load() }
