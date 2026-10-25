@@ -121,7 +121,7 @@ struct AddView: View {
             NavigationLink(value: AddRoute.importFile) {
                 WayRow(
                     title: "Import a question file",
-                    detail: "A JSON file from your Firstmate or Codex.",
+                    detail: "A JSON file from your agent.",
                     systemImage: "square.and.arrow.down"
                 )
             }
