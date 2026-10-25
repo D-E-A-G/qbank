@@ -100,14 +100,15 @@ final class AddHereUITests: XCTestCase {
         let fundamentals = app.buttons["home.course.NURS 220"]
         XCTAssertTrue(fundamentals.appears(timeout: 5))
 
-        // Open, Rename, Move to the other semester, Archive; nothing to delete yet.
+        // Open, Rename, Move to the other semester, Archive, and Delete last.
         fundamentals.press(forDuration: 1.2)
         XCTAssertTrue(app.buttons["home.hold.open"].appears(timeout: 5))
         XCTAssertTrue(app.buttons["home.hold.rename"].exists)
         XCTAssertEqual(app.buttons["home.hold.move.2"].label, "Move to Semester 2")
         XCTAssertFalse(app.buttons["home.hold.move.1"].exists, "not its own semester")
         XCTAssertTrue(app.buttons["home.hold.archive"].label.hasPrefix("Archive"), app.buttons["home.hold.archive"].label)
-        XCTAssertFalse(app.buttons["Delete"].exists)
+        XCTAssertEqual(app.buttons["home.hold.delete"].label, "Delete")
+        XCTAssertGreaterThan(app.buttons["home.hold.delete"].frame.minY, app.buttons["home.hold.archive"].frame.minY, "after Archive")
         attachLooks(app, "M-3 home, holding a card")
         chooseFromMenu(app.buttons["home.hold.open"])
         XCTAssertTrue(app.navigationBars["NURS 220"].appears(timeout: 5))

@@ -55,6 +55,40 @@ final class IPadUITests: XCTestCase {
         XCTAssertTrue(mentalHealth.isHittable)
     }
 
+    /// Deleting the course open beside the list closes it, and Recently deleted opens beside the
+    /// list and brings it back.
+    @MainActor
+    func testDeletingTheOpenCourseClosesItAndRecentlyDeletedOpensBeside() throws {
+        let app = launch("signed-in")
+        XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 10))
+        let fundamentals = app.buttons["home.course.NURS 220"]
+        XCTAssertTrue(fundamentals.appears(timeout: 5))
+        fundamentals.tap()
+        XCTAssertTrue(app.navigationBars["NURS 220"].appears(timeout: 5))
+
+        fundamentals.press(forDuration: 1.2)
+        chooseFromMenu(app.buttons["home.hold.delete"])
+        let title = app.staticTexts["deleteSheet.title"]
+        XCTAssertTrue(title.appears(timeout: 5))
+        waitForLabel(title, containing: "Delete NURS 220 and its 146 questions?")
+        attach(app, "iPad course delete, asked once")
+        tapWhenStill(app.buttons["deleteSheet.confirm"])
+        XCTAssertTrue(fundamentals.disappears(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["home.noCourse"].appears(timeout: 5), "its screen beside the list goes")
+
+        let recentlyDeleted = app.buttons["home.recentlyDeleted"]
+        reveal(recentlyDeleted, in: app)
+        recentlyDeleted.tap()
+        XCTAssertTrue(app.navigationBars["Recently deleted"].appears(timeout: 5))
+        let bringBack = app.buttons["deleted.bringBack.NURS 220"]
+        XCTAssertTrue(bringBack.appears(timeout: 5))
+        XCTAssertLessThan(recentlyDeleted.frame.maxX, bringBack.frame.minX, "beside the list")
+        attachLooks(app, "iPad recently deleted")
+        bringBack.tap()
+        XCTAssertTrue(app.staticTexts["NURS 220 is back."].appears(timeout: 5))
+        XCTAssertTrue(fundamentals.appears(timeout: 5), "back in the list")
+    }
+
     @MainActor
     func testPracticeKeepsTheListCurrent() throws {
         let app = launch("signed-in")

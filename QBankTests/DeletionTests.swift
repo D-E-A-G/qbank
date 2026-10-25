@@ -3,9 +3,9 @@ import QBankKit
 import Testing
 @testable import QBank
 
-/// Deleting a set, a folder with its sets, and a past exam, Undo, and Recently deleted, end to end
-/// against the fake server, which follows the server's rules and words; and the confirm a delete
-/// sends and the refusals it shows, against a stub.
+/// Deleting a course or topic, a set, a folder with its sets, and a past exam, Undo, and Recently
+/// deleted, end to end against the fake server, which follows the server's rules and words; and the
+/// confirm a delete sends and the refusals it shows, against a stub.
 @MainActor
 struct DeletionTests {
     static let communication = "communication-v1"
@@ -14,6 +14,22 @@ struct DeletionTests {
     /// The app signed in on the fake server as the student.
     static func app() -> AppModel {
         MakeQuestionsTests.app(maker: false)
+    }
+
+    /// The app signed in as the student, with an exam over Mental Health's Weeks 1-2 left going.
+    static func app(examInProgress: Bool) -> AppModel {
+        let defaults = TestApp.freshDefaults()
+        return AppModel(
+            client: QBankClient(
+                configuration: APIConfiguration(baseURL: URL(string: "https://fake-qbank.invalid")!),
+                transport: FakeQBankServer(signedIn: true, examInProgress: examInProgress),
+                sessionStore: InMemorySessionStore(FakeQBankServer.storedStudentSession())
+            ),
+            look: LookStore(defaults: defaults),
+            lock: AppLock(defaults: defaults, owner: DebugDeviceOwner(.faceID)),
+            storage: .memory(),
+            connection: Connection(isOnline: true)
+        )
     }
 
     static func course(_ app: AppModel) async -> CourseModel {
@@ -239,7 +255,124 @@ struct DeletionTests {
         #expect(list.deleted?.sets.first?.undoRefusal == "Its folder Week 3 is deleted. Bring the folder back first.")
     }
 
+    // MARK: A course or topic
+
+    @Test func aCoursesWarningAsksOnceInTheServersWords() async throws {
+        let model = DeleteModel(app: Self.app(), target: .course(id: FakeQBankServer.fundamentalsID, name: "NURS 220"))
+        #expect(model.title == "Delete NURS 220?", "before the warning arrives")
+        await model.load()
+        let warning = try #require(model.warning)
+        #expect(warning.title == "Delete NURS 220 and its 146 questions?")
+        #expect(warning.message == "You can bring it back for 30 days.")
+        #expect(warning.refusal == nil)
+        #expect(warning.deleted == "NURS 220 deleted.")
+        #expect(warning.back == "NURS 220 is back.")
+        #expect(model.canDelete)
+    }
+
+    @Test func aDeletedCourseLeavesHomeAndRecentlyDeletedBringsItBackWhole() async throws {
+        let app = Self.app()
+        let home = HomeModel(app: app)
+        await home.load()
+        #expect(home.recentlyDeleted?.courses.isEmpty == true)
+        let model = DeleteModel(app: app, target: .course(id: FakeQBankServer.fundamentalsID, name: "NURS 220"))
+        await model.load()
+        #expect(await model.delete())
+        #expect(app.deletions.offer?.line == "NURS 220 deleted.")
+        await home.load()
+        let semester1 = try #require(home.studiedSemesters.first)
+        #expect(home.courses(in: semester1).map(\.code) == ["NURS 310"])
+        #expect(home.recentlyDeleted?.courses.map(\.code) == ["NURS 220"])
+
+        let list = DeletedCoursesModel(app: app)
+        await list.load()
+        let deleted = try #require(list.courses.first)
+        #expect(list.topics.isEmpty)
+        #expect(DeletedCoursesWording.held(deleted) == ["Fundamentals", "From Semester 1", "146 questions"])
+        #expect(deleted.undoRefusal == nil)
+        let revision = app.deletions.revision
+        await list.bringBack(deleted)
+        #expect(list.back == "NURS 220 is back.")
+        #expect(list.problem == nil)
+        #expect(list.deleted?.courses.isEmpty == true)
+        #expect(app.deletions.revision > revision, "Home reads its courses again")
+        await home.load()
+        let back = try #require(home.studiedSemesters.first)
+        #expect(home.courses(in: back).map(\.code) == ["NURS 310", "NURS 220"])
+        #expect(home.courses(in: back).last?.questionCount == 146, "with everything in it")
+    }
+
+    @Test func undoOnTheBarBringsACourseBack() async throws {
+        let app = Self.app()
+        let model = DeleteModel(app: app, target: .course(id: FakeQBankServer.fundamentalsID, name: "NURS 220"))
+        await model.load()
+        #expect(await model.delete())
+        await app.deletions.undo(with: app)
+        #expect(app.deletions.offer?.state == .undone)
+        #expect(app.deletions.offer?.back == "NURS 220 is back.")
+        let catalog = try await app.client.catalog()
+        #expect(catalog.course(id: FakeQBankServer.fundamentalsID) != nil)
+    }
+
+    @Test func aCourseWithAnExamGoingCannotBeDeletedYet() async throws {
+        let app = Self.app(examInProgress: true)
+        let model = DeleteModel(app: app, target: .course(id: FakeQBankServer.mentalHealthID, name: "NURS 310"))
+        await model.load()
+        #expect(model.warning?.refusal == "An exam in NURS 310 is still going. Finish or leave that exam first.")
+        #expect(!model.canDelete)
+        #expect(await model.delete() == false)
+        #expect(try await app.client.catalog().course(id: FakeQBankServer.mentalHealthID) != nil)
+    }
+
+    @Test func aCourseWithASetBeingMadeCannotBeDeletedYet() async throws {
+        let app = MakeQuestionsTests.app(maker: true)
+        let model = DeleteModel(app: app, target: .course(id: FakeQBankServer.mentalHealthID, name: "NURS 310"))
+        await model.load()
+        #expect(model.warning?.refusal == "QBank is still making a set in NURS 310. Wait until it is filed, or cancel it, first.")
+        #expect(!model.canDelete)
+    }
+
+    @Test func aCodeTakenSinceKeepsItInRecentlyDeletedAndSaysWhy() async throws {
+        let app = Self.app()
+        let model = DeleteModel(app: app, target: .course(id: FakeQBankServer.fundamentalsID, name: "NURS 220"))
+        await model.load()
+        #expect(await model.delete())
+        _ = try await app.client.addCourse(semesterID: FakeQBankServer.semester1ID, code: "NURS 220", title: "Fundamentals again")
+        let list = DeletedCoursesModel(app: app)
+        await list.load()
+        let deleted = try #require(list.courses.first)
+        let taken = "Semester 1 already has a course with the code NURS 220. Rename one of them, then bring this one back."
+        #expect(deleted.undoRefusal == taken)
+        await list.bringBack(deleted)
+        #expect(list.problem == taken, "the server refuses it in the same words")
+        #expect(list.courses.map(\.id) == [FakeQBankServer.fundamentalsID])
+    }
+
+    @Test func aTopicIsDeletedAndListedUnderStudyTopics() async throws {
+        let app = Self.app()
+        let topic = try await app.client.createTopic(title: "Pharmacology")
+        let model = DeleteModel(app: app, target: .course(id: topic.id, name: "Pharmacology"))
+        await model.load()
+        #expect(model.warning?.title == "Delete Pharmacology?")
+        #expect(model.warning?.message == "You can bring it back for 30 days.")
+        #expect(await model.delete())
+        #expect(try await app.client.catalog().topics.isEmpty)
+        let list = DeletedCoursesModel(app: app)
+        await list.load()
+        #expect(list.courses.isEmpty)
+        let deleted = try #require(list.topics.first)
+        #expect(DeletedCoursesWording.held(deleted) == ["0 questions"])
+        _ = try await app.client.createTopic(title: "pharmacology")
+        await list.load()
+        #expect(list.topics.first?.undoRefusal == "You already have a topic named pharmacology. Rename one of them, then bring this one back.")
+    }
+
     // MARK: Words
+
+    @Test func homesRecentlyDeletedRowCountsWhatCanComeBack() {
+        #expect(DeletedCoursesWording.entry(count: 1, undoDays: 30) == "1 item · Bring back for 30 days")
+        #expect(DeletedCoursesWording.entry(count: 2, undoDays: 30) == "2 items · Bring back for 30 days")
+    }
 
     @Test func theWarningSplitsAtItsQuestion() {
         let split = DeleteWording.split("Delete Week 1? Its 3 sets go with it: A, B and C, 10 questions in all. You can undo this for 30 days.")

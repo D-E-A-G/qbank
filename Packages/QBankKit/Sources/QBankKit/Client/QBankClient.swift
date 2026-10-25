@@ -370,6 +370,33 @@ public struct QBankClient: Sendable {
         try await send(Request(.get, "/api/courses/\(courseID)/deleted"))
     }
 
+    /// What deleting a course or study topic takes with it, and the one question to ask her.
+    /// `refusal` is set while a job or an exam in progress still works in it.
+    public func courseDeletion(id: String) async throws(QBankError) -> CourseDeletion {
+        try await send(Request(.get, "/api/courses/\(id)/delete-preview"))
+    }
+
+    /// Deletes a course or study topic with everything in it, as its preview named. It leaves Home,
+    /// and its code, or a topic's name, is free again meanwhile. Refused with 409 `in_use` while a
+    /// job or an exam in progress works in it, and `deletion_changed` when what goes changed since
+    /// the preview; nothing is deleted then. The admin is refused with 403.
+    public func deleteCourse(id: String, confirm: String) async throws(QBankError) {
+        _ = try await exchange(Request(.delete, "/api/courses/\(id)", query: [("confirm", confirm)]))
+    }
+
+    /// Brings back a course or study topic she deleted, whole, within 30 days, in its semester or her
+    /// topics as before. Refused with 409 when its semester has a course of its code now, or she has
+    /// a topic of its name. Returns its card.
+    @discardableResult
+    public func undoDeleteCourse(id: String) async throws(QBankError) -> CourseSummary {
+        try await send(Request(.post, "/api/courses/\(id)/undo-delete"))
+    }
+
+    /// Her courses and study topics deleted in the last 30 days, newest first.
+    public func recentlyDeletedCourses() async throws(QBankError) -> RecentlyDeletedCourses {
+        try await send(Request(.get, "/api/deleted-courses"))
+    }
+
     // MARK: Exam pages
 
     /// Adds an exam page, such as "Exam 1", with some of the course's folders on it in that order,

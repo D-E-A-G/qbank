@@ -58,6 +58,14 @@ final class HomeNavigator {
         self.path = path
     }
 
+    /// A course or topic she deleted from Home: on iPad, its screen beside the sidebar goes.
+    func closeDeleted(courseID: String) {
+        guard course?.id == courseID else { return }
+        course = nil
+        path = NavigationPath()
+        compactColumn = .sidebar
+    }
+
     /// Steps back one screen, or as many as asked, never past the root.
     func back(_ screens: Int = 1) {
         path.removeLast(min(screens, path.count))

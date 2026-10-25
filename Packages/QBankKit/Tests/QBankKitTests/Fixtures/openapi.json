@@ -4,7 +4,36 @@
     "title": "nclex-qbank API",
     "version": "0.1.0"
   },
+  "tags": [
+    {
+      "name": "Agents",
+      "description": "How an AI agent that a user brings, such as one running on their own computer, imports the question sets it made into their QBank, reads how the user answered them, and adds, changes and deletes their content as they can in QBank, over plain HTTP, with a key of its own instead of the user's session.\n\n**Pairing.** Nobody copies a key: the agent asks for one, the user approves it in QBank, and the agent picks it up (OAuth 2.0 device authorization, RFC 8628, in this API's words).\n\n1. The agent starts a pairing with `POST /api/agent-pairings`, sending no key: its `name`, which the user will see (such as \"My MacBook agent\"), and the `scopes` it wants. It gets back `deviceCode`, its own secret for this pairing, and `userCode`, such as `BCDF-GHJK`, to show the user. Both last 10 minutes (`expiresAt`).\n2. Signed in to QBank, the user enters the code. The app shows the agent's name and scopes, each in plain words (`scopeTexts`, from `POST /api/agent-pairings/lookup`), and the user approves (`POST /api/agent-pairings/approve`) or denies (`POST /api/agent-pairings/deny`) it. Approving gives the key to the account signed in. The name is only what the agent says it is, so the user approves only a code their own agent is showing them.\n3. Meanwhile the agent polls `POST /api/agent-pairings/token` with its `deviceCode`, waiting `interval` seconds (5 at first) after each answer. Until the user answers it gets 400 `authorization_pending`; a poll that comes too soon gets 400 `slow_down` and a longer `interval` to keep from then on. Once approved, it gets 200 with `token`, the key (`qbk_...`), exactly once: QBank keeps only its hash, and the pairing is used up. 400 `access_denied` means the user denied it; 400 `expired_token` means the pairing ran out or its key was handed over already. Either way the agent starts again.\n4. The agent keeps the key in the operating system's keychain (the macOS Keychain on a Mac), never in a file, a repository, or a log, and sends it on every call below as `Authorization: Bearer qbk_...`.\n\nStarting is limited: one address may start a few pairings in 10 minutes, and only so many may wait at once, whoever started them; past either, 429 `too_many_pairings` with `retryAfterSeconds`.\n\n**The user's keys.** `GET /api/agent-keys` lists the account's keys: each one's name, scopes, when it was made, and when it was last used. `POST /api/agent-keys/{id}/revoke` stops one at once and for good. A key is never shown again after the agent picks it up, and each account sees and revokes only its own.\n\n**Scopes.** An operation tagged Agents lets a key in when the key has any one of the scopes its security names. `import` reaches checking and importing question files, and reading the account's semesters, courses and sets to do it. `read` reaches the user's answers, read-only (see Reading below). `manage` reaches everything `import` does and every change the user can make to their own content (see Changing below). A key may have any of them; a key keeps the scopes it was approved with, so an agent that needs another pairs again and the user approves the new key.\n\n**Importing with the key.**\n\n1. Find the course: `GET /api/semesters` lists the account's semesters with their courses (match `code`) and its study topics (match `title`).\n2. Check every file before importing any: `POST /api/imports/check` with `{\"source\": \"<the file>\"}`. `ok: false` lists the `errors` that block it; `warnings` do not. `kind` is `exam` for an exam set, such as exam twins: a file meant as exam twins that comes back `practice` is not one, so import nothing.\n3. Import each file: `POST /api/imports` with `source` and `courseId` (or `newCourse` or `newTopic`), and `folderName` or `folderId` (without either, the course's Unsorted folder); practice sets first, then their exam twins. Leave `decision` out, or send `import`.\n   - 201: the set landed: `courseId`, `folderId`, `folderName`, `setId`, `setKind`, its `warnings`, and `importedByAgent` naming this key.\n   - 409: a current set of the same kind and name is already in the course, and nothing was written. Read it with `GET /api/practice-sets/{setId}` to tell whether it holds the same questions, and tell the user: they decide in QBank whether to replace it. A key without `manage` never replaces a set or adds a second of the same name (`decision` `replace` or `separate` answers 403); with `manage`, see Changing below.\n   - 400 `invalid_import`, with `errors` and `warnings`: the file fails the check. Another 400 names what is wrong with the course or folder choice in `message`.\n   - 404: that course or folder is not the account's.\n4. Confirm where the sets landed: `GET /api/courses/{courseId}`. Each folder in `folders` lists its `sets` and `examSets` by title, each with `importedByAgent`, so the agent can tell the user \"Week 5 now has Set 1 and Set 2, and their exam twins\".\n\n**Reading the user's answers with the key.** So the agent can aim its next questions at what the user finds hard. A `read` key only reads: it never answers a question, starts or ends an exam, clears Review, or changes anything else, and its reads write nothing in QBank but the key's `lastUsedAt`. It reads its own account's answers only: another account's course or exam answers 404, as an id that names nothing does, and a key the admin approved reads none (403 `agent_key_not_allowed`).\n\n1. Where the user stands, topic by topic: `GET /api/me/standing`. Every course and study topic of the account, each with `byTopic`: for each topic its question files name, how many current questions it has (practice and exam bank), how many the user has answered, and what their latest answers were: fully right, partly right, missed, guessed, points of `maxPoints`, and how many are in Review. A topic with many answers and few fully right is a weak spot; one with few answers is not practiced yet. Its course ids are the ones the reads below take.\n2. What the user missed or guessed in a course: `GET /api/courses/{id}/review`, with `?filter=missed`, `partial` or `guessed` for one kind. The course's Review list as the Review screen shows it, newest first: each practice question whose latest answer was not fully right or was a guess, with its topic, folder, set and mark. A question leaves the list when the user answers it fully right without guessing, or clears the list.\n3. One exam's result: `GET /api/exams/{id}`, with an exam's id from the export (`studySessions` whose `mode` is `exam`). Its questions in the order served, and once it has ended, `result`: points, fully right, partly right, missed, guessed and not answered, by folder and by clinical judgment step, and each question's mark. `finishedAt` null with `endsAt` past means the user's time ran out and the end is recorded when their app next opens the exam; until then it has no `result`.\n4. Everything: `GET /api/me/export`, the user's whole history as one JSON file: every answer they gave, each question's latest answer, every Review list, course scores, and every study session, exams included. It grows with every answer; for where the user stands, the standing is enough.\n\n**Changing the user's content with the key.** A `manage` key adds, changes and deletes the account's own content through the same operations, with the same checks and answers, as the user's own app: everything in it is the user's, so do what the user asked and tell them what changed. It reaches the account's own content only: another account's id answers 404, as an id that names nothing does, and a key the admin approved changes nothing (403 `agent_key_not_allowed`).\n\n- Semesters, courses and study topics: `POST /api/semesters`, `PATCH /api/semesters/{id}` (rename, archive), `POST /api/courses`, `POST /api/topics`, `PATCH /api/courses/{id}` (rename, move to another semester, archive), `PUT /api/topic-order`.\n- Folders: `POST /api/courses/{id}/folders`, `PATCH /api/folders/{id}` (rename, put on an exam page or take off one), `PUT /api/courses/{id}/folder-order`, and `POST /api/practice-sets/{id}/move` to move a set to another folder.\n- Exam pages (study pages, in a topic): `POST /api/courses/{id}/course-exams` and `PUT /api/course-exams/{id}` (rename, set its folders and its primer link). Removing a page has no Undo, so a key never does (`DELETE /api/course-exams/{id}` answers 403): take its folders off it with `PUT`, and the user removes it in QBank.\n- Sets and their questions: a set's questions change through its file. `POST /api/imports` adds a set (see Importing above); with `decision` `replace` its file becomes the set's new version, and the version before stays for Restore; with `separate` it is added beside the set of the same name. `POST /api/practice-sets/{id}/restore` brings back the version before.\n- Deleting, always in three steps, as the user deletes: read the preview (`GET /api/practice-sets/{id}/delete-preview`, `GET /api/folders/{id}/delete-preview`, `GET /api/courses/{id}/delete-preview`), tell the user its `message` and do it only when they want it gone, then send its `confirm` with the delete (`DELETE /api/practice-sets/{id}?confirm=...`, `/api/folders/{id}`, `/api/courses/{id}`). Without `confirm` the delete answers 409 `confirmation_required` (only an empty folder needs none), and when anything changed since the preview, 409 `deletion_changed`; either way nothing is deleted. Nothing is ever removed: what a key deletes goes to Recently deleted (`GET /api/courses/{id}/deleted`, `GET /api/deleted-courses`) exactly as the user's own deletes do, with `deletedByAgent` naming the key, and Undo (`POST /api/practice-sets/{id}/undo-delete`, `/api/folders/{id}/undo-delete`, `/api/courses/{id}/undo-delete`) brings it back as it was, for the user in QBank or for the key, for 30 days.\n\n**What every one of these can answer for the key:** 401 `invalid_agent_key` (QBank does not know it) or `agent_key_revoked` (the user revoked it): pair again. 403 `agent_key_not_allowed`: its scopes do not cover this. 403 `must_change_password`: the account has a temporary password, and nothing works until the user signs in and picks their own. 503 `auth_unavailable`.\n\n**What a key never does.** Every other operation, pairing and the user's keys included, answers a request that carries a key with 403 `agent_key_not_allowed` before reading it: a key never answers a question, starts or ends an exam, clears Review, or deletes a past exam, since the user's answers are theirs alone; never removes anything for good; never makes questions with Make questions; never changes a password, a passkey or an account; never reaches Admin or another account; and never pairs, approves, lists or revokes keys. Those need the user's signed-in session."
+    },
+    {
+      "name": "Agent keys",
+      "description": "The user's side of pairing, and the account's agent keys: a signed-in session only (the session cookie, or the token from sign-in), never an agent key. Each account sees, answers for, and revokes only its own. See Agents for the whole flow."
+    }
+  ],
   "components": {
+    "securitySchemes": {
+      "sessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "better-auth.session_token",
+        "description": "The session cookie a browser holds after sign-in (`__Secure-better-auth.session_token` over HTTPS)."
+      },
+      "sessionToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "The token from sign-in (SignedIn.token), as the iPhone app sends it."
+      },
+      "agentKey": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "qbk_...",
+        "description": "An agent key from pairing (see the Agents tag), as `Authorization: Bearer qbk_...`. It reaches only the operations whose security names it, with the scopes listed there; every other operation answers it with 403 agent_key_not_allowed."
+      }
+    },
     "schemas": {
       "Health": {
         "type": "object",
@@ -367,6 +396,17 @@
               "type": "string",
               "format": "uuid"
             }
+          },
+          "importedByAgent": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ImportingAgent"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The agent key that imported this version of the set, such as the user's own AI agent (see the Agents tag): show it as \"Imported by your agent\". Null when it was imported in the app or QBank made it. It stays after the key is revoked."
           }
         },
         "required": [
@@ -381,7 +421,26 @@
           "answeredCount",
           "fullyRightCount",
           "lastAnsweredAt",
-          "questionIds"
+          "questionIds",
+          "importedByAgent"
+        ]
+      },
+      "ImportingAgent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Its agent key, as GET /api/agent-keys lists it."
+          },
+          "name": {
+            "type": "string",
+            "description": "The name the agent paired with, such as My MacBook agent."
+          }
+        },
+        "required": [
+          "id",
+          "name"
         ]
       },
       "Folder": {
@@ -448,12 +507,24 @@
           },
           "questionCount": {
             "type": "integer"
+          },
+          "importedByAgent": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ImportingAgent"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The agent key that imported this version of the set, such as the user's own AI agent (see the Agents tag): show it as \"Imported by your agent\". Null when it was imported in the app or QBank made it. It stays after the key is revoked."
           }
         },
         "required": [
           "id",
           "title",
-          "questionCount"
+          "questionCount",
+          "importedByAgent"
         ]
       },
       "CourseExam": {
@@ -1298,6 +1369,17 @@
             "items": {
               "type": "string"
             }
+          },
+          "importedByAgent": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ImportingAgent"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The agent key that imported it, when an agent did; null when it was imported in the app or QBank made it."
           }
         },
         "required": [
@@ -1313,7 +1395,8 @@
           "examPageId",
           "questionCount",
           "termCount",
-          "warnings"
+          "warnings",
+          "importedByAgent"
         ]
       },
       "ImportIssues": {
@@ -2355,6 +2438,14 @@
             ],
             "description": "When she deleted its set, or null. A deleted set's answers count toward nothing until she brings it back."
           },
+          "setKind": {
+            "type": "string",
+            "enum": [
+              "practice",
+              "exam"
+            ],
+            "description": "`exam` for an exam-bank question, asked only on exams and never in Review."
+          },
           "weekLabel": {
             "type": "string",
             "description": "The question's own week, from its file."
@@ -2394,6 +2485,7 @@
           "setTitle",
           "setIsCurrent",
           "setDeletedAt",
+          "setKind",
           "weekLabel",
           "folderId",
           "folderName",
@@ -2453,6 +2545,24 @@
             },
             "description": "The folders chosen, for an exam started once folders existed."
           },
+          "examPool": {
+            "type": "string",
+            "enum": [
+              "all",
+              "wrong"
+            ],
+            "description": "For an exam: `all`, or `wrong` for only the questions she last answered not fully right. `all` for every other session."
+          },
+          "examPracticeWeeks": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "For an exam: the folders (weeks, before folders) that had no exam bank, so it drew their practice questions. Null when the course had no exam bank."
+          },
           "timeLimitSeconds": {
             "type": [
               "integer",
@@ -2506,6 +2616,8 @@
           "questionIds",
           "examWeeks",
           "examFolderIds",
+          "examPool",
+          "examPracticeWeeks",
           "timeLimitSeconds",
           "startedAt",
           "finishedAt",
@@ -2628,6 +2740,156 @@
           "lastMaxPoints",
           "inReview",
           "lastAttemptId"
+        ]
+      },
+      "Standing": {
+        "type": "object",
+        "properties": {
+          "courses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CourseStanding"
+            }
+          }
+        },
+        "required": [
+          "courses"
+        ]
+      },
+      "CourseStanding": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The course, for GET /api/courses/{id}/review."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "course",
+              "topic"
+            ],
+            "description": "`topic` for a study topic: a course with no semester and an empty code."
+          },
+          "code": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "archivedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "When it was archived, or null."
+          },
+          "semester": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "number": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "number",
+              "name"
+            ],
+            "description": "Null for a study topic."
+          },
+          "byTopic": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TopicStanding"
+            },
+            "description": "Her standing on each topic of its current questions, by topic name. Empty when it has none."
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "code",
+          "title",
+          "archivedAt",
+          "semester",
+          "byTopic"
+        ]
+      },
+      "TopicStanding": {
+        "type": "object",
+        "properties": {
+          "topic": {
+            "type": "string",
+            "description": "The topic, exactly as the question files name it (ReviewQuestion.topic); not a study topic. Empty for questions whose file named none."
+          },
+          "questionCount": {
+            "type": "integer",
+            "description": "The course's current questions on this topic, practice and exam bank, leaving out the sets she deleted."
+          },
+          "answeredCount": {
+            "type": "integer",
+            "description": "Of those, the ones she has answered at least once, in practice or on an exam."
+          },
+          "fullyRightCount": {
+            "type": "integer",
+            "description": "Of those, the ones her latest answer got fully right."
+          },
+          "partialCount": {
+            "type": "integer",
+            "description": "The ones her latest answer got partly right."
+          },
+          "missedCount": {
+            "type": "integer",
+            "description": "The ones her latest answer got wrong. With partialCount and fullyRightCount, it adds up to answeredCount."
+          },
+          "guessedCount": {
+            "type": "integer",
+            "description": "The ones whose latest answer she marked as a guess, whatever its mark."
+          },
+          "points": {
+            "type": "integer",
+            "description": "What those latest answers earned."
+          },
+          "maxPoints": {
+            "type": "integer",
+            "description": "The most they could have earned. Her score on the topic is points over maxPoints."
+          },
+          "reviewCount": {
+            "type": "integer",
+            "description": "Its practice questions in her Review list now (exam-bank questions never enter Review)."
+          },
+          "lastAnsweredAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "When she last answered one of them, or null when she has answered none."
+          }
+        },
+        "required": [
+          "topic",
+          "questionCount",
+          "answeredCount",
+          "fullyRightCount",
+          "partialCount",
+          "missedCount",
+          "guessedCount",
+          "points",
+          "maxPoints",
+          "reviewCount",
+          "lastAnsweredAt"
         ]
       },
       "RepairPlan": {
@@ -4105,6 +4367,246 @@
           "undoDays"
         ]
       },
+      "CourseDeletion": {
+        "type": "object",
+        "properties": {
+          "courseId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "course",
+              "topic"
+            ],
+            "description": "`topic` for a study topic: a course with no semester and an empty code."
+          },
+          "code": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "semester": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "number": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "number",
+              "name"
+            ],
+            "description": "Its semester; null for a study topic."
+          },
+          "folderCount": {
+            "type": "integer",
+            "description": "Its folders. They go with it, and come back with it."
+          },
+          "examPageCount": {
+            "type": "integer",
+            "description": "Its exam pages (study pages, in a topic)."
+          },
+          "setCount": {
+            "type": "integer",
+            "description": "Its sets, practice and exam, each counted once whatever its versions."
+          },
+          "questionCount": {
+            "type": "integer",
+            "description": "Its practice questions, as its card (CourseDetail.questionCount) counts them."
+          },
+          "examQuestionCount": {
+            "type": "integer",
+            "description": "Its exam-bank questions, asked only on exams."
+          },
+          "answeredCount": {
+            "type": "integer",
+            "description": "Of its practice questions, the ones she has answered. Those answers stay saved and count again once it is back."
+          },
+          "reviewCount": {
+            "type": "integer",
+            "description": "Of its practice questions, the ones in her Review list."
+          },
+          "pastExamCount": {
+            "type": "integer",
+            "description": "Her past exams in it. They go with it, and come back with it."
+          },
+          "message": {
+            "type": "string",
+            "description": "The question to ask her once, such as \"Delete NURS 220 and its 146 questions? You can bring it back for 30 days.\""
+          },
+          "refusal": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confirm": {
+            "type": "string"
+          },
+          "undoDays": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "courseId",
+          "kind",
+          "code",
+          "title",
+          "semester",
+          "folderCount",
+          "examPageCount",
+          "setCount",
+          "questionCount",
+          "examQuestionCount",
+          "answeredCount",
+          "reviewCount",
+          "pastExamCount",
+          "message",
+          "refusal",
+          "confirm",
+          "undoDays"
+        ]
+      },
+      "RecentlyDeletedCourses": {
+        "type": "object",
+        "properties": {
+          "undoDays": {
+            "type": "integer"
+          },
+          "courses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeletedCourse"
+            },
+            "description": "Her courses and study topics deleted in the last 30 days, newest first."
+          }
+        },
+        "required": [
+          "undoDays",
+          "courses"
+        ]
+      },
+      "DeletedCourse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "POST /api/courses/{id}/undo-delete."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "course",
+              "topic"
+            ]
+          },
+          "code": {
+            "type": "string",
+            "description": "Empty for a topic."
+          },
+          "title": {
+            "type": "string"
+          },
+          "semester": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "number": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "number",
+              "name"
+            ],
+            "description": "Its semester; null for a study topic."
+          },
+          "questionCount": {
+            "type": "integer",
+            "description": "Its practice questions, as its card counted them."
+          },
+          "deletedAt": {
+            "type": "string"
+          },
+          "undoUntil": {
+            "type": "string",
+            "description": "Undo is refused after this."
+          },
+          "deletedByAgent": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DeletingAgent"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The agent key that deleted it, such as the user's own AI agent (see the Agents tag): show it as \"Deleted by your agent\". Null when it was deleted in the app. It stays after the key is revoked."
+          },
+          "undoRefusal": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why Undo would be refused now (its semester has a course of its code now, or she has a topic of its name), or null."
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "code",
+          "title",
+          "semester",
+          "questionCount",
+          "deletedAt",
+          "undoUntil",
+          "deletedByAgent",
+          "undoRefusal"
+        ]
+      },
+      "DeletingAgent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Its agent key, as GET /api/agent-keys lists it."
+          },
+          "name": {
+            "type": "string",
+            "description": "The name the agent paired with, such as My MacBook agent."
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      },
       "RecentlyDeleted": {
         "type": "object",
         "properties": {
@@ -4198,6 +4700,17 @@
             "type": "string",
             "description": "Undo is refused after this."
           },
+          "deletedByAgent": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DeletingAgent"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The agent key that deleted it, such as the user's own AI agent (see the Agents tag): show it as \"Deleted by your agent\". Null when it was deleted in the app. It stays after the key is revoked."
+          },
           "undoRefusal": {
             "type": [
               "string",
@@ -4213,6 +4726,7 @@
           "sets",
           "deletedAt",
           "undoUntil",
+          "deletedByAgent",
           "undoRefusal"
         ]
       },
@@ -4254,6 +4768,17 @@
             "type": "string",
             "description": "Undo is refused after this."
           },
+          "deletedByAgent": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DeletingAgent"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The agent key that deleted it, such as the user's own AI agent (see the Agents tag): show it as \"Deleted by your agent\". Null when it was deleted in the app. It stays after the key is revoked."
+          },
           "undoRefusal": {
             "type": [
               "string",
@@ -4271,6 +4796,7 @@
           "questionCount",
           "deletedAt",
           "undoUntil",
+          "deletedByAgent",
           "undoRefusal"
         ]
       },
@@ -5796,6 +6322,251 @@
           "exam",
           "warnings"
         ]
+      },
+      "AgentPairingStarted": {
+        "type": "object",
+        "properties": {
+          "deviceCode": {
+            "type": "string",
+            "description": "The agent's secret for this pairing, for polling. Never shown to the user; QBank keeps only its hash."
+          },
+          "userCode": {
+            "type": "string",
+            "example": "BCDF-GHJK",
+            "description": "Show it to the user, who enters it in QBank to approve."
+          },
+          "expiresAt": {
+            "type": "string"
+          },
+          "expiresIn": {
+            "type": "integer",
+            "description": "Seconds until expiresAt."
+          },
+          "interval": {
+            "type": "integer",
+            "description": "Seconds to wait between polls."
+          }
+        },
+        "required": [
+          "deviceCode",
+          "userCode",
+          "expiresAt",
+          "expiresIn",
+          "interval"
+        ]
+      },
+      "AgentPairingRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "description": "What the user will see, such as My MacBook agent; the key keeps it."
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentScope"
+            },
+            "minItems": 1,
+            "maxItems": 3,
+            "description": "What the key should be able to do. The user sees them before approving."
+          }
+        },
+        "required": [
+          "name",
+          "scopes"
+        ]
+      },
+      "AgentScope": {
+        "type": "string",
+        "enum": [
+          "import",
+          "read",
+          "manage"
+        ],
+        "description": "What an agent key may do. `import`: check and import question files, and read the account's semesters, courses and sets to do it. `read`: read the account's answers (its standing by topic, Review lists, exams and export) and change nothing. `manage`: add, change and delete the account's own content as the user can in QBank (semesters, courses, study topics, folders, exam pages, sets, and their questions through Import, Replace and Restore), every delete with Undo, as well as everything `import` reaches. More may be added later; show one you do not know by its name."
+      },
+      "AgentKeyDelivered": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "example": "qbk_...",
+            "description": "The key. Send it as Authorization: Bearer. QBank keeps only its hash and never shows it again."
+          },
+          "key": {
+            "$ref": "#/components/schemas/AgentKey"
+          }
+        },
+        "required": [
+          "token",
+          "key"
+        ]
+      },
+      "AgentKey": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "description": "The name the agent paired with."
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentScope"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "When the agent picked it up."
+          },
+          "lastUsedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "When an operation last let it in, or null when none has."
+          },
+          "revokedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "When it was revoked, or null while it works. A revoked key stays listed and never works again."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "scopes",
+          "createdAt",
+          "lastUsedAt",
+          "revokedAt"
+        ]
+      },
+      "AgentPairingWait": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Error"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "interval": {
+                "type": "integer",
+                "description": "Seconds to wait before the next poll, from now on."
+              }
+            },
+            "required": [
+              "interval"
+            ]
+          }
+        ]
+      },
+      "AgentPairingPoll": {
+        "type": "object",
+        "properties": {
+          "deviceCode": {
+            "type": "string",
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "deviceCode"
+        ]
+      },
+      "AgentPairing": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The name the agent asked with."
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentScope"
+            },
+            "description": "What its key would be able to do."
+          },
+          "scopeTexts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "scope": {
+                  "$ref": "#/components/schemas/AgentScope"
+                },
+                "text": {
+                  "type": "string",
+                  "description": "The scope in plain words, to show the user before they approve."
+                }
+              },
+              "required": [
+                "scope",
+                "text"
+              ]
+            },
+            "description": "Each of scopes, in the same order, in plain words: show these to the user beside the agent's name."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "approved",
+              "denied"
+            ],
+            "description": "`pending` until the user answers."
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "description": "When the code stops working, approved or not, if the agent has not picked up its key."
+          }
+        },
+        "required": [
+          "name",
+          "scopes",
+          "scopeTexts",
+          "status",
+          "createdAt",
+          "expiresAt"
+        ]
+      },
+      "AgentPairingCode": {
+        "type": "object",
+        "properties": {
+          "userCode": {
+            "type": "string",
+            "maxLength": 40,
+            "description": "The code the agent shows the user, such as BCDF-GHJK, in any case, with or without its dash."
+          }
+        },
+        "required": [
+          "userCode"
+        ]
+      },
+      "AgentKeyList": {
+        "type": "object",
+        "properties": {
+          "keys": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentKey"
+            }
+          }
+        },
+        "required": [
+          "keys"
+        ]
       }
     },
     "parameters": {}
@@ -5824,7 +6595,26 @@
         "summary": "List her semesters, courses and study topics",
         "description": "Every semester, course and topic belongs to one account, with everything in it: its folders, exam pages, sets, questions and terms. A user account reaches its own; the admin reaches the user account he looks after (GET /api/admin/students/viewing), as his read-only view does. Anyone else's answers 404, as an id that names nothing does.",
         "tags": [
-          "Courses"
+          "Courses",
+          "Agents"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "sessionToken": []
+          },
+          {
+            "agentKey": [
+              "import"
+            ]
+          },
+          {
+            "agentKey": [
+              "manage"
+            ]
+          }
         ],
         "responses": {
           "200": {
@@ -5929,7 +6719,17 @@
             }
           },
           "401": {
-            "description": "Sign in is required.",
+            "description": "Sign in, or send a working agent key: `invalid_agent_key` (QBank does not know it) or `agent_key_revoked` (it was revoked).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`agent_key_not_allowed`: the key's scopes do not cover this, it asked for what its scopes do not cover, or it has `manage` only and the admin approved it (the admin account has no content of its own). `must_change_password`: the account has a temporary password.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5954,7 +6754,21 @@
         "summary": "Add a semester",
         "description": "One of hers, numbered 1 to 3; each number once among her own semesters (409 when she has it).",
         "tags": [
-          "Courses"
+          "Courses",
+          "Agents"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "sessionToken": []
+          },
+          {
+            "agentKey": [
+              "manage"
+            ]
+          }
         ],
         "requestBody": {
           "content": {
@@ -6010,7 +6824,17 @@
             }
           },
           "401": {
-            "description": "Sign in is required.",
+            "description": "Sign in, or send a working agent key: `invalid_agent_key` (QBank does not know it) or `agent_key_revoked` (it was revoked).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`agent_key_not_allowed`: the key's scopes do not cover this, it asked for what its scopes do not cover, or it has `manage` only and the admin approved it (the admin account has no content of its own). `must_change_password`: the account has a temporary password.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6057,7 +6881,21 @@
         "summary": "Rename, archive, or unarchive a semester",
         "description": "Archiving is by hand only: `archived: true` sets archivedAt to now, false clears it. Nothing archives a semester on its own.",
         "tags": [
-          "Courses"
+          "Courses",
+          "Agents"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "sessionToken": []
+          },
+          {
+            "agentKey": [
+              "manage"
+            ]
+          }
         ],
         "parameters": [
           {
@@ -6121,7 +6959,17 @@
             }
           },
           "401": {
-            "description": "Sign in is required.",
+            "description": "Sign in, or send a working agent key: `invalid_agent_key` (QBank does not know it) or `agent_key_revoked` (it was revoked).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`agent_key_not_allowed`: the key's scopes do not cover this, it asked for what its scopes do not cover, or it has `manage` only and the admin approved it (the admin account has no content of its own). `must_change_password`: the account has a temporary password.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6167,7 +7015,21 @@
       "post": {
         "summary": "Add a course",
         "tags": [
-          "Courses"
+          "Courses",
+          "Agents"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "sessionToken": []
+          },
+          {
+            "agentKey": [
+              "manage"
+            ]
+          }
         ],
         "requestBody": {
           "content": {
@@ -6289,7 +7151,17 @@
             }
           },
           "401": {
-            "description": "Sign in is required.",
+            "description": "Sign in, or send a working agent key: `invalid_agent_key` (QBank does not know it) or `agent_key_revoked` (it was revoked).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`agent_key_not_allowed`: the key's scopes do not cover this, it asked for what its scopes do not cover, or it has `manage` only and the admin approved it (the admin account has no content of its own). `must_change_password`: the account has a temporary password.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6336,7 +7208,21 @@
         "summary": "Make a study topic",
         "description": "A topic is a course with no semester, for questions that are not a course: a certification, a language, her own notes. It has folders, study pages (exam pages), sets, Review, terms and exams as a course does, and opens with GET /api/courses/{id}. Its name is unique among her topics, ignoring case (409). Her first import into it with no folder makes its Unsorted folder.",
         "tags": [
-          "Courses"
+          "Courses",
+          "Agents"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "sessionToken": []
+          },
+          {
+            "agentKey": [
+              "manage"
+            ]
+          }
         ],
         "requestBody": {
           "required": true,
@@ -6450,7 +7336,17 @@
             }
           },
           "401": {
-            "description": "Sign in is required.",
+            "description": "Sign in, or send a working agent key: `invalid_agent_key` (QBank does not know it) or `agent_key_revoked` (it was revoked).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`agent_key_not_allowed`: the key's scopes do not cover this, it asked for what its scopes do not cover, or it has `manage` only and the admin approved it (the admin account has no content of its own). `must_change_password`: the account has a temporary password.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6497,7 +7393,21 @@
         "summary": "Put her study topics in her order",
         "description": "A list that does not name exactly her topics, archived ones included, once each, is refused with 409, so a stale screen cannot drop or misplace one.",
         "tags": [
-          "Courses"
+          "Courses",
+          "Agents"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "sessionToken": []
+          },
+          {
+            "agentKey": [
+              "manage"
+            ]
+          }
         ],
         "requestBody": {
           "required": true,
@@ -6627,7 +7537,17 @@
             }
           },
           "401": {
-            "description": "Sign in is required.",
+            "description": "Sign in, or send a working agent key: `invalid_agent_key` (QBank does not know it) or `agent_key_revoked` (it was revoked).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`agent_key_not_allowed`: the key's scopes do not cover this, it asked for what its scopes do not cover, or it has `manage` only and the admin approved it (the admin account has no content of its own). `must_change_password`: the account has a temporary password.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6674,7 +7594,21 @@
         "summary": "Rename, move, archive, or unarchive a course or topic",
         "description": "A topic takes `title` and `archived` only: `code` or `semesterId` for a topic is refused with 400. A course moves only to another of her semesters.",
         "tags": [
-          "Courses"
+          "Courses",
+          "Agents"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "sessionToken": []
+          },
+          {
+            "agentKey": [
+              "manage"
+            ]
+          }
         ],
         "parameters": [
           {
@@ -6805,7 +7739,17 @@
             }
           },
           "401": {
-            "description": "Sign in is required.",
+            "description": "Sign in, or send a working agent key: `invalid_agent_key` (QBank does not know it) or `agent_key_revoked` (it was revoked).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`agent_key_not_allowed`: the key's scopes do not cover this, it asked for what its scopes do not cover, or it has `manage` only and the admin approved it (the admin account has no content of its own). `must_change_password`: the account has a temporary password.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6850,7 +7794,26 @@
         "summary": "A course or topic, its folders, its exam pages, and its sets",
         "description": "Every semester, course and topic belongs to one account, with everything in it: its folders, exam pages, sets, questions and terms. A user account reaches its own; the admin reaches the user account he looks after (GET /api/admin/students/viewing), as his read-only view does. Anyone else's answers 404, as an id that names nothing does.",
         "tags": [
-          "Courses"
+          "Courses",
+          "Agents"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "sessionToken": []
+          },
+          {
+            "agentKey": [
+              "import"
+            ]
+          },
+          {
+            "agentKey": [
+              "manage"
+            ]
+          }
         ],
         "parameters": [
           {
@@ -6885,7 +7848,17 @@
             }
           },
           "401": {
-            "description": "Sign in is required.",
+            "description": "Sign in, or send a working agent key: `invalid_agent_key` (QBank does not know it) or `agent_key_revoked` (it was revoked).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`agent_key_not_allowed`: the key's scopes do not cover this, it asked for what its scopes do not cover, or it has `manage` only and the admin approved it (the admin account has no content of its own). `must_change_password`: the account has a temporary password.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6925,6 +7898,114 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "Delete",
+          "Agents"
+        ],
+        "summary": "Delete a course or topic",
+        "description": "Deletes a course or study topic with everything in it, as its preview named. It leaves Home (GET /api/semesters), the topic order, its own reads and everything in it (404, as an id that names nothing), study, Review, exams, Make questions and exam twins, the last course she used, and what an agent reads (GET /api/me/standing, and `courses` and `questions` of GET /api/me/export). Nothing in it is written: its folders, exam pages, sets, her answers, progress and past exams stay saved as they are, her answers count toward nothing while it is deleted, and an answer still on its way to one of its questions is saved. Its code, or a topic's name, is free again meanwhile. Refused with 409 `in_use` while a Make questions or twin job is still working in it, or an exam in it is in progress. GET /api/deleted-courses lists it for Undo. Undo brings it back exactly as it was for 30 days (`undoDays`); after that it stays hidden and Undo is refused with 409 `undo_expired`. Nothing is ever deleted except by this request. Only the user account that owns it can do this, itself or with its own agent key with the `manage` scope; the admin is refused with 403 `admin_cannot_delete_course`, and any other agent key with 403 `agent_key_not_allowed`.",
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "sessionToken": []
+          },
+          {
+            "agentKey": [
+              "manage"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64,
+              "description": "`confirm` from the delete preview she was shown. Required (409 `confirmation_required` without it); one that no longer matches is refused with 409 `deletion_changed`, and nothing is deleted."
+            },
+            "required": false,
+            "description": "`confirm` from the delete preview she was shown. Required (409 `confirmation_required` without it); one that no longer matches is refused with 409 `deletion_changed`, and nothing is deleted.",
+            "name": "confirm",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "It was deleted."
+          },
+          "400": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign in, or send a working agent key: `invalid_agent_key` (QBank does not know it) or `agent_key_revoked` (it was revoked).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused, with the sentence in `message`: `agent_key_not_allowed` (the key has no `manage` scope, or the admin approved it: the admin account has no content of its own), `must_change_password` (the account has a temporary password), or the role refusal the operation names.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sign-in is not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/courses/{id}/course-exams": {
@@ -6932,7 +8013,21 @@
         "summary": "Add an exam to a course",
         "description": "An exam page (a course exam; a study page, in a topic) is a name, an optional primer link, and the course's folders on it. A folder is on one exam page at most: a folder of another page is refused with 409, naming it (\"First Pass is in Exam 2.\"), as is a second page with the same name, and a folder whose name another folder on the page already has (\"Exam 3 already has a folder named First Pass.\"). A folder taken off the page goes back to the end of the course's Folders list, refused with 409 when a folder there has its name. A folder id or name the course does not have is refused with 400. Her past exams belong to the page holding every folder they were over (ExamSummary.courseExamId). Its owner and the admin can both do this.",
         "tags": [
-          "Courses"
+          "Courses",
+          "Agents"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "sessionToken": []
+          },
+          {
+            "agentKey": [
+              "manage"
+            ]
+          }
         ],
         "parameters": [
           {
@@ -6977,7 +8072,17 @@
             }
           },
           "401": {
-            "description": "Sign in is required.",
+            "description": "Sign in, or send a working agent key: `invalid_agent_key` (QBank does not know it) or `agent_key_revoked` (it was revoked).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`agent_key_not_allowed`: the key's scopes do not cover this, it asked for what its scopes do not cover, or it has `manage` only and the admin approved it (the admin account has no content of its own). `must_change_password`: the account has a temporary password.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7024,7 +8129,21 @@
         "summary": "Rename an exam page and set its folders",
         "description": "An exam page (a course exam; a study page, in a topic) is a name, an optional primer link, and the course's folders on it. A folder is on one exam page at most: a folder of another page is refused with 409, naming it (\"First Pass is in Exam 2.\"), as is a second page with the same name, and a folder whose name another folder on the page already has (\"Exam 3 already has a folder named First Pass.\"). A folder taken off the page goes back to the end of the course's Folders list, refused with 409 when a folder there has its name. A folder id or name the course does not have is refused with 400. Her past exams belong to the page holding every folder they were over (ExamSummary.courseExamId). Its owner and the admin can both do this. The folders sent replace the page's folders, in the order sent.",
         "tags": [
-          "Courses"
+          "Courses",
+          "Agents"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "sessionToken": []
+          },
+          {
+            "agentKey": [
+              "manage"
+            ]
+          }
         ],
         "parameters": [
           {
@@ -7069,7 +8188,17 @@
             }
           },
           "401": {
-            "description": "Sign in is required.",
+            "description": "Sign in, or send a working agent key: `invalid_agent_key` (QBank does not know it) or `agent_key_revoked` (it was revoked).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`agent_key_not_allowed`: the key's scopes do not cover this, it asked for what its scopes do not cover, or it has `manage` only and the admin approved it (the admin account has no content of its own). `must_change_password`: the account has a temporary password.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7112,7 +8241,7 @@
       },
       "delete": {
         "summary": "Remove an exam page",
-        "description": "Its folders go back to the end of the course's Folders list, with their sets and progress; her past exams stay, and those it held no longer belong to a page. Refused with 409 when one of its folders has the name of a folder already in the Folders list: rename one of them first.",
+        "description": "Its folders go back to the end of the course's Folders list, with their sets and progress; her past exams stay, and those it held no longer belong to a page. Refused with 409 when one of its folders has the name of a folder already in the Folders list: rename one of them first. The page has no Undo, so an agent key, even with `manage`, is refused with 403 `agent_key_not_allowed`: it can take every folder off the page with PUT /api/course-exams/{id}, and the user removes the page in QBank.",
         "tags": [
           "Courses"
         ],
@@ -7189,7 +8318,21 @@
         "summary": "Make a folder",
         "description": "A new, empty folder at the end of its list. A name is unique within its list, ignoring case: one exam page's folders, or the course's Folders list (no exam page). A clash is refused with 409, naming the list (\"Exam 3 already has a folder named First Pass.\", \"NURS 402 already has a folder named Second Pass.\"). Two pages may each have a folder of the same name. The student and the admin can both do this.",
         "tags": [
-          "Folders"
+          "Folders",
+          "Agents"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "sessionToken": []
+          },
+          {
+            "agentKey": [
+              "manage"
+            ]
+          }
         ],
         "parameters": [
           {
@@ -7234,7 +8377,17 @@
             }
           },
           "401": {
-            "description": "Sign in is required.",
+            "description": "Sign in, or send a working agent key: `invalid_agent_key` (QBank does not know it) or `agent_key_revoked` (it was revoked).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`agent_key_not_allowed`: the key's scopes do not cover this, it asked for what its scopes do not cover, or it has `manage` only and the admin approved it (the admin account has no content of its own). `must_change_password`: the account has a temporary password.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7281,7 +8434,21 @@
         "summary": "Rename a folder, or put it on an exam page",
         "description": "A name is unique within its list, ignoring case: one exam page's folders, or the course's Folders list (no exam page). A clash is refused with 409, naming the list (\"Exam 3 already has a folder named First Pass.\", \"NURS 402 already has a folder named Second Pass.\"). Two pages may each have a folder of the same name. The student and the admin can both do this. Renaming it to its own name, or putting it on the page it is on, changes nothing.",
         "tags": [
-          "Folders"
+          "Folders",
+          "Agents"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "sessionToken": []
+          },
+          {
+            "agentKey": [
+              "manage"
+            ]
+          }
         ],
         "parameters": [
           {
@@ -7326,7 +8493,17 @@
             }
           },
           "401": {
-            "description": "Sign in is required.",
+            "description": "Sign in, or send a working agent key: `invalid_agent_key` (QBank does not know it) or `agent_key_revoked` (it was revoked).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`agent_key_not_allowed`: the key's scopes do not cover this, it asked for what its scopes do not cover, or it has `manage` only and the admin approved it (the admin account has no content of its own). `must_change_password`: the account has a temporary password.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7369,10 +8546,24 @@
       },
       "delete": {
         "tags": [
-          "Delete"
+          "Delete",
+          "Agents"
         ],
         "summary": "Delete a folder and its sets",
         "description": "Deletes the folder and every set in it, every version, as its preview named; it comes off its exam page. Its sets are hidden as DELETE /api/practice-sets/{id} hides one, and her answers to them stop counting while it is deleted. Her past exams over it stay, without it in their folders. Without `confirm`, only a folder that holds no set is deleted (as before), and one with sets is refused with 409 `confirmation_required`. Refused with 409 `in_use` while a Make questions job is measured against one of its sets or is still filing their exam twins, a twin job is twinning one of them, or an exam in progress asks their questions. A Make questions job that would file into it is not a refusal: its set goes to Unsorted, and the job says so. Undo brings it back exactly as it was for 30 days (`undoDays`); after that it stays hidden and Undo is refused with 409 `undo_expired`. Nothing is ever deleted except by this request. The student and the admin can both do this.",
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "sessionToken": []
+          },
+          {
+            "agentKey": [
+              "manage"
+            ]
+          }
+        ],
         "parameters": [
           {
             "schema": {
@@ -7410,7 +8601,7 @@
             }
           },
           "401": {
-            "description": "Sign in.",
+            "description": "Sign in, or send a working agent key: `invalid_agent_key` (QBank does not know it) or `agent_key_revoked` (it was revoked).",
             "content": {
               "application/json": {
                 "schema": {
@@ -7420,7 +8611,7 @@
             }
           },
           "403": {
-            "description": "The request was refused, with the sentence to show her in `message`.",
+            "description": "Refused, with the sentence in `message`: `agent_key_not_allowed` (the key has no `manage` scope, or the admin approved it: the admin account has no content of its own), `must_change_password` (the account has a temporary password), or the role refusal the operation names.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7467,7 +8658,21 @@
         "summary": "Move a set to another folder",
         "description": "Moves the set, every version of it, to `folderId` or to a new folder named `newFolderName` (send one of them). Answers and progress move with the set. The new folder follows the folder naming rule (see POST /api/courses/{id}/folders). The student and the admin can both do this.",
         "tags": [
-          "Folders"
+          "Folders",
+          "Agents"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "sessionToken": []
+          },
+          {
+            "agentKey": [
+              "manage"
+            ]
+          }
         ],
         "parameters": [
           {
@@ -7512,7 +8717,17 @@
             }
           },
           "401": {
-            "description": "Sign in is required.",
+            "description": "Sign in, or send a working agent key: `invalid_agent_key` (QBank does not know it) or `agent_key_revoked` (it was revoked).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`agent_key_not_allowed`: the key's scopes do not cover this, it asked for what its scopes do not cover, or it has `manage` only and the admin approved it (the admin account has no content of its own). `must_change_password`: the account has a temporary password.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7559,7 +8774,21 @@
         "summary": "Put one list of folders in her order",
         "description": "Saves the order of one exam page's folders, or of the course's Folders list. A list that does not name exactly the folders it holds is refused with 409, so a stale screen cannot drop or misplace one. The student and the admin can both do this.",
         "tags": [
-          "Folders"
+          "Folders",
+          "Agents"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "sessionToken": []
+          },
+          {
+            "agentKey": [
+              "manage"
+            ]
+          }
         ],
         "parameters": [
           {
@@ -7615,7 +8844,17 @@
             }
           },
           "401": {
-            "description": "Sign in is required.",
+            "description": "Sign in, or send a working agent key: `invalid_agent_key` (QBank does not know it) or `agent_key_revoked` (it was revoked).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`agent_key_not_allowed`: the key's scopes do not cover this, it asked for what its scopes do not cover, or it has `manage` only and the admin approved it (the admin account has no content of its own). `must_change_password`: the account has a temporary password.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7753,7 +8992,26 @@
       "get": {
         "summary": "The questions in the current version of a practice set",
         "tags": [
-          "Courses"
+          "Courses",
+          "Agents"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "sessionToken": []
+          },
+          {
+            "agentKey": [
+              "import"
+            ]
+          },
+          {
+            "agentKey": [
+              "manage"
+            ]
+          }
         ],
         "parameters": [
           {
@@ -7788,7 +9046,17 @@
             }
           },
           "401": {
-            "description": "Sign in is required.",
+            "description": "Sign in, or send a working agent key: `invalid_agent_key` (QBank does not know it) or `agent_key_revoked` (it was revoked).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`agent_key_not_allowed`: the key's scopes do not cover this, it asked for what its scopes do not cover, or it has `manage` only and the admin approved it (the admin account has no content of its own). `must_change_password`: the account has a temporary password.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7831,10 +9099,24 @@
       },
       "delete": {
         "tags": [
-          "Delete"
+          "Delete",
+          "Agents"
         ],
         "summary": "Delete a set",
         "description": "Deletes the set and every version of it, as its preview named. It is hidden everywhere: its folder, Review, exams and their Wrong questions, the course's counts, Import's name check (a new set may take its name), Make questions and exam twins. Her answers to it stay saved and stop counting while it is deleted; Undo makes them count again. Past exams that asked its questions keep them. Refused with 409 `in_use` while a Make questions job is measured against it or is still filing its exam twins, a twin job is twinning it, or an exam in progress asks its questions. Undo brings it back exactly as it was for 30 days (`undoDays`); after that it stays hidden and Undo is refused with 409 `undo_expired`. Nothing is ever deleted except by this request. The student and the admin can both do this.",
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "sessionToken": []
+          },
+          {
+            "agentKey": [
+              "manage"
+            ]
+          }
+        ],
         "parameters": [
           {
             "schema": {
@@ -7872,7 +9154,7 @@
             }
           },
           "401": {
-            "description": "Sign in.",
+            "description": "Sign in, or send a working agent key: `invalid_agent_key` (QBank does not know it) or `agent_key_revoked` (it was revoked).",
             "content": {
               "application/json": {
                 "schema": {
@@ -7882,7 +9164,7 @@
             }
           },
           "403": {
-            "description": "The request was refused, with the sentence to show her in `message`.",
+            "description": "Refused, with the sentence in `message`: `agent_key_not_allowed` (the key has no `manage` scope, or the admin approved it: the admin account has no content of its own), `must_change_password` (the account has a temporary password), or the role refusal the operation names.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7928,7 +9210,26 @@
       "post": {
         "summary": "Check a question file without importing it",
         "tags": [
-          "Import"
+          "Import",
+          "Agents"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "sessionToken": []
+          },
+          {
+            "agentKey": [
+              "import"
+            ]
+          },
+          {
+            "agentKey": [
+              "manage"
+            ]
+          }
         ],
         "requestBody": {
           "content": {
@@ -7951,7 +9252,17 @@
             }
           },
           "401": {
-            "description": "Sign in is required.",
+            "description": "Sign in, or send a working agent key: `invalid_agent_key` (QBank does not know it) or `agent_key_revoked` (it was revoked).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`agent_key_not_allowed`: the key's scopes do not cover this, it asked for what its scopes do not cover, or it has `manage` only and the admin approved it (the admin account has no content of its own). `must_change_password`: the account has a temporary password.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7968,7 +9279,26 @@
         "summary": "Import a question file into a course and folder",
         "description": "The set goes into one of her courses or topics (`courseId`), or a new one (`newCourse`, `newTopic`); in it, into `folderId`, or the folder named `folderName`, or else the course's Unsorted folder, made at the top of its Folders list the first time it is needed. A file with `\"kind\": \"exam\"` makes an exam set: the folder's exam bank, asked only on exams, never listed for practice and never in Review. Its questions may name their practice twin in `twinOf`: the id of a practice question in the same folder. A set conflicts only with a current set of the same kind and name in the course. A replace keeps the set in its folder, whatever folder the import names.",
         "tags": [
-          "Import"
+          "Import",
+          "Agents"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "sessionToken": []
+          },
+          {
+            "agentKey": [
+              "import"
+            ]
+          },
+          {
+            "agentKey": [
+              "manage"
+            ]
+          }
         ],
         "requestBody": {
           "content": {
@@ -8041,7 +9371,8 @@
                       "import",
                       "replace",
                       "separate"
-                    ]
+                    ],
+                    "description": "`import` (the default) answers 409 for a set of the same kind and name; `replace` makes the file its new version (the one before stays, for Restore); `separate` adds it beside it. With an agent key without the `manage` scope, only `import`: the others answer 403."
                   }
                 },
                 "required": [
@@ -8080,7 +9411,17 @@
             }
           },
           "401": {
-            "description": "Sign in is required.",
+            "description": "Sign in, or send a working agent key: `invalid_agent_key` (QBank does not know it) or `agent_key_revoked` (it was revoked).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`agent_key_not_allowed`: the key's scopes do not cover this, it asked for what its scopes do not cover, or it has `manage` only and the admin approved it (the admin account has no content of its own). `must_change_password`: the account has a temporary password.",
             "content": {
               "application/json": {
                 "schema": {
@@ -8126,7 +9467,21 @@
       "post": {
         "summary": "Bring back the previous version of a set",
         "tags": [
-          "Import"
+          "Import",
+          "Agents"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "sessionToken": []
+          },
+          {
+            "agentKey": [
+              "manage"
+            ]
+          }
         ],
         "parameters": [
           {
@@ -8161,7 +9516,17 @@
             }
           },
           "401": {
-            "description": "Sign in is required.",
+            "description": "Sign in, or send a working agent key: `invalid_agent_key` (QBank does not know it) or `agent_key_revoked` (it was revoked).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`agent_key_not_allowed`: the key's scopes do not cover this, it asked for what its scopes do not cover, or it has `manage` only and the admin approved it (the admin account has no content of its own). `must_change_password`: the account has a temporary password.",
             "content": {
               "application/json": {
                 "schema": {
@@ -9759,10 +11124,24 @@
     "/api/courses/{id}/review": {
       "get": {
         "tags": [
-          "Review"
+          "Review",
+          "Agents"
         ],
         "summary": "A course's Review list",
-        "description": "Missed and guessed questions in this course. The admin sees her list and cannot change it here.",
+        "description": "What she missed or guessed in this course: each practice question whose latest answer was not fully right or was a guess, newest first, with its topic, folder, set and mark, as the Review screen shows it. A question leaves the list when she answers it fully right without guessing, or clears the list. `counts` are the chips: all, missed, partly right, guessed. The admin sees her list and cannot change it here. An agent key with `read` reads its own account's list.",
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "sessionToken": []
+          },
+          {
+            "agentKey": [
+              "read"
+            ]
+          }
+        ],
         "parameters": [
           {
             "schema": {
@@ -9800,7 +11179,7 @@
             }
           },
           "401": {
-            "description": "Sign in.",
+            "description": "Sign in, or send a working agent key: `invalid_agent_key` (QBank does not know it) or `agent_key_revoked` (it was revoked).",
             "content": {
               "application/json": {
                 "schema": {
@@ -9810,7 +11189,7 @@
             }
           },
           "403": {
-            "description": "The request was refused.",
+            "description": "`agent_key_not_allowed`: the key has no `read` scope, or the admin approved it (the admin account has no answers of its own). `must_change_password`: the account has a temporary password.",
             "content": {
               "application/json": {
                 "schema": {
@@ -9820,7 +11199,7 @@
             }
           },
           "404": {
-            "description": "The request was refused.",
+            "description": "The course is not the account's, or not in the app (`course_not_found`).",
             "content": {
               "application/json": {
                 "schema": {
@@ -10043,7 +11422,7 @@
           "Progress"
         ],
         "summary": "The course she used last",
-        "description": "An archived course is omitted, so she lands on Home instead. The admin reads his own place, which stays empty.",
+        "description": "An archived or deleted course is omitted, so she lands on Home instead. The admin reads his own place, which stays empty.",
         "responses": {
           "200": {
             "description": "The course id, or null.",
@@ -10169,10 +11548,24 @@
     "/api/me/export": {
       "get": {
         "tags": [
-          "Progress"
+          "Progress",
+          "Agents"
         ],
         "summary": "Export her progress",
-        "description": "Her answers, question progress, Review lists, course completion and scores, and study sessions, including exams, as one JSON file. Only the student can export, and only her own data.",
+        "description": "Her whole history as one JSON file: every answer she gave, her latest answer to each question, her Review lists, course completion and scores, and every study session, exams included (`studySessions` whose `mode` is `exam`, for GET /api/exams/{id}). It grows with every answer; GET /api/me/standing says where she stands in far less. A course or topic she deleted is left out of `courses` and `questions` until she brings it back; her sessions and answers in it stay. Only a user account can export, and only its own data: the admin cannot. An agent key with `read` exports its own account's.",
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "sessionToken": []
+          },
+          {
+            "agentKey": [
+              "read"
+            ]
+          }
+        ],
         "responses": {
           "200": {
             "description": "The export, sent as a file download.",
@@ -10195,7 +11588,7 @@
             }
           },
           "401": {
-            "description": "Sign in.",
+            "description": "Sign in, or send a working agent key: `invalid_agent_key` (QBank does not know it) or `agent_key_revoked` (it was revoked).",
             "content": {
               "application/json": {
                 "schema": {
@@ -10205,7 +11598,72 @@
             }
           },
           "403": {
-            "description": "The request was refused.",
+            "description": "`not_student`: the admin cannot export. `agent_key_not_allowed`: the key has no `read` scope, or the admin approved it. `must_change_password`: the account has a temporary password.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProgressError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sign-in is not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProgressError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/me/standing": {
+      "get": {
+        "tags": [
+          "Progress",
+          "Agents"
+        ],
+        "summary": "Where she stands, topic by topic",
+        "description": "Every course and study topic of hers, in the export's order, each with her standing on each topic its question files name: how many current questions it has, how many she has answered, and what her latest answers were. A topic with many answers and few fully right is a weak spot; one with few answers is not practiced yet. Counted by the course page's rules (current versions only, without the sets she deleted, keeping her answers across a replace), over practice and exam-bank questions alike. A course or topic she deleted is not listed until she brings it back. It reads; it writes nothing. Only a user account has a standing: the admin cannot read one. An agent key with `read` reads its own account's.",
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "sessionToken": []
+          },
+          {
+            "agentKey": [
+              "read"
+            ]
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Her standing by course and topic.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Standing"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign in, or send a working agent key: `invalid_agent_key` (QBank does not know it) or `agent_key_revoked` (it was revoked).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProgressError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`not_student`: the admin has no answers of its own. `agent_key_not_allowed`: the key has no `read` scope, or the admin approved it. `must_change_password`: the account has a temporary password.",
             "content": {
               "application/json": {
                 "schema": {
@@ -10575,10 +12033,24 @@
     "/api/exams/{id}": {
       "get": {
         "tags": [
-          "Exams"
+          "Exams",
+          "Agents"
         ],
         "summary": "One of her exams",
-        "description": "Its questions in the order served and the ones she has answered. Once it has ended, the result: points, fully right, partly right, missed, guessed, not answered, minutes used, the by-folder, by-week and by-clinical-judgment-step breakdowns, each question's mark, how many practice questions went to Review, and how many exam-bank questions she got wrong (they stay out of Review). An exam whose time has run out is ended first.",
+        "description": "Its questions in the order served and the ones she has answered. Once it has ended, the result: points, fully right, partly right, missed, guessed, not answered, minutes used, the by-folder, by-week and by-clinical-judgment-step breakdowns, each question's mark, how many practice questions went to Review, and how many exam-bank questions she got wrong (they stay out of Review). An exam whose time has run out is ended first. An agent key with `read` reads its own account's exams (their ids are in GET /api/me/export, `studySessions` whose `mode` is `exam`) and never ends one: an exam whose time ran out reads with `finishedAt` and `result` null until her app next opens it.",
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "sessionToken": []
+          },
+          {
+            "agentKey": [
+              "read"
+            ]
+          }
+        ],
         "parameters": [
           {
             "schema": {
@@ -10602,7 +12074,7 @@
             }
           },
           "401": {
-            "description": "Sign in.",
+            "description": "Sign in, or send a working agent key: `invalid_agent_key` (QBank does not know it) or `agent_key_revoked` (it was revoked).",
             "content": {
               "application/json": {
                 "schema": {
@@ -10612,7 +12084,7 @@
             }
           },
           "403": {
-            "description": "The request was refused.",
+            "description": "`agent_key_not_allowed`: the key has no `read` scope, or the admin approved it (the admin account has no answers of its own). `must_change_password`: the account has a temporary password.",
             "content": {
               "application/json": {
                 "schema": {
@@ -10622,7 +12094,7 @@
             }
           },
           "404": {
-            "description": "The request was refused.",
+            "description": "The exam is not the account's, or not in the app (`exam_not_found`).",
             "content": {
               "application/json": {
                 "schema": {
@@ -10823,10 +12295,24 @@
     "/api/practice-sets/{id}/delete-preview": {
       "get": {
         "tags": [
-          "Delete"
+          "Delete",
+          "Agents"
         ],
         "summary": "What deleting a set takes with it",
         "description": "For the warning before a set (a practice set, or an exam set from Folder.examSets) is deleted: its questions, every version of it, her answers to it and how her standing changes. Show her `message` (or your own words from the counts), and send `confirm` with the delete: it deletes exactly what this named. `refusal` is the sentence the delete would be refused with right now (a job or an exam in progress still uses it), or null. The id is its current version; an earlier one is refused with 404. The student and the admin can both do this.",
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "sessionToken": []
+          },
+          {
+            "agentKey": [
+              "manage"
+            ]
+          }
+        ],
         "parameters": [
           {
             "schema": {
@@ -10860,7 +12346,7 @@
             }
           },
           "401": {
-            "description": "Sign in.",
+            "description": "Sign in, or send a working agent key: `invalid_agent_key` (QBank does not know it) or `agent_key_revoked` (it was revoked).",
             "content": {
               "application/json": {
                 "schema": {
@@ -10870,7 +12356,7 @@
             }
           },
           "403": {
-            "description": "The request was refused, with the sentence to show her in `message`.",
+            "description": "Refused, with the sentence in `message`: `agent_key_not_allowed` (the key has no `manage` scope, or the admin approved it: the admin account has no content of its own), `must_change_password` (the account has a temporary password), or the role refusal the operation names.",
             "content": {
               "application/json": {
                 "schema": {
@@ -10915,10 +12401,24 @@
     "/api/practice-sets/{id}/undo-delete": {
       "post": {
         "tags": [
-          "Delete"
+          "Delete",
+          "Agents"
         ],
         "summary": "Undo deleting a set",
         "description": "Brings back a set she deleted on its own, every version as it was, with her answers counting again. A set that went with its folder comes back with the folder, and is refused here with 409; so is one whose folder is deleted. Undo brings it back exactly as it was for 30 days (`undoDays`); after that it stays hidden and Undo is refused with 409 `undo_expired`. Nothing is ever deleted except by this request. The student and the admin can both do this.",
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "sessionToken": []
+          },
+          {
+            "agentKey": [
+              "manage"
+            ]
+          }
+        ],
         "parameters": [
           {
             "schema": {
@@ -10952,7 +12452,7 @@
             }
           },
           "401": {
-            "description": "Sign in.",
+            "description": "Sign in, or send a working agent key: `invalid_agent_key` (QBank does not know it) or `agent_key_revoked` (it was revoked).",
             "content": {
               "application/json": {
                 "schema": {
@@ -10962,7 +12462,7 @@
             }
           },
           "403": {
-            "description": "The request was refused, with the sentence to show her in `message`.",
+            "description": "Refused, with the sentence in `message`: `agent_key_not_allowed` (the key has no `manage` scope, or the admin approved it: the admin account has no content of its own), `must_change_password` (the account has a temporary password), or the role refusal the operation names.",
             "content": {
               "application/json": {
                 "schema": {
@@ -11007,10 +12507,24 @@
     "/api/folders/{id}/delete-preview": {
       "get": {
         "tags": [
-          "Delete"
+          "Delete",
+          "Agents"
         ],
         "summary": "What deleting a folder takes with it",
         "description": "For the warning before a folder is deleted: every set in it (count and titles), their questions, her answers to them, its exam page, her past exams over it, and how her standing changes. Show her `message` (or your own words from the counts), and send `confirm` with the delete: it deletes exactly what this named. `refusal` is the sentence the delete would be refused with right now (a job or an exam in progress still uses it), or null. The student and the admin can both do this.",
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "sessionToken": []
+          },
+          {
+            "agentKey": [
+              "manage"
+            ]
+          }
+        ],
         "parameters": [
           {
             "schema": {
@@ -11044,7 +12558,7 @@
             }
           },
           "401": {
-            "description": "Sign in.",
+            "description": "Sign in, or send a working agent key: `invalid_agent_key` (QBank does not know it) or `agent_key_revoked` (it was revoked).",
             "content": {
               "application/json": {
                 "schema": {
@@ -11054,7 +12568,7 @@
             }
           },
           "403": {
-            "description": "The request was refused, with the sentence to show her in `message`.",
+            "description": "Refused, with the sentence in `message`: `agent_key_not_allowed` (the key has no `manage` scope, or the admin approved it: the admin account has no content of its own), `must_change_password` (the account has a temporary password), or the role refusal the operation names.",
             "content": {
               "application/json": {
                 "schema": {
@@ -11099,10 +12613,24 @@
     "/api/folders/{id}/undo-delete": {
       "post": {
         "tags": [
-          "Delete"
+          "Delete",
+          "Agents"
         ],
         "summary": "Undo deleting a folder",
         "description": "Brings back a folder she deleted and the sets that went with it, as they were: on its exam page if that page is still there, else at its place in the Folders list. A set she had deleted on its own before stays deleted. Refused with 409 when its list has a folder of its name now, naming that list: rename one of them first. Undo brings it back exactly as it was for 30 days (`undoDays`); after that it stays hidden and Undo is refused with 409 `undo_expired`. Nothing is ever deleted except by this request. The student and the admin can both do this.",
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "sessionToken": []
+          },
+          {
+            "agentKey": [
+              "manage"
+            ]
+          }
+        ],
         "parameters": [
           {
             "schema": {
@@ -11136,7 +12664,7 @@
             }
           },
           "401": {
-            "description": "Sign in.",
+            "description": "Sign in, or send a working agent key: `invalid_agent_key` (QBank does not know it) or `agent_key_revoked` (it was revoked).",
             "content": {
               "application/json": {
                 "schema": {
@@ -11146,7 +12674,7 @@
             }
           },
           "403": {
-            "description": "The request was refused, with the sentence to show her in `message`.",
+            "description": "Refused, with the sentence in `message`: `agent_key_not_allowed` (the key has no `manage` scope, or the admin approved it: the admin account has no content of its own), `must_change_password` (the account has a temporary password), or the role refusal the operation names.",
             "content": {
               "application/json": {
                 "schema": {
@@ -11372,13 +12900,376 @@
         }
       }
     },
+    "/api/courses/{id}/delete-preview": {
+      "get": {
+        "tags": [
+          "Delete",
+          "Agents"
+        ],
+        "summary": "What deleting a course or topic takes with it",
+        "description": "For the one question before a course or study topic is deleted: its folders, exam pages, sets, questions, her answers and past exams in it, and `message`, the question to ask her. Show her `message` (or your own words from the counts), and send `confirm` with the delete: it deletes exactly what this named. `refusal` is the sentence the delete would be refused with right now (a job or an exam in progress still uses it), or null. The user account and the admin can both read this.",
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "sessionToken": []
+          },
+          {
+            "agentKey": [
+              "manage"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What goes.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CourseDeletion"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign in, or send a working agent key: `invalid_agent_key` (QBank does not know it) or `agent_key_revoked` (it was revoked).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused, with the sentence in `message`: `agent_key_not_allowed` (the key has no `manage` scope, or the admin approved it: the admin account has no content of its own), `must_change_password` (the account has a temporary password), or the role refusal the operation names.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sign-in is not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/courses/{id}/undo-delete": {
+      "post": {
+        "tags": [
+          "Delete",
+          "Agents"
+        ],
+        "summary": "Undo deleting a course or topic",
+        "description": "Brings back a course or study topic she deleted, whole: its folders, exam pages, sets (one she had deleted on its own before stays in its Recently deleted), her answers counting again, and her past exams, in its semester or her topics as before. Refused with 409 when its semester has a course of its code now, or she has a topic of its name now: rename one of them first. Undo brings it back exactly as it was for 30 days (`undoDays`); after that it stays hidden and Undo is refused with 409 `undo_expired`. Nothing is ever deleted except by this request. Only the user account that owns it can do this, itself or with its own agent key with the `manage` scope; the admin is refused with 403 `admin_cannot_delete_course`, and any other agent key with 403 `agent_key_not_allowed`.",
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "sessionToken": []
+          },
+          {
+            "agentKey": [
+              "manage"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Its card, as GET /api/semesters lists it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "course",
+                        "topic"
+                      ],
+                      "description": "`topic` for a study topic: a course with no semester, which the screens call by its title (its code is empty) and whose exam pages they call study pages. Everything inside it works as in a course. `course` for every course."
+                    },
+                    "code": {
+                      "type": "string",
+                      "description": "Empty for a topic."
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "sortOrder": {
+                      "type": "integer"
+                    },
+                    "archivedAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "questionCount": {
+                      "type": "integer"
+                    },
+                    "weekCount": {
+                      "type": "integer",
+                      "description": "Legacy: how many folder names hold practice sets, so two folders with the same name count once. Use folderCount."
+                    },
+                    "folderCount": {
+                      "type": "integer",
+                      "description": "Her folders in the course, empty ones included: the course card's \"N folders\"."
+                    },
+                    "reviewCount": {
+                      "type": "integer"
+                    },
+                    "answeredCount": {
+                      "type": "integer"
+                    },
+                    "fullyRightCount": {
+                      "type": "integer"
+                    },
+                    "points": {
+                      "type": "integer"
+                    },
+                    "maxPoints": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "kind",
+                    "code",
+                    "title",
+                    "sortOrder",
+                    "archivedAt",
+                    "questionCount",
+                    "weekCount",
+                    "folderCount",
+                    "reviewCount",
+                    "answeredCount",
+                    "fullyRightCount",
+                    "points",
+                    "maxPoints"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign in, or send a working agent key: `invalid_agent_key` (QBank does not know it) or `agent_key_revoked` (it was revoked).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused, with the sentence in `message`: `agent_key_not_allowed` (the key has no `manage` scope, or the admin approved it: the admin account has no content of its own), `must_change_password` (the account has a temporary password), or the role refusal the operation names.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request was refused, with the sentence to show her in `message`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sign-in is not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/deleted-courses": {
+      "get": {
+        "tags": [
+          "Delete",
+          "Agents"
+        ],
+        "summary": "Her deleted courses and topics, for Undo",
+        "description": "Her courses and study topics deleted in the last 30 days, newest first: what Undo can still bring back. Older deletes stay hidden and are not listed. The admin reads the same for the user account he looks after.",
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "sessionToken": []
+          },
+          {
+            "agentKey": [
+              "manage"
+            ]
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recently deleted courses and topics.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecentlyDeletedCourses"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign in, or send a working agent key: `invalid_agent_key` (QBank does not know it) or `agent_key_revoked` (it was revoked).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused, with the sentence in `message`: `agent_key_not_allowed` (the key has no `manage` scope, or the admin approved it: the admin account has no content of its own), `must_change_password` (the account has a temporary password), or the role refusal the operation names.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sign-in is not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/courses/{id}/deleted": {
       "get": {
         "tags": [
-          "Delete"
+          "Delete",
+          "Agents"
         ],
         "summary": "What she deleted in a course, for Undo",
         "description": "The course's folders and sets deleted in the last 30 days, and her past exams deleted in that time, newest first: everything Undo can still bring back. Older deletes stay hidden and are not listed. The admin reads the same, with her exams.",
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "sessionToken": []
+          },
+          {
+            "agentKey": [
+              "manage"
+            ]
+          }
+        ],
         "parameters": [
           {
             "schema": {
@@ -11412,7 +13303,7 @@
             }
           },
           "401": {
-            "description": "Sign in.",
+            "description": "Sign in, or send a working agent key: `invalid_agent_key` (QBank does not know it) or `agent_key_revoked` (it was revoked).",
             "content": {
               "application/json": {
                 "schema": {
@@ -11422,7 +13313,7 @@
             }
           },
           "403": {
-            "description": "The request was refused, with the sentence to show her in `message`.",
+            "description": "Refused, with the sentence in `message`: `agent_key_not_allowed` (the key has no `manage` scope, or the admin approved it: the admin account has no content of its own), `must_change_password` (the account has a temporary password), or the role refusal the operation names.",
             "content": {
               "application/json": {
                 "schema": {
@@ -12786,6 +14677,553 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/QuestionMakerError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent-pairings": {
+      "post": {
+        "tags": [
+          "Agents"
+        ],
+        "summary": "An agent asks to be paired with a user's account",
+        "description": "Sent by the agent with no key or session. Answers its device code (its secret) and the user code (to show the user), both good for 10 minutes. Then the agent polls POST /api/agent-pairings/token while the user answers in QBank. See the Agents tag.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentPairingRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The pairing is waiting for the user.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentPairingStarted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The name or scopes were refused.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Sent with an agent key (`agent_key_not_allowed`): pairing takes none.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many pairings started from this address, or waiting at once (`too_many_pairings`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Locked"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sign-in is not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent-pairings/token": {
+      "post": {
+        "tags": [
+          "Agents"
+        ],
+        "summary": "The agent polls for its key",
+        "description": "Sent by the agent with its device code and no key or session, `interval` seconds after each answer, until it gets its key or a pairing that is over. The key comes exactly once.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentPairingPoll"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Approved: the key, this once. Keep it in the operating system's keychain.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentKeyDelivered"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not yet, or never: `authorization_pending` (not answered yet; poll again after `interval`), `slow_down` (too soon; wait the new `interval` from now on), `access_denied` (the user denied it), `expired_token` (it ran out, or its key was handed over already), `invalid_device_code` (QBank does not know it). After the last three, start a new pairing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/AgentPairingWait"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Sent with an agent key (`agent_key_not_allowed`): pairing takes none.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sign-in is not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent-pairings/lookup": {
+      "post": {
+        "tags": [
+          "Agent keys"
+        ],
+        "summary": "See the agent waiting under a user code",
+        "description": "Signed in, before approving or denying: the agent's name and the scopes it asks for.",
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "sessionToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentPairingCode"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The pairing waiting for an answer.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentPairing"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Choose a new password first (`must_change_password`), or sent with an agent key (`agent_key_not_allowed`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No pairing is waiting under that code: mistyped, answered already, or past its expiry (`pairing_not_found`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Five codes that matched nothing lock this account's pairing answers for 15 minutes (`too_many_attempts`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Locked"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sign-in is not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent-pairings/approve": {
+      "post": {
+        "tags": [
+          "Agent keys"
+        ],
+        "summary": "Approve the agent waiting under a user code",
+        "description": "Its key belongs to the account signed in. The agent picks it up on its next poll; until then nothing is listed under GET /api/agent-keys.",
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "sessionToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentPairingCode"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Approved.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentPairing"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Choose a new password first (`must_change_password`), or sent with an agent key (`agent_key_not_allowed`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No pairing is waiting under that code: mistyped, answered already, or past its expiry (`pairing_not_found`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Five codes that matched nothing lock this account's pairing answers for 15 minutes (`too_many_attempts`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Locked"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sign-in is not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent-pairings/deny": {
+      "post": {
+        "tags": [
+          "Agent keys"
+        ],
+        "summary": "Deny the agent waiting under a user code",
+        "description": "No key is made. The agent's next poll answers access_denied.",
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "sessionToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentPairingCode"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Denied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentPairing"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Choose a new password first (`must_change_password`), or sent with an agent key (`agent_key_not_allowed`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No pairing is waiting under that code: mistyped, answered already, or past its expiry (`pairing_not_found`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Five codes that matched nothing lock this account's pairing answers for 15 minutes (`too_many_attempts`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Locked"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sign-in is not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent-keys": {
+      "get": {
+        "tags": [
+          "Agent keys"
+        ],
+        "summary": "List the account's agent keys",
+        "description": "The signed-in account's own keys, newest first, revoked ones included. Never a key itself.",
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "sessionToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The account's keys.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentKeyList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Choose a new password first (`must_change_password`), or sent with an agent key (`agent_key_not_allowed`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sign-in is not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent-keys/{id}/revoke": {
+      "post": {
+        "tags": [
+          "Agent keys"
+        ],
+        "summary": "Revoke one of the account's agent keys",
+        "description": "It stops working at once and for good, and stays listed. The sets it imported keep its name. Revoking a revoked key changes nothing.",
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "sessionToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The key, revoked.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentKey"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Choose a new password first (`must_change_password`), or sent with an agent key (`agent_key_not_allowed`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The account has no key of that id (`agent_key_not_found`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sign-in is not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }

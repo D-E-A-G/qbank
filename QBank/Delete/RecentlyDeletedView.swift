@@ -132,7 +132,7 @@ struct RecentlyDeletedView: View {
 
 /// Something she deleted: its name, what it held and when Undo runs out, why it cannot come back
 /// now when it cannot, and Bring back at its right.
-private struct DeletedRow<Accessory: View>: View {
+struct DeletedRow<Accessory: View>: View {
     let title: String
     let lines: [String]
     let systemImage: String

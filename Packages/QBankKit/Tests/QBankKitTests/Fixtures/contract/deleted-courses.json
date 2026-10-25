@@ -1,0 +1,47 @@
+{
+  "recordedFrom": "01efcb8ed7a46bc276f71671872233e6e6e0f9a0",
+  "request": {
+    "method": "GET",
+    "path": "/api/deleted-courses",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "undoDays": 30,
+      "courses": [
+        {
+          "id": "c0000000-0000-4000-8000-000000000802",
+          "kind": "topic",
+          "code": "",
+          "title": "Pharmacology",
+          "semester": null,
+          "questionCount": 3,
+          "deletedAt": "2026-10-25T19:08:47.464Z",
+          "undoUntil": "2026-11-24T19:08:47.464Z",
+          "undoRefusal": null,
+          "deletedByAgent": null
+        },
+        {
+          "id": "c0000000-0000-4000-8000-000000000801",
+          "kind": "course",
+          "code": "NURS 220",
+          "title": "Fundamentals",
+          "semester": {
+            "id": "a0000000-0000-4000-8000-000000000802",
+            "number": 2,
+            "name": "Semester 2"
+          },
+          "questionCount": 5,
+          "deletedAt": "2026-10-25T19:08:47.456Z",
+          "undoUntil": "2026-11-24T19:08:47.456Z",
+          "undoRefusal": "Semester 2 already has a course with the code NURS 220. Rename one of them, then bring this one back.",
+          "deletedByAgent": null
+        }
+      ]
+    }
+  }
+}

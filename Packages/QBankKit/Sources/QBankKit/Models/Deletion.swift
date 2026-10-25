@@ -1,9 +1,10 @@
 import Foundation
 
-// Deleting a set, a folder with every set in it, or a past exam, and Undo. Every delete is three
-// steps: its preview names what goes and hands out `confirm`; the delete sends that `confirm` and
-// takes exactly what the preview named, or is refused when something changed since; Undo brings it
-// back as it was for `undoDays` (30). Nothing is ever deleted except by her confirmed request.
+// Deleting a course or study topic, a set, a folder with every set in it, or a past exam, and Undo.
+// Every delete is three steps: its preview names what goes and hands out `confirm`; the delete sends
+// that `confirm` and takes exactly what the preview named, or is refused when something changed
+// since; Undo brings it back as it was for `undoDays` (30). Nothing is ever deleted except by her
+// confirmed request.
 
 /// A set's kind: practice, or exam (asked only on exams, in its folder's exam bank). Open, so a kind
 /// the server adds later still decodes.
@@ -146,6 +147,87 @@ public struct ExamDeletion: Decodable, Sendable, Equatable, DeletionPreview {
         case progress, message, refusal, confirm, undoDays
         case examID = "examId"
         case courseID = "courseId"
+    }
+}
+
+/// What deleting a course or study topic takes with it: everything in it, which comes back with it.
+/// Its `message` is the one question to ask her ("Delete NURS 220 and its 146 questions? You can
+/// bring it back for 30 days.").
+public struct CourseDeletion: Decodable, Sendable, Equatable, DeletionPreview {
+    public let courseID: String
+    public let kind: CourseKind
+    /// Empty for a topic.
+    public let code: String
+    public let title: String
+    /// Nil for a topic.
+    public let semester: CourseDetail.SemesterRef?
+    public let folderCount: Int
+    /// Its exam pages (study pages, in a topic).
+    public let examPageCount: Int
+    public let setCount: Int
+    /// Its practice questions, as its card counts them.
+    public let questionCount: Int
+    public let examQuestionCount: Int
+    /// Of its practice questions, the ones she has answered. Those answers stay saved and count
+    /// again once it is back.
+    public let answeredCount: Int
+    public let reviewCount: Int
+    /// Her past exams in it, which go with it and come back with it.
+    public let pastExamCount: Int
+    public let message: String
+    /// Set while a job or an exam in progress still works in it.
+    public let refusal: String?
+    public let confirm: String
+    public let undoDays: Int
+
+    private enum CodingKeys: String, CodingKey {
+        case kind, code, title, semester, folderCount, examPageCount, setCount, questionCount, examQuestionCount
+        case answeredCount, reviewCount, pastExamCount, message, refusal, confirm, undoDays
+        case courseID = "courseId"
+    }
+}
+
+/// Her courses and study topics deleted in the last `undoDays`, newest first: Home's Recently deleted.
+public struct RecentlyDeletedCourses: Decodable, Sendable, Equatable {
+    public let undoDays: Int
+    public let courses: [DeletedCourse]
+
+    public init(undoDays: Int, courses: [DeletedCourse]) {
+        self.undoDays = undoDays
+        self.courses = courses
+    }
+}
+
+/// A course or study topic she deleted, with what it held and when Undo runs out.
+public struct DeletedCourse: Decodable, Sendable, Equatable, Identifiable {
+    public let id: String
+    public let kind: CourseKind
+    /// Empty for a topic.
+    public let code: String
+    public let title: String
+    /// Nil for a topic.
+    public let semester: CourseDetail.SemesterRef?
+    /// Its practice questions, as its card counted them.
+    public let questionCount: Int
+    public let deletedAt: Date
+    /// Undo is refused after this.
+    public let undoUntil: Date
+    /// Why Undo would be refused now, such as its semester having a course of its code, or nil.
+    public let undoRefusal: String?
+
+    public init(
+        id: String, kind: CourseKind, code: String, title: String, semester: CourseDetail.SemesterRef?, questionCount: Int,
+        deletedAt: Date, undoUntil: Date, undoRefusal: String?
+    ) {
+        self.id = id
+        self.kind = kind
+        self.code = code
+        self.title = title
+        self.semester = semester
+        self.questionCount = questionCount
+        self.deletedAt = deletedAt
+        self.undoUntil = undoUntil
+        self.undoRefusal = undoRefusal
     }
 }
 
