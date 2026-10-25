@@ -7,14 +7,12 @@ enum SettingsRoute: Hashable {
     case changePassword
     case passkeys
     case semester(String)
-    case course(String)
-    case topic(String)
     case savedForOffline
 }
 
-/// The Settings tab, as the web's Settings for a user account: her account, her semesters and
-/// courses, her study topics, and Look and Color, then what is saved on this phone. Export stays
-/// on the web.
+/// The Settings tab, as the web's Settings for a user account: her account, her semesters by name
+/// and dates, and Look and Color, then what is saved on this phone. Home's + adds a semester, a
+/// course or a topic, and holding one on Home renames, moves or archives it. Export stays on the web.
 struct SettingsView: View {
     let app: AppModel
     @State private var catalog: CatalogModel
@@ -38,9 +36,6 @@ struct SettingsView: View {
                     lock
                     if catalog.isEditable {
                         semesters
-                        if catalog.catalog != nil {
-                            TopicsGroup(catalog: catalog)
-                        }
                     }
                     look
                     onThisPhone
@@ -69,10 +64,6 @@ struct SettingsView: View {
                     PasskeysView(model: passkeys, lock: app.lock)
                 case .semester(let id):
                     SemesterView(catalog: catalog, id: id)
-                case .course(let id):
-                    CourseEditView(catalog: catalog, id: id)
-                case .topic(let id):
-                    TopicEditView(catalog: catalog, id: id)
                 case .savedForOffline:
                     SavedForOfflineView(app: app)
                 }
@@ -187,50 +178,38 @@ struct SettingsView: View {
     }
 
     private var semesters: some View {
-        VStack(alignment: .leading, spacing: QBankSpacing.space3) {
-            QBankListGroup(
-                header: "Semesters and courses",
-                footer: "Rename, move between semesters, archive or unarchive a course. Archive a semester you finished."
-            ) {
-                if let semesters = catalog.semesters {
-                    ForEach(semesters) { semester in
-                        NavigationLink(value: SettingsRoute.semester(semester.id)) {
-                            QBankListRow(semester.name, detail: CatalogModel.summary(of: semester), showsChevron: true)
-                        }
-                        .buttonStyle(.qbankRow)
-                        .accessibilityIdentifier("settings.semester.\(semester.number)")
-                    }
-                    if let number = catalog.nextSemesterNumber {
-                        Button {
-                            Task { await catalog.addSemester() }
-                        } label: {
-                            QBankListRow("Add Semester \(number)", systemImage: "plus") {
-                                if catalog.isAdding {
-                                    ProgressView()
-                                }
-                            }
-                        }
-                        .buttonStyle(.qbankRow)
-                        .disabled(catalog.isAdding)
-                        .accessibilityIdentifier("settings.addSemester")
-                    }
-                } else if let problem = catalog.loadProblem {
-                    QBankListRow(problem, accessibilityChildren: .contain) {
-                        Button("Try again") {
-                            Task { await catalog.load() }
-                        }
-                        .buttonStyle(.qbank(.secondary, size: .small))
-                        .accessibilityIdentifier("settings.semesters.retry")
-                    }
-                } else {
-                    QBankListRow("Loading your semesters") {
-                        ProgressView()
-                    }
+        QBankListGroup(
+            header: "Semesters and courses",
+            footer: "Open a semester for its name and dates. Add from Home's +; rename, move or archive a course by holding it on Home."
+        ) {
+            if let semesters = catalog.semesters {
+                if semesters.isEmpty {
+                    Text("No semesters yet. Add one from Home's +.")
+                        .qbankFont(.body)
+                        .foregroundStyle(.qbank(.text3))
+                        .frame(maxWidth: .infinity, minHeight: QBankSpacing.rowMin, alignment: .leading)
+                        .padding(.horizontal, QBankSpacing.rowPaddingHorizontal)
+                        .padding(.vertical, 11)
                 }
-            }
-            if let problem = catalog.addProblem {
-                ProblemText(text: problem)
-                    .padding(.horizontal, QBankSpacing.space5)
+                ForEach(semesters) { semester in
+                    NavigationLink(value: SettingsRoute.semester(semester.id)) {
+                        QBankListRow(semester.name, detail: CatalogModel.summary(of: semester), showsChevron: true)
+                    }
+                    .buttonStyle(.qbankRow)
+                    .accessibilityIdentifier("settings.semester.\(semester.number)")
+                }
+            } else if let problem = catalog.loadProblem {
+                QBankListRow(problem, accessibilityChildren: .contain) {
+                    Button("Try again") {
+                        Task { await catalog.load() }
+                    }
+                    .buttonStyle(.qbank(.secondary, size: .small))
+                    .accessibilityIdentifier("settings.semesters.retry")
+                }
+            } else {
+                QBankListRow("Loading your semesters") {
+                    ProgressView()
+                }
             }
         }
     }

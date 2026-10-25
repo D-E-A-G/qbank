@@ -3,7 +3,8 @@ import Observation
 import QBankKit
 
 /// Home: her semesters with their courses, her study topics, what she archived, and the course or
-/// topic she used last. Without a connection it shows the copy saved on the phone, with her
+/// topic she used last. Its + adds a semester, a course or a topic, and holding a course or topic
+/// moves or archives it. Without a connection it shows the copy saved on the phone, with her
 /// waiting answers counted in.
 @Observable
 final class HomeModel {
@@ -19,6 +20,11 @@ final class HomeModel {
     private(set) var catalog: Catalog?
     private(set) var isLoading = false
     private(set) var problem: String?
+    /// Why adding a semester, moving or archiving was refused, in the server's words, until Home
+    /// is read again.
+    private(set) var editProblem: String?
+    /// True while the + or a held card's menu waits for the server.
+    private(set) var isEditing = false
     /// When the courses on screen were saved on the phone, or nil when they came from QBank just now.
     private(set) var savedAt: Date?
     /// Each course's saved copy, for its "Saved" badge and to count waiting answers into its card.
@@ -74,14 +80,39 @@ final class HomeModel {
         return groups
     }
 
-    /// A user account makes topics; the admin's view of her account is read-only. Making one needs
-    /// QBank, so not from the copy on the phone.
-    var canMakeTopic: Bool {
-        isUserAccount && savedAt == nil && app.connection.isOnline
+    /// A user account has the + and the held cards' menus; the admin's view of her account is
+    /// read-only, so it has neither.
+    var showsEditing: Bool {
+        isUserAccount
     }
 
-    var showsNewTopic: Bool {
-        isUserAccount
+    /// Adding, moving and archiving need QBank, so not from the copy on the phone.
+    var canEdit: Bool {
+        isUserAccount && savedAt == nil && app.connection.isOnline && !isEditing
+    }
+
+    /// The semester the + adds, while one of 1, 2 and 3 is missing.
+    var nextSemesterNumber: Int? {
+        semesters.flatMap(CatalogModel.nextSemesterNumber(after:))
+    }
+
+    /// The semesters a course can move to: those she studies, but its own.
+    func otherSemesters(than course: CourseSummary) -> [Semester] {
+        studiedSemesters.filter { semester in !semester.courses.contains { $0.id == course.id } }
+    }
+
+    /// Whether a course or topic can be archived: one in use, but not a course of a semester she
+    /// archived, which is in Archived with it; moving it to another semester brings it back.
+    func canArchive(_ course: CourseSummary) -> Bool {
+        guard course.archivedAt == nil else { return false }
+        if course.kind == .topic { return true }
+        return semesters?.first { semester in semester.courses.contains { $0.id == course.id } }?.archivedAt == nil
+    }
+
+    /// Whether a topic in use can move a place up (-1) or down (+1) among her topics in use.
+    func canMove(_ topic: CourseSummary, by step: Int) -> Bool {
+        guard let at = topics.firstIndex(where: { $0.id == topic.id }) else { return false }
+        return topics.indices.contains(at + step)
     }
 
     /// A semester's courses in the owner's order.
@@ -102,6 +133,7 @@ final class HomeModel {
     /// Loads the semesters. A failed reload keeps what is already on screen.
     func load() async {
         isLoading = true
+        editProblem = nil
         defer { isLoading = false }
         do {
             let loaded = try await app.load(.catalog) { () async throws(QBankError) in try await app.client.catalog() }
@@ -149,10 +181,64 @@ final class HomeModel {
         return CourseRoute(id: id, name: course.map(Wording.name), kind: course?.kind ?? .course)
     }
 
-    /// Reads the list again after she made a topic, which then opens.
-    func made(_ topic: CourseSummary) async -> CourseRoute {
+    /// Reads the list again after she made a course or topic, which then opens.
+    func made(_ course: CourseSummary) async -> CourseRoute {
         await load()
-        return CourseRoute(id: topic.id, name: Wording.name(topic), kind: topic.kind)
+        return CourseRoute(id: course.id, name: Wording.name(course), kind: course.kind)
+    }
+
+    // MARK: Editing from Home
+
+    /// Adds the next semester, from the + menu.
+    func addSemester() async {
+        guard let number = nextSemesterNumber else { return }
+        await edit { () async throws(QBankError) in
+            _ = try await app.client.addSemester(number: number)
+        }
+    }
+
+    /// Archives a course or topic, which moves to Archived, or brings it back. Her answers stay.
+    func setArchived(_ course: CourseSummary, _ archived: Bool) async {
+        await edit { () async throws(QBankError) in
+            _ = try await app.client.setCourseArchived(id: course.id, archived)
+        }
+    }
+
+    /// Moves a course to another semester, with its folders, sets and her answers.
+    func move(_ course: CourseSummary, to semester: Semester) async {
+        await edit { () async throws(QBankError) in
+            _ = try await app.client.updateCourse(id: course.id, code: course.code, title: course.title, semesterID: semester.id)
+        }
+    }
+
+    /// Moves a topic a place up (-1) or down (+1) among her topics in use. The server takes every
+    /// topic of hers, so the archived ones go after the others, in the order they had.
+    func move(_ topic: CourseSummary, by step: Int) async {
+        guard canMove(topic, by: step), let all = catalog?.topics else { return }
+        var order = topics.map(\.id)
+        guard let at = order.firstIndex(of: topic.id) else { return }
+        order.swapAt(at, at + step)
+        let archived = all.filter { $0.archivedAt != nil }.map(\.id)
+        await edit { () async throws(QBankError) in
+            _ = try await app.client.setTopicOrder(order + archived)
+        }
+    }
+
+    /// Runs one edit, then reads the list again, whether or not it was saved.
+    private func edit(_ change: () async throws(QBankError) -> Void) async {
+        guard canEdit else { return }
+        isEditing = true
+        var failure: String?
+        do {
+            try await change()
+        } catch {
+            if !app.handle(error) {
+                failure = Wording.problem(error) ?? "Something went wrong. Try again."
+            }
+        }
+        await load()
+        editProblem = failure
+        isEditing = false
     }
 }
 

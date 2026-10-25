@@ -312,3 +312,49 @@ struct MoveSetsSheet: View {
         }
     }
 }
+
+/// New folder, from a course's + or an exam page's: one field. On an exam page it goes on the page.
+struct NewFolderSheet: View {
+    let model: CourseModel
+    /// The exam page it goes on, or nil for the course's Folders list.
+    var page: CourseExam?
+    @State private var name = ""
+    @State private var problem: String?
+    @State private var isSaving = false
+    @FocusState private var focused: Bool
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        EditSheet(title: page.map { "New folder on \($0.name)" } ?? "New folder", confirm: "Done", identifier: "newFolder", isSaving: isSaving, hasChanges: !name.isEmpty, save: save) {
+            LabeledField(label: "Folder name") {
+                TextField("Folder name", text: $name, prompt: Text("Week 4").foregroundStyle(.qbank(.text4)))
+                    .textInputAutocapitalization(.words)
+                    .submitLabel(.done)
+                    .focused($focused)
+                    .onSubmit(save)
+                    .accessibilityIdentifier("newFolder.name")
+            }
+            if let problem {
+                ProblemText(text: problem)
+            }
+            SheetHint(text: page.map { "It goes on \($0.name). Import a question file into it from its page." }
+                ?? "It goes under Folders. Import a question file into it from its page.")
+        }
+        .onAppear { focused = true }
+        .presentationDetents([.medium, .large])
+    }
+
+    private func save() {
+        guard !isSaving else { return }
+        guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            problem = "Folder name is required."
+            return
+        }
+        isSaving = true
+        Task {
+            problem = await model.makeFolder(named: name, on: page?.id)
+            isSaving = false
+            if problem == nil { dismiss() }
+        }
+    }
+}

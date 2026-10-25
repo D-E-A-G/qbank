@@ -177,32 +177,38 @@ struct DebugLaunchScenarioTests {
 
     @Test func fakeServerEditsTheCatalogAsTheServerDoes() async throws {
         let app = try #require(Self.launch("signed-in"))
-        let catalog = CatalogModel(app: app)
-        await catalog.load()
-        #expect(catalog.nextSemesterNumber == 3)
-        await catalog.addSemester()
-        #expect(catalog.semesters?.map(\.name) == ["Semester 1", "Semester 2", "Semester 3"])
+        let home = HomeModel(app: app)
+        await home.load()
+        #expect(home.nextSemesterNumber == 3)
+        await home.addSemester()
+        #expect(home.semesters?.map(\.name) == ["Semester 1", "Semester 2", "Semester 3"])
+        #expect(home.nextSemesterNumber == nil)
 
-        let semester = SemesterModel(catalog: catalog, id: FakeQBankServer.semester2ID)
+        let semester = SemesterModel(catalog: CatalogModel(app: app, catalog: home.catalog), id: FakeQBankServer.semester2ID)
         semester.newCode = "nurs 310"
         semester.newTitle = "Pediatrics"
-        await semester.addCourse()
+        #expect(await semester.addCourse()?.code == "nurs 310")
         #expect(semester.addProblem == nil)
+        await home.load()
 
-        let course = CourseEditModel(catalog: catalog, id: FakeQBankServer.mentalHealthID)
-        course.semesterID = FakeQBankServer.semester2ID
-        await course.save()
-        #expect(course.problem == "This semester already has a course with the code NURS 310.")
+        func mentalHealth() throws -> CourseSummary {
+            try #require(home.catalog?.course(id: FakeQBankServer.mentalHealthID))
+        }
+        let second = try #require(home.semesters?.first { $0.id == FakeQBankServer.semester2ID })
+        #expect(home.otherSemesters(than: try mentalHealth()).map(\.number) == [2, 3])
+        await home.move(try mentalHealth(), to: second)
+        #expect(home.editProblem == "This semester already has a course with the code NURS 310.")
+        let course = CourseEditModel(catalog: CatalogModel(app: app, catalog: home.catalog), id: FakeQBankServer.mentalHealthID)
         course.code = "NURS 311"
         await course.save()
         #expect(course.problem == nil)
-        await course.toggleArchived()
-        #expect(course.isArchived)
-
-        let home = HomeModel(app: app)
         await home.load()
-        let second = try #require(home.semesters?.first { $0.id == FakeQBankServer.semester2ID })
-        #expect(home.courses(in: second).map(\.code) == ["nurs 310"])
+        await home.move(try mentalHealth(), to: second)
+        #expect(home.editProblem == nil)
+        #expect(home.courses(in: try #require(home.semesters?.first { $0.id == FakeQBankServer.semester2ID })).map(\.code) == ["nurs 310", "NURS 311"])
+        await home.setArchived(try mentalHealth(), true)
+        #expect(try mentalHealth().archivedAt != nil)
+        #expect(home.courses(in: try #require(home.semesters?.first { $0.id == FakeQBankServer.semester2ID })).map(\.code) == ["nurs 310"])
         let detail = CourseModel(app: app, id: FakeQBankServer.mentalHealthID)
         await detail.load()
         #expect(detail.course?.code == "NURS 311")

@@ -29,6 +29,8 @@ final class CourseModel {
     private(set) var isLoading = false
     private(set) var problem: String?
     private(set) var isRestoring = false
+    /// Whether the server lets her make questions, for the +'s Make questions. Nil until read.
+    private(set) var maker: QuestionMakerStatus?
     /// When the course on screen was saved on the phone, or nil when it came from QBank just now.
     private(set) var savedAt: Date?
     /// Counts loads, so an answer that comes back after a newer load started is dropped: a
@@ -54,6 +56,18 @@ final class CourseModel {
     /// Folders and exam pages change on the server, so without a connection they cannot be edited.
     var canEdit: Bool {
         app.connection.isOnline && savedAt == nil
+    }
+
+    /// The +'s Make questions shows only when the server says she may start a set now, as the Add
+    /// tab's row does.
+    var canMake: Bool {
+        isStudent && canEdit && maker?.available == true
+    }
+
+    /// Reads whether she may make questions. Failing leaves Make questions off the +.
+    func loadMaker() async {
+        guard isStudent, app.connection.isOnline else { return }
+        maker = try? await app.client.questionMakerStatus()
     }
 
     /// The course as the study screens name it.
@@ -151,6 +165,19 @@ final class CourseModel {
     /// The next free page name: Exam 1, Exam 2, ... in a course, Page 1, Page 2, ... in a topic.
     var nextPageName: String {
         Wording.nextPageName(after: course?.exams.map(\.name) ?? [], kind: course?.kind ?? .course)
+    }
+
+    /// Makes an empty folder, under Folders, or with `page` on that exam page, at the end of its
+    /// folders. Returns what went wrong in her words, or nil once it is saved. Refused on the page,
+    /// it stays under Folders.
+    func makeFolder(named name: String, on page: String?) async -> String? {
+        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return await edit { () async throws(QBankError) in
+            let folder = try await app.client.createFolder(courseID: id, name: name)
+            if let page {
+                try await app.client.placeFolder(id: folder.id, onExamPage: page)
+            }
+        }
     }
 
     /// Renames a folder. Returns what went wrong in her words, or nil once it is saved.

@@ -39,7 +39,7 @@ final class QBankUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Home"].appears(timeout: 5))
         XCTAssertTrue(app.buttons["home.course.NURS 310"].appears(timeout: 5))
         XCTAssertTrue(app.buttons["home.course.NURS 220"].exists)
-        XCTAssertTrue(app.staticTexts["A course appears here when its first question file is imported."].exists)
+        XCTAssertTrue(app.staticTexts["No courses yet. Tap + to add one, or import its first question file."].exists)
         attach(app, "1a-3 home")
 
         app.buttons["home.course.NURS 220"].tap()
@@ -263,20 +263,19 @@ final class QBankUITests: XCTestCase {
     }
 
     @MainActor
-    func testSemestersAndCoursesAreEditedLikeOnTheWeb() throws {
+    func testSettingsKeepsSemestersForTheirNameAndDates() throws {
         let app = launch("signed-in")
         openSettings(app)
         let semesterOne = app.buttons["settings.semester.1"]
         XCTAssertTrue(semesterOne.appears(timeout: 5))
         XCTAssertTrue(app.staticTexts["NURS 310, NURS 220"].exists)
 
-        // Add Semester 3, then the row is gone: there are only three.
-        let add = app.buttons["settings.addSemester"]
-        XCTAssertTrue(add.appears(timeout: 5))
-        XCTAssertTrue(add.label.contains("Add Semester 3"), add.label)
-        add.tap()
-        XCTAssertTrue(app.buttons["settings.semester.3"].appears(timeout: 5))
+        // Adding lives on Home's + now, and holding a course there renames, moves or archives it.
         XCTAssertFalse(app.buttons["settings.addSemester"].exists)
+        XCTAssertFalse(app.staticTexts["Study topics"].exists)
+        XCTAssertFalse(app.textFields["settings.newTopicName"].exists)
+        XCTAssertTrue(app.staticTexts["Open a semester for its name and dates. Add from Home's +; rename, move or archive a course by holding it on Home."].exists)
+        attach(app, "A-4 settings")
 
         // Rename Semester 1 and give it a start date.
         semesterOne.tap()
@@ -288,30 +287,16 @@ final class QBankUITests: XCTestCase {
         app.buttons["semester.save"].tap()
         XCTAssertTrue(app.staticTexts["Saved."].appears(timeout: 5))
         XCTAssertTrue(app.navigationBars["Fall 2026"].appears(timeout: 5))
-
-        // A course code the semester already has is refused with the server's words.
-        type(app.textFields["semester.newCode"], "nurs 220")
-        type(app.textFields["semester.newTitle"], "Again")
-        app.buttons["semester.addCourse"].tap()
-        XCTAssertTrue(app.staticTexts["This semester already has a course with the code nurs 220."].appears(timeout: 5))
-        app.textFields["semester.newCode"].clearAndType("NURS 406")
-        app.buttons["semester.addCourse"].tap()
-        XCTAssertTrue(app.buttons["semester.course.NURS 406"].appears(timeout: 5))
-
-        // Archive Fundamentals: it leaves Home.
-        app.buttons["semester.course.NURS 220"].tap()
-        let archive = app.buttons["course.archive"]
-        XCTAssertTrue(archive.appears(timeout: 5))
-        archive.tap()
-        XCTAssertTrue(app.staticTexts["Archived. It moves to Archived on Home."].appears(timeout: 5))
-        XCTAssertTrue(archive.label.contains("Unarchive NURS 220"), archive.label)
+        XCTAssertFalse(app.textFields["semester.newCode"].exists, "a course is added from Home's +")
+        XCTAssertTrue(app.buttons["semester.archive"].exists)
+        app.navigationBars["Fall 2026"].buttons["Settings"].tap()
+        XCTAssertTrue(app.staticTexts["NURS 310, NURS 220"].appears(timeout: 5))
 
         app.tabBars.buttons["Home"].tap()
         if app.navigationBars["NURS 310"].exists {
             app.navigationBars["NURS 310"].buttons["Home"].tap()
         }
-        XCTAssertTrue(app.buttons["home.course.NURS 406"].appears(timeout: 5))
-        XCTAssertFalse(app.buttons["home.course.NURS 220"].exists)
+        XCTAssertTrue(app.buttons["home.course.NURS 220"].appears(timeout: 5))
         XCTAssertTrue(app.staticTexts["FALL 2026"].exists || app.staticTexts["Fall 2026"].exists)
     }
 
@@ -344,14 +329,6 @@ final class QBankUITests: XCTestCase {
             app.buttons["semester.starts.add"].tap()
             XCTAssertTrue(app.buttons["semester.starts.clear"].appears(timeout: 5))
             attach(app, "1d-3 semester, \(tag)")
-            scroll(app, until: app.buttons["semester.addCourse"])
-            attach(app, "1d-3 semester scrolled, \(tag)")
-            app.swipeDown()
-
-            app.buttons["semester.course.NURS 310"].tap()
-            XCTAssertTrue(app.textFields["course.code"].appears(timeout: 5))
-            attach(app, "1d-4 course, \(tag)")
-            app.navigationBars["NURS 310"].buttons["Semester 1"].tap()
             app.navigationBars["Semester 1"].buttons["Settings"].tap()
             XCTAssertTrue(app.buttons[look].appears(timeout: 5))
         }

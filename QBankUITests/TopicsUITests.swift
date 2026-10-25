@@ -1,8 +1,8 @@
 import XCTest
 
-/// Study topics end to end against the in-process fake server of the Debug launch seam: made on
-/// Home, filled by Import, given a study page with its primer, examined, and kept in Settings.
-/// Invented topics and question files only.
+/// Study topics end to end against the in-process fake server of the Debug launch seam: made from
+/// Home's +, filled by Import, given a study page with its primer, examined, and renamed and
+/// archived by holding it on Home. Invented topics and question files only.
 final class TopicsUITests: XCTestCase {
     private let topic = "Invented Systems Design"
 
@@ -21,10 +21,11 @@ final class TopicsUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["Study pages"].exists)
         goBack(app, from: "NURS 310")
 
-        // Home: Study topics, empty, with New.
+        // Home: Study topics, empty, and the +'s New study topic.
         reveal(app.staticTexts["A topic is a place for questions that are not a course: a certification, a language, your own notes."], in: app)
         attachLooks(app, "T-1 home, no topics")
-        app.buttons["home.newTopic"].tap()
+        app.buttons["home.add"].tap()
+        chooseFromMenu(app.buttons["home.add.topic"])
         let name = app.textFields["newTopic.name"]
         XCTAssertTrue(name.appears(timeout: 5))
         XCTAssertTrue(app.staticTexts["A topic has folders and study pages, like a course, without a semester."].exists)
@@ -57,13 +58,16 @@ final class TopicsUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Unsorted"].appears(timeout: 5))
         goBack(app, from: "Unsorted")
 
-        // New makes Page 1 with the topic's folder and its primer link.
+        // The +'s New study page makes Page 1 with the topic's folder and its primer link.
         XCTAssertTrue(app.navigationBars[topic].appears(timeout: 5))
         XCTAssertTrue(app.staticTexts["Study pages"].appears(timeout: 5))
-        XCTAssertTrue(app.staticTexts["No study pages yet. Tap New to make Page 1."].exists)
+        XCTAssertTrue(app.staticTexts["No study pages yet. Tap + to make Page 1."].exists)
         XCTAssertTrue(app.staticTexts["Folders on no study page. Open one to see its sets."].exists)
         attachLooks(app, "T-4 topic, a folder")
-        app.buttons["course.newPage"].tap()
+        app.buttons["course.add"].tap()
+        XCTAssertTrue(app.staticTexts["Add to \(topic)"].appears(timeout: 5))
+        XCTAssertEqual(app.buttons["course.add.page"].label, "New study page")
+        chooseFromMenu(app.buttons["course.add.page"])
         XCTAssertTrue(app.navigationBars["New study page"].appears(timeout: 5))
         XCTAssertEqual(app.textFields["editPage.name"].value as? String, "Page 1")
         app.buttons["editPage.chip.free.Unsorted"].tap()
@@ -116,67 +120,63 @@ final class TopicsUITests: XCTestCase {
     }
 
     @MainActor
-    func testSettingsRenamesReordersAndArchivesTopics() throws {
+    func testHoldingATopicOnHomeRenamesMovesAndArchivesIt() throws {
         try skipOnIPad()
         let app = launch("signed-in")
         XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 10))
-        openTab(app, "Settings")
-        XCTAssertTrue(app.navigationBars["Settings"].appears(timeout: 5))
+        goBack(app, from: "NURS 310")
 
-        // Two topics, added here.
-        let field = app.textFields["settings.newTopicName"]
-        reveal(field, in: app)
-        XCTAssertTrue(app.staticTexts["No topics yet. Add one below."].exists)
+        // Two topics, made from the +.
         for name in ["Invented Spanish Verbs", topic] {
-            tapVisible(field, in: app)
+            app.buttons["home.add"].tap()
+            chooseFromMenu(app.buttons["home.add.topic"])
+            let field = app.textFields["newTopic.name"]
+            XCTAssertTrue(field.appears(timeout: 5))
             field.typeText(name)
-            tapVisible(app.buttons["settings.addTopic"], in: app)
-            XCTAssertTrue(app.buttons["settings.topic.\(name)"].appears(timeout: 5), name)
+            tapWhenStill(app.buttons["newTopic.save"])
+            XCTAssertTrue(app.navigationBars[name].appears(timeout: 10), name)
+            goBack(app, from: name)
         }
-        let spanish = app.buttons["settings.topic.Invented Spanish Verbs"]
-        reveal(app.buttons["settings.topics.edit"], in: app)
-        XCTAssertLessThan(spanish.frame.minY, app.buttons["settings.topic.\(topic)"].frame.minY)
-        attachLooks(app, "T-9 settings, topics")
+        let card = app.buttons["home.topic.\(topic)"]
+        reveal(card, in: app)
 
-        // Her order: Edit, up, Done.
-        app.buttons["settings.topics.edit"].tap()
-        let up = app.buttons["topicOrder.up.\(topic)"]
-        XCTAssertTrue(up.appears(timeout: 5))
-        XCTAssertFalse(app.buttons["topicOrder.up.Invented Spanish Verbs"].isEnabled)
-        up.tap()
-        attachLooks(app, "T-10 settings, topic order")
-        app.buttons["settings.topics.edit"].tap()
-        XCTAssertTrue(spanish.appears(timeout: 5))
-        XCTAssertLessThan(app.buttons["settings.topic.\(topic)"].frame.minY, spanish.frame.minY)
+        // A topic's menu has no Move: it has no semester.
+        card.press(forDuration: 1.2)
+        XCTAssertTrue(app.buttons["home.hold.rename"].appears(timeout: 5))
+        XCTAssertFalse(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "home.hold.move.")).firstMatch.exists)
+        attachLooks(app, "T-9 home, holding a topic")
+        chooseFromMenu(app.buttons["home.hold.rename"])
+        XCTAssertTrue(app.navigationBars["Rename topic"].appears(timeout: 5))
+        let name = app.textFields["renameCourse.title"]
+        XCTAssertEqual(name.value as? String, topic)
+        name.clearText()
+        name.typeText("Invented Distributed Systems")
+        app.buttons["renameCourse.save"].tap()
+        let renamed = app.buttons["home.topic.Invented Distributed Systems"]
+        XCTAssertTrue(renamed.appears(timeout: 10))
+        XCTAssertFalse(card.exists)
 
-        // Rename one, then archive it.
-        open(app.buttons["settings.topic.\(topic)"], titled: topic, in: app)
-        app.textFields["topic.title"].clearText()
-        app.textFields["topic.title"].typeText("Invented Distributed Systems")
-        app.buttons["topic.save"].tap()
-        XCTAssertTrue(app.staticTexts["Saved."].appears(timeout: 5))
-        XCTAssertTrue(app.navigationBars["Invented Distributed Systems"].appears(timeout: 5))
-        let archive = app.buttons["topic.archive"]
-        archive.tap()
-        XCTAssertTrue(app.staticTexts["Archived. It moves to Archived on Home."].appears(timeout: 5))
-        XCTAssertTrue(archive.label.contains("Unarchive Invented Distributed Systems"), archive.label)
-        attachLooks(app, "T-11 topic, archived")
-        goBack(app, from: "Invented Distributed Systems")
-        XCTAssertTrue(app.buttons["settings.topic.Invented Distributed Systems"].label.contains("Archived"))
-
-        // Home lists the other under Study topics, and the archived one under Archived, closed.
-        openTab(app, "Home")
-        if app.navigationBars["NURS 310"].exists {
-            goBack(app, from: "NURS 310")
-        }
+        // The last topic moves up, above the other.
         let studied = app.buttons["home.topic.Invented Spanish Verbs"]
+        reveal(renamed, in: app)
+        XCTAssertGreaterThan(renamed.frame.minY, studied.frame.minY)
+        renamed.press(forDuration: 1.2)
+        XCTAssertTrue(app.buttons["home.hold.up"].appears(timeout: 5))
+        XCTAssertFalse(app.buttons["home.hold.down"].exists, "the last one has no Move down")
+        chooseFromMenu(app.buttons["home.hold.up"])
+        let above = NSPredicate { _, _ in renamed.frame.minY < studied.frame.minY }
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation(for: above, evaluatedWith: renamed)], timeout: 10), .completed, "it went above the other")
+
+        // Archive: Home lists the other under Study topics, and this one under Archived, closed.
+        reveal(renamed, in: app)
+        renamed.press(forDuration: 1.2)
+        chooseFromMenu(app.buttons["home.hold.archive"])
+        XCTAssertTrue(renamed.disappears(timeout: 10))
         reveal(studied, in: app)
-        XCTAssertFalse(app.buttons["home.topic.Invented Distributed Systems"].exists)
         let archived = app.buttons["home.archived"]
         tapVisible(archived, in: app)
         XCTAssertEqual(archived.value as? String, "Open")
-        let card = app.buttons["home.topic.Invented Distributed Systems"]
-        reveal(card, in: app)
+        reveal(renamed, in: app)
         XCTAssertTrue(app.staticTexts["Study topics"].exists)
         attachLooks(app, "T-12 home, archived")
     }

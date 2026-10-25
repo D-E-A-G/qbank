@@ -4,8 +4,10 @@ import QBankKit
 
 /// Where a new set goes, as Import and Make questions pick it: one of her courses or study topics
 /// (or, for Import, a new course or a new topic), and a folder in it. The folder is the course's
-/// Unsorted unless she picks one of her folders or names a new one; "Import here" on a folder
-/// starts with that folder picked.
+/// Unsorted unless she picks one of her folders or names a new one. Opened from a page, it starts
+/// on that page's course: "Import here" on a folder with that folder picked, and an exam page's
+/// "Import a question file here" with its folders first and its first folder picked, or a new folder
+/// that goes on the page when it has none.
 @Observable
 final class SetDestination {
     /// One of her courses or topics, or a new course or topic made by the import.
@@ -52,28 +54,43 @@ final class SetDestination {
     let allowsNewCourse: Bool
 
     private let app: AppModel
-    /// The course and folder "Import here" opened it with.
-    private let preset: (courseID: String, folderID: String)?
+    /// The course, and the folder or exam page, the page she opened it from has.
+    private let preset: (courseID: String, folderID: String?, examPageID: String?)?
     private var detailLoads = 0
 
-    init(app: AppModel, courseID: String? = nil, folderID: String? = nil, allowsNewCourse: Bool) {
+    /// - Parameters:
+    ///   - courseID: The course or topic whose page opened it, picked when it opens.
+    ///   - folderID: Its folder to pick, else Unsorted, or with `examPageID` a new folder.
+    ///   - examPageID: The exam page it was opened from, whose folders come first.
+    init(app: AppModel, courseID: String? = nil, folderID: String? = nil, examPageID: String? = nil, allowsNewCourse: Bool) {
         self.app = app
         self.allowsNewCourse = allowsNewCourse
-        if let courseID, let folderID {
-            preset = (courseID, folderID)
+        if let courseID {
+            preset = (courseID, folderID, examPageID)
             course = .existing(courseID)
-            folder = .folder(folderID)
+            folder = Self.startFolder(folderID: folderID, examPageID: examPageID)
         } else {
             preset = nil
         }
     }
 
+    private static func startFolder(folderID: String?, examPageID: String?) -> FolderChoice {
+        if let folderID { return .folder(folderID) }
+        return examPageID == nil ? .unsorted : .new
+    }
+
     /// The picked course or topic, when it is one of hers.
     var courseID: String? {
         guard case .existing(let id) = course else { return nil }
-        // Before her lists load, the one "Import here" opened it with.
+        // Before her lists load, the one its page opened it with.
         guard courses != nil else { return id }
         return summary(id) == nil ? nil : id
+    }
+
+    /// The exam page it was opened from, while its course is the one picked: a new folder goes on it.
+    var examPageID: String? {
+        guard let preset, courseID == preset.courseID else { return nil }
+        return preset.examPageID
     }
 
     /// True when the import makes a topic: New topic is picked.
@@ -131,7 +148,9 @@ final class SetDestination {
         guard let detail else { return [] }
         let layout = CourseLayout(course: detail, sittings: [])
         let unsorted = existingUnsorted?.id
-        var groups = layout.pages.map { page in
+        // The exam page it was opened from comes first.
+        let pages = layout.pages.filter { $0.id == examPageID } + layout.pages.filter { $0.id != examPageID }
+        var groups = pages.map { page in
             FolderGroup(id: page.id, title: page.exam.name, folders: page.folders.filter { $0.id != unsorted })
         }
         groups.append(FolderGroup(id: "folders", title: "Folders", folders: layout.looseFolders.filter { $0.id != unsorted }))
@@ -142,8 +161,8 @@ final class SetDestination {
         detail?.folders.first { $0.examPageID == nil && $0.name == Self.unsorted }
     }
 
-    /// Her courses and topics, and the one to start on: the folder's course from "Import here",
-    /// else the course or topic she studied last, else her first course, else her first topic.
+    /// Her courses and topics, and the one to start on: the course of the page that opened it, else
+    /// the course or topic she studied last, else her first course, else her first topic.
     func load() async throws(QBankError) {
         // Without a connection, the courses saved on the phone, so the form shows what she has.
         let catalog = try await app.load(.catalog) { () async throws(QBankError) in try await app.client.catalog() }.value
@@ -170,7 +189,7 @@ final class SetDestination {
         let read = try? await app.load(.course(id)) { () async throws(QBankError) in try await app.client.course(id: id) }.value
         guard load == detailLoads else { return }
         detail = read
-        // A folder from "Import here" that is gone falls back to Unsorted.
+        // A folder its page picked that is gone falls back to Unsorted.
         if case .folder(let folderID) = folder, let read, !read.folders.contains(where: { $0.id == folderID }) {
             folder = .unsorted
         }
@@ -186,10 +205,10 @@ final class SetDestination {
         await loadDetail()
     }
 
-    /// Back to a course or topic after a set was filed, with Unsorted picked. One the import made
-    /// is hers now, so the list is read again.
+    /// Back to a course or topic after a set was filed, with Unsorted picked, or what its page picked.
+    /// One the import made is hers now, so the list is read again.
     func restart(on courseID: String) async {
-        folder = .unsorted
+        folder = preset.flatMap { $0.courseID == courseID ? Self.startFolder(folderID: $0.folderID, examPageID: $0.examPageID) : nil } ?? .unsorted
         newFolderName = ""
         newTopicName = ""
         if courses != nil, summary(courseID) == nil {

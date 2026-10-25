@@ -428,7 +428,7 @@ final class StudyUITests: XCTestCase {
         app.navigationBars["NURS 310"].buttons["Home"].tap()
         app.buttons["home.course.NURS 220"].tap()
         XCTAssertTrue(app.navigationBars["NURS 220"].appears(timeout: 5))
-        XCTAssertTrue(app.staticTexts["No exam pages yet. Tap New to make Exam 1."].appears(timeout: 5))
+        XCTAssertTrue(app.staticTexts["No exam pages yet. Tap + to make Exam 1."].appears(timeout: 5))
         for name in ["Week 1", "Week 2", "Week 3"] {
             XCTAssertTrue(app.buttons["folder.\(name)"].exists, name)
         }
@@ -447,8 +447,9 @@ final class StudyUITests: XCTestCase {
         XCTAssertTrue(app.buttons["folder.Week 3"].appears(timeout: 5))
         XCTAssertLessThan(app.buttons["folder.Week 3"].frame.minY, app.buttons["folder.Week 1"].frame.minY)
 
-        // New: a page with two of her folders.
-        app.buttons["course.newPage"].tap()
+        // The +'s New exam page: a page with two of her folders.
+        app.buttons["course.add"].tap()
+        chooseFromMenu(app.buttons["course.add.page"])
         XCTAssertTrue(app.navigationBars["New exam page"].appears(timeout: 5))
         XCTAssertEqual(app.textFields["editPage.name"].value as? String, "Exam 1")
         XCTAssertEqual(app.staticTexts["editPage.line"].label, "No folders yet")
@@ -478,7 +479,7 @@ final class StudyUITests: XCTestCase {
         attach(app, "C edit exam page")
         tapVisible(app.buttons["editPage.remove"], in: app)
         XCTAssertTrue(app.navigationBars["NURS 220"].appears(timeout: 10), "a removed page closes")
-        XCTAssertTrue(app.staticTexts["No exam pages yet. Tap New to make Exam 1."].appears(timeout: 5))
+        XCTAssertTrue(app.staticTexts["No exam pages yet. Tap + to make Exam 1."].appears(timeout: 5))
         XCTAssertTrue(app.buttons["folder.Week 1"].exists)
     }
 

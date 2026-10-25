@@ -153,51 +153,21 @@ struct CatalogModelTests {
         #expect(semesters.map(\.name) == ["Semester 1", "Semester 2"])
         #expect(CatalogModel.summary(of: semesters[0]) == "NURS 406, NURS 402 · 1 archived")
         #expect(CatalogModel.summary(of: semesters[1]) == "No courses yet")
-        #expect(catalog.nextSemesterNumber == 3)
+        #expect(CatalogModel.nextSemesterNumber(after: semesters) == 3)
+    }
+
+    @Test func aCourseSheetStartsFromTheListItWasOpenedWith() throws {
+        let server = StubServer()
+        let (app, _) = TestApp.make(server, account: .student())
+        let catalog = CatalogModel(app: app, catalog: try Bodies.decodeCatalog(Self.twoSemesters))
+        #expect(CourseEditModel(catalog: catalog, id: "c1").code == "NURS 406")
+        #expect(SemesterModel(catalog: catalog, id: "s2").name == "Semester 2")
+        #expect(server.requests.isEmpty, "nothing is read before she saves")
     }
 
     @Test func onlyStudentsEditTheCatalog() {
         #expect(CatalogModel(app: TestApp.make(StubServer(), account: .student()).0).isEditable)
         #expect(CatalogModel(app: TestApp.make(StubServer(), account: .admin).0).isEditable == false)
-    }
-
-    @Test func addsTheLowestMissingSemester() async throws {
-        let server = StubServer([
-            "GET /api/semesters": .ok(Bodies.catalog([Bodies.semester(id: "s2", number: 2)])),
-            "POST /api/semesters": StubServer.Reply(status: 201, body: Bodies.semester(id: "s1", number: 1)),
-        ])
-        let (app, _) = TestApp.make(server, account: .student())
-        let catalog = CatalogModel(app: app)
-        await catalog.load()
-        #expect(catalog.nextSemesterNumber == 1)
-        await catalog.addSemester()
-        #expect(server.calls == ["GET /api/semesters", "POST /api/semesters", "GET /api/semesters"])
-        let body = try #require(server.requests[1].httpBody)
-        #expect(String(decoding: body, as: UTF8.self) == #"{"number":1}"#)
-        #expect(catalog.addProblem == nil)
-    }
-
-    @Test func allThreeSemestersLeaveNothingToAdd() async {
-        let full = Bodies.catalog((1...3).map { Bodies.semester(id: "s\($0)", number: $0) })
-        let server = StubServer(["GET /api/semesters": .ok(full)])
-        let (app, _) = TestApp.make(server, account: .student())
-        let catalog = CatalogModel(app: app)
-        await catalog.load()
-        #expect(catalog.nextSemesterNumber == nil)
-        await catalog.addSemester()
-        #expect(server.calls == ["GET /api/semesters"])
-    }
-
-    @Test func refusedSemesterSaysWhy() async {
-        let server = StubServer([
-            "GET /api/semesters": .ok(Bodies.catalog([])),
-            "POST /api/semesters": .error(409, "request_refused", "Semester 1 already exists."),
-        ])
-        let (app, _) = TestApp.make(server, account: .student())
-        let catalog = CatalogModel(app: app)
-        await catalog.load()
-        await catalog.addSemester()
-        #expect(catalog.addProblem == "Semester 1 already exists.")
     }
 
     @Test func failedFirstLoadSaysWhyAndAFailedReloadKeepsTheList() async {
@@ -278,10 +248,11 @@ struct SemesterModelTests {
         model.newTitle = "Mental Health"
         server["POST /api/courses"] = StubServer.Reply(status: 201, body: Bodies.course(id: "c9", code: "NURS 406"))
         server["GET /api/semesters"] = .ok(Bodies.catalog([Bodies.semester(id: "s1", number: 1, courses: [Bodies.course(id: "c9", code: "NURS 406")])]))
-        await model.addCourse()
+        let added = await model.addCourse()
         let body = try #require(server.requests.first { $0.httpMethod == "POST" }?.httpBody)
         #expect(String(decoding: body, as: UTF8.self) == #"{"code":"NURS 406","semesterId":"s1","title":"Mental Health"}"#)
         #expect(model.addProblem == nil)
+        #expect(added?.id == "c9")
         #expect(model.newCode.isEmpty && model.newTitle.isEmpty)
         #expect(model.semester?.courses.map(\.code) == ["NURS 406"])
     }
@@ -292,7 +263,7 @@ struct SemesterModelTests {
         let model = SemesterModel(catalog: await loaded(server), id: "s1")
         model.newCode = code
         model.newTitle = title
-        await model.addCourse()
+        #expect(await model.addCourse() == nil)
         #expect(model.addProblem == problem)
         #expect(server.calls == ["GET /api/semesters"])
     }
@@ -305,7 +276,7 @@ struct SemesterModelTests {
         let model = SemesterModel(catalog: await loaded(server), id: "s1")
         model.newCode = "NURS 406"
         model.newTitle = "Mental Health"
-        await model.addCourse()
+        #expect(await model.addCourse() == nil)
         #expect(model.addProblem == "This semester already has a course with the code NURS 406.")
         #expect(model.newCode == "NURS 406")
     }
@@ -317,9 +288,9 @@ struct CourseEditModelTests {
         Bodies.semester(id: "s1", number: 1, courses: [Bodies.course(id: "c1", code: "NURS 406")]),
         Bodies.semester(id: "s2", number: 2),
     ])
-    private static let moved = Bodies.catalog([
-        Bodies.semester(id: "s1", number: 1),
-        Bodies.semester(id: "s2", number: 2, courses: [Bodies.course(id: "c1", code: "NURS 410")]),
+    private static let renamed = Bodies.catalog([
+        Bodies.semester(id: "s1", number: 1, courses: [Bodies.course(id: "c1", code: "NURS 410")]),
+        Bodies.semester(id: "s2", number: 2),
     ])
 
     private func model(_ server: StubServer) async -> CourseEditModel {
@@ -329,40 +300,21 @@ struct CourseEditModelTests {
         return CourseEditModel(catalog: catalog, id: "c1")
     }
 
-    @Test func renamesAndMoves() async throws {
+    @Test func renamesInItsOwnSemester() async throws {
         let server = StubServer(["GET /api/semesters": .ok(Self.catalog)])
         let model = await model(server)
         #expect(model.semesterID == "s1")
+        #expect(!model.hasChanges)
         model.code = "NURS 410"
-        model.semesterID = "s2"
+        #expect(model.hasChanges)
         server["PATCH /api/courses/c1"] = .ok(Bodies.course(id: "c1", code: "NURS 410"))
-        server["GET /api/semesters"] = .ok(Self.moved)
+        server["GET /api/semesters"] = .ok(Self.renamed)
         await model.save()
         let body = try #require(server.requests.first { $0.httpMethod == "PATCH" }?.httpBody)
-        #expect(String(decoding: body, as: UTF8.self) == #"{"code":"NURS 410","semesterId":"s2","title":"Invented NURS 406"}"#)
+        #expect(String(decoding: body, as: UTF8.self) == #"{"code":"NURS 410","semesterId":"s1","title":"Invented NURS 406"}"#)
         #expect(model.note == "Saved.")
         #expect(model.problem == nil)
-        #expect(model.catalog.semester(id: "s2")?.courses.map(\.code) == ["NURS 410"])
-    }
-
-    @Test func archivesAndBringsBack() async throws {
-        let server = StubServer(["GET /api/semesters": .ok(Self.catalog)])
-        let model = await model(server)
-        #expect(model.isArchived == false)
-        server["PATCH /api/courses/c1"] = .ok(Bodies.course(id: "c1", code: "NURS 406", archived: true))
-        server["GET /api/semesters"] = .ok(Bodies.catalog([Bodies.semester(id: "s1", number: 1, courses: [Bodies.course(id: "c1", code: "NURS 406", archived: true)])]))
-        await model.toggleArchived()
-        let body = try #require(server.requests.last { $0.httpMethod == "PATCH" }?.httpBody)
-        #expect(String(decoding: body, as: UTF8.self) == #"{"archived":true}"#)
-        #expect(model.isArchived)
-        #expect(model.note == "Archived. It moves to Archived on Home.")
-
-        server["GET /api/semesters"] = .ok(Self.catalog)
-        await model.toggleArchived()
-        let again = try #require(server.requests.last { $0.httpMethod == "PATCH" }?.httpBody)
-        #expect(String(decoding: again, as: UTF8.self) == #"{"archived":false}"#)
-        #expect(model.isArchived == false)
-        #expect(model.note == "Unarchived. It shows on Home again.")
+        #expect(model.catalog.semester(id: "s1")?.courses.map(\.code) == ["NURS 410"])
     }
 
     @Test func blankNameIsCaughtBeforeSending() async {

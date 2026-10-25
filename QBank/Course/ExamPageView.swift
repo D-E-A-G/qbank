@@ -4,6 +4,7 @@ import SwiftUI
 
 /// An exam page: its folders and sets, Start exam over them, its folders in her order, and the
 /// exams she took over them. Edit puts the folders in order and offers the page's name and folders.
+/// The + at the top adds into the page: a question file, a new folder, or folders she has.
 /// A topic's study page is the same screen, with its primer link when it has one.
 struct ExamPageView: View {
     let app: AppModel
@@ -15,11 +16,16 @@ struct ExamPageView: View {
     @State private var order: [String]?
     @State private var isSavingOrder = false
     @State private var editsPage = false
+    /// The sheet the + opened, and once a set was filed, the folder to open when it is down.
+    @State private var adding: PageSheet?
+    @State private var opensFolder: String?
     @State private var isRemoved = false
     @State private var problem: String?
     /// The past exam she asked to delete, while its warning is open.
     @State private var deleting: DeleteRequest?
     @Environment(\.dismiss) private var dismiss
+    @Environment(HomeNavigator.self) private var navigator: HomeNavigator?
+    @Environment(TabNavigator.self) private var tabs: TabNavigator?
 
     var body: some View {
         ScrollView {
@@ -37,6 +43,11 @@ struct ExamPageView: View {
         .qbankScreenBackground()
         .navigationTitle(model.layout?.page(id)?.exam.name ?? model.words.pageTitle)
         .screenColumnTitle()
+        .plusMenu(model.isStudent && model.layout?.page(id) != nil) {
+            if let page = model.layout?.page(id) {
+                addMenu(page)
+            }
+        }
         .refreshable { await model.load() }
         .onAppear {
             // Back from Exam setup or a folder: an exam she took shows under Past exams.
@@ -60,6 +71,63 @@ struct ExamPageView: View {
                 }
             }
         })
+        .sheet(item: $adding, onDismiss: {
+            // The folder a set went into opens once the sheet is down.
+            guard let folder = opensFolder else { return }
+            opensFolder = nil
+            navigator?.open(CoursePage.folder(folder))
+        }, content: { sheet in
+            if let page = model.layout?.page(id) {
+                switch sheet {
+                case .importFile:
+                    ImportHereSheet(app: app, courseID: model.id, folderID: page.folders.first?.id, examPageID: page.id) { set in
+                        adding = nil
+                        Task { await model.load() }
+                        if set.courseID == model.id {
+                            opensFolder = set.folderID
+                        } else {
+                            // She picked another course in the sheet.
+                            tabs?.openFolder(courseID: set.courseID, name: nil, folderID: set.folderID)
+                        }
+                    }
+                case .newFolder:
+                    NewFolderSheet(model: model, page: page.exam)
+                }
+            }
+        })
+    }
+
+    /// The + at the top: "Add to Exam 1", then Import a question file here, New folder on this
+    /// page, and while the course has folders on no page, Add existing folders, which opens the
+    /// page's editor.
+    private func addMenu(_ page: ExamPage) -> some View {
+        Menu {
+            Section("Add to \(page.exam.name)") {
+                Button {
+                    adding = .importFile
+                } label: {
+                    Text("Import a question file here")
+                    Text("A JSON file from your agent")
+                    Image(systemName: "square.and.arrow.down")
+                }
+                .accessibilityIdentifier("page.add.import")
+                Button("New folder on this page", systemImage: "folder.badge.plus") {
+                    adding = .newFolder
+                }
+                .accessibilityIdentifier("page.add.folder")
+                if model.layout?.looseFolders.isEmpty == false {
+                    Button("Add existing folders", systemImage: "folder") {
+                        editsPage = true
+                    }
+                    .accessibilityIdentifier("page.add.existing")
+                }
+            }
+        } label: {
+            Image(systemName: "plus")
+        }
+        .disabled(!model.canEdit || order != nil)
+        .accessibilityLabel("Add to \(page.exam.name)")
+        .accessibilityIdentifier("page.add")
     }
 
     private func content(_ page: ExamPage) -> some View {
@@ -134,7 +202,7 @@ struct ExamPageView: View {
                 .accessibilityIdentifier("page.editPage")
             }
             if page.folders.isEmpty {
-                EmptyCard(message: "No folders on this page yet. Tap Edit to add some.", systemImage: "folder")
+                EmptyCard(message: model.isStudent ? "No folders on this page yet. \(model.words.addFolders)" : "No folders on this page yet.", systemImage: "folder")
             } else {
                 FolderList(folders: page.folders, order: $order)
                 if order != nil, page.folders.count > 1 {
@@ -215,6 +283,14 @@ struct ExamPageView: View {
             order = nil
         }
     }
+}
+
+/// A sheet an exam page's + opens.
+private enum PageSheet: String, Identifiable {
+    case importFile
+    case newFolder
+
+    var id: String { rawValue }
 }
 
 /// A study page's primer: the page where she wrote it up, opened in the browser. Nothing of it is

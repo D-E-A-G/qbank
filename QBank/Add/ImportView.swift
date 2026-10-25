@@ -24,11 +24,12 @@ struct ImportView: View {
     }
 
     /// - Parameters:
-    ///   - courseID: With `folderID`, the folder "Import here" was tapped on, picked when it opens.
-    init(app: AppModel, courseID: String? = nil, folderID: String? = nil, openFolder: @escaping (ImportModel.Done) -> Void) {
+    ///   - courseID: The course of the page it was opened from, with its folder or exam page, picked
+    ///     when it opens (see `SetDestination`).
+    init(app: AppModel, courseID: String? = nil, folderID: String? = nil, examPageID: String? = nil, openFolder: @escaping (ImportModel.Done) -> Void) {
         self.app = app
         self.openFolder = openFolder
-        _model = State(initialValue: ImportModel(app: app, courseID: courseID, folderID: folderID))
+        _model = State(initialValue: ImportModel(app: app, courseID: courseID, folderID: folderID, examPageID: examPageID))
     }
 
     var body: some View {
@@ -273,18 +274,20 @@ struct ImportView: View {
     }
 }
 
-/// "Import here" on a folder: Import as a sheet over the folder, with its course and the folder
-/// picked. Its done screen's Open goes back to the folder the set went into.
+/// Import as a sheet over the page it was opened from, with that page's course picked: "Import here"
+/// on a folder, with the folder picked, or a course's or an exam page's +. Its done screen's Open
+/// goes to the folder the set went into.
 struct ImportHereSheet: View {
     let app: AppModel
     let courseID: String
-    let folderID: String
+    var folderID: String?
+    var examPageID: String?
     let finished: (ImportedSet) -> Void
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
-            ImportView(app: app, courseID: courseID, folderID: folderID) { finished($0.set) }
+            ImportView(app: app, courseID: courseID, folderID: folderID, examPageID: examPageID) { finished($0.set) }
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {

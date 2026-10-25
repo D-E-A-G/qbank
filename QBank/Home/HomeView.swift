@@ -6,15 +6,19 @@ import SwiftUI
 /// until she opens it. Opens the course or topic she used last on arrival. Without a connection it
 /// shows the courses saved on the phone, and how many answers wait to be sent.
 ///
+/// The + at the top adds a course to a semester, a study topic, or the next semester. Touching and
+/// holding a course or topic opens, renames, moves or archives it.
+///
 /// On iPhone, a course opens over the list. On iPad, the list stays in a sidebar and the course
 /// opens beside it, with its own screens; an iPad sharing its screen narrows it to one column.
 struct HomeView: View {
     let app: AppModel
     @State private var model: HomeModel
     @Bindable private var navigator: HomeNavigator
-    /// New topic's sheet is up, and once she made one, the topic to open when it is down.
-    @State private var makesTopic = false
-    @State private var madeTopic: CourseRoute?
+    /// The sheet the + or a held card opened, and once she made a course or topic in it, the one
+    /// to open when it is down.
+    @State private var sheet: HomeSheet?
+    @State private var made: CourseRoute?
     @State private var showsArchived = false
 
     init(app: AppModel, navigator: HomeNavigator) {
@@ -32,13 +36,25 @@ struct HomeView: View {
             }
         }
         .environment(navigator)
-        .sheet(isPresented: $makesTopic, onDismiss: {
-            guard let topic = madeTopic else { return }
-            madeTopic = nil
-            navigator.open(topic)
-        }, content: {
-            NewTopicView(app: app) { topic in
-                madeTopic = await model.made(topic)
+        .sheet(item: $sheet, onDismiss: {
+            guard let route = made else {
+                Task { await model.load() }
+                return
+            }
+            made = nil
+            navigator.open(route)
+        }, content: { sheet in
+            switch sheet {
+            case .newCourse(let semester):
+                NewCourseView(app: app, catalog: model.catalog, semester: semester) { course in
+                    made = await model.made(course)
+                }
+            case .newTopic:
+                NewTopicView(app: app) { topic in
+                    made = await model.made(topic)
+                }
+            case .rename(let course):
+                RenameCourseView(app: app, catalog: model.catalog, course: course)
             }
         })
         .task {
@@ -80,7 +96,7 @@ struct HomeView: View {
                             // Another course gets a screen of its own.
                             .id(course.id)
                     } else {
-                        NoCourseChosen(hasCourses: model.catalog.map { !$0.everyCourse.isEmpty })
+                        NoCourseChosen(hasCourses: model.catalog.map { !$0.everyCourse.isEmpty }, canAdd: model.showsEditing)
                     }
                 }
                 .studyDestinations(app: app)
@@ -102,6 +118,9 @@ struct HomeView: View {
         }
         .qbankScreenBackground()
         .navigationTitle("Home")
+        .plusMenu(model.showsEditing) {
+            addMenu
+        }
         .toolbar {
             if let waiting = app.offline?.waiting.count, waiting > 0 {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -131,6 +150,36 @@ struct HomeView: View {
         }
     }
 
+    /// The + at the top: a course in each semester she studies, a study topic, and while one of
+    /// the three is missing, the next semester.
+    private var addMenu: some View {
+        Menu {
+            Section("Add") {
+                ForEach(model.studiedSemesters) { semester in
+                    Button("New course in \(semester.name)", systemImage: "book.closed") {
+                        sheet = .newCourse(semester)
+                    }
+                    .accessibilityIdentifier("home.add.course.\(semester.number)")
+                }
+                Button("New study topic", systemImage: "text.book.closed") {
+                    sheet = .newTopic
+                }
+                .accessibilityIdentifier("home.add.topic")
+            }
+            if let number = model.nextSemesterNumber {
+                Button("Add Semester \(number)", systemImage: "calendar.badge.plus") {
+                    Task { await model.addSemester() }
+                }
+                .accessibilityIdentifier("home.add.semester")
+            }
+        } label: {
+            Image(systemName: "plus")
+        }
+        .disabled(!model.canEdit || model.catalog == nil)
+        .accessibilityLabel("Add")
+        .accessibilityIdentifier("home.add")
+    }
+
     /// Opens Saved for offline: over Home on iPhone, beside it on iPad.
     @ViewBuilder
     private func savedForOffline(@ViewBuilder label: () -> some View) -> some View {
@@ -154,12 +203,14 @@ struct HomeView: View {
                         .padding(.top, QBankSpacing.space3)
                         .accessibilityIdentifier("home.offline")
                 }
-                if let problem = model.problem ?? app.offline?.problem {
+                if let problem = model.editProblem ?? model.problem ?? app.offline?.problem {
                     ProblemText(text: problem)
                         .padding(.top, QBankSpacing.space3)
                 }
                 if catalog.semesters.isEmpty {
-                    EmptyCard(message: "A course appears here when its first question file is imported.")
+                    EmptyCard(message: model.showsEditing
+                        ? "No semesters yet. Tap + to add one, or import a question file."
+                        : "A course appears here when its first question file is imported.")
                         .padding(.top, QBankSpacing.space3)
                 }
                 ForEach(model.studiedSemesters) { semester in
@@ -169,7 +220,9 @@ struct HomeView: View {
                         .padding(.top, QBankSpacing.space5)
                         .padding(.bottom, -QBankSpacing.space2)
                     if courses.isEmpty {
-                        EmptyCard(message: "A course appears here when its first question file is imported.")
+                        EmptyCard(message: model.showsEditing
+                            ? "No courses yet. Tap + to add one, or import its first question file."
+                            : "A course appears here when its first question file is imported.")
                     }
                     ForEach(courses) { course in
                         courseLink(course)
@@ -189,24 +242,14 @@ struct HomeView: View {
         }
     }
 
-    /// Her study topics, with New at the header's right edge, which asks only for a name.
+    /// Her study topics. The + at the top makes one.
     @ViewBuilder
     private var topics: some View {
         let topics = model.topics
-        HStack(alignment: .firstTextBaseline) {
-            QBankSectionHeader("Study topics")
-            Spacer(minLength: QBankSpacing.space3)
-            if model.showsNewTopic {
-                Button("New") { makesTopic = true }
-                    .buttonStyle(.qbank(.plain, size: .small))
-                    .disabled(!model.canMakeTopic)
-                    .accessibilityLabel("New topic")
-                    .accessibilityIdentifier("home.newTopic")
-            }
-        }
-        .padding(.horizontal, QBankSpacing.space1)
-        .padding(.top, QBankSpacing.space5)
-        .padding(.bottom, -QBankSpacing.space2)
+        QBankSectionHeader("Study topics")
+            .padding(.horizontal, QBankSpacing.space1)
+            .padding(.top, QBankSpacing.space5)
+            .padding(.bottom, -QBankSpacing.space2)
         if topics.isEmpty {
             EmptyCard(message: "A topic is a place for questions that are not a course: a certification, a language, your own notes.", systemImage: "book.closed")
                 .accessibilityIdentifier("home.noTopics")
@@ -261,9 +304,70 @@ struct HomeView: View {
     }
 
     /// A course or topic card: pushes it on iPhone, and on iPad shows it beside the list, marked
-    /// as the one open.
-    @ViewBuilder
+    /// as the one open. Touching and holding it opens its menu.
     private func courseLink(_ course: CourseSummary) -> some View {
+        cardLink(course)
+            .contextMenu {
+                if model.showsEditing {
+                    heldMenu(course)
+                }
+            }
+    }
+
+    /// What holding a card offers: Open, then while QBank can be reached, Rename, Move to each other
+    /// semester she studies (a course only), and Archive, or Unarchive for one she archived.
+    @ViewBuilder
+    private func heldMenu(_ course: CourseSummary) -> some View {
+        Button("Open", systemImage: "arrow.right.circle") {
+            navigator.open(CourseRoute(id: course.id, name: Wording.name(course), kind: course.kind))
+        }
+        .accessibilityIdentifier("home.hold.open")
+        if model.canEdit {
+            Button("Rename", systemImage: "pencil") {
+                sheet = .rename(course)
+            }
+            .accessibilityIdentifier("home.hold.rename")
+            if course.kind == .topic {
+                if model.canMove(course, by: -1) {
+                    Button("Move up", systemImage: "arrow.up") {
+                        Task { await model.move(course, by: -1) }
+                    }
+                    .accessibilityIdentifier("home.hold.up")
+                }
+                if model.canMove(course, by: 1) {
+                    Button("Move down", systemImage: "arrow.down") {
+                        Task { await model.move(course, by: 1) }
+                    }
+                    .accessibilityIdentifier("home.hold.down")
+                }
+            } else {
+                ForEach(model.otherSemesters(than: course)) { semester in
+                    Button("Move to \(semester.name)", systemImage: "arrow.right.square") {
+                        Task { await model.move(course, to: semester) }
+                    }
+                    .accessibilityIdentifier("home.hold.move.\(semester.number)")
+                }
+            }
+            if model.canArchive(course) {
+                Button {
+                    Task { await model.setArchived(course, true) }
+                } label: {
+                    Text("Archive")
+                    Text("Goes to Archived at the bottom of Home")
+                    Image(systemName: "archivebox")
+                }
+                .accessibilityIdentifier("home.hold.archive")
+            } else if course.archivedAt != nil {
+                Button("Unarchive", systemImage: "tray.and.arrow.up") {
+                    Task { await model.setArchived(course, false) }
+                }
+                .accessibilityIdentifier("home.hold.unarchive")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func cardLink(_ course: CourseSummary) -> some View {
         let route = CourseRoute(id: course.id, name: Wording.name(course), kind: course.kind)
         let card = CourseCard(course: course, savedAt: model.savedAt(course), isNarrow: navigator.isSplit)
         if navigator.isSplit {
@@ -315,10 +419,27 @@ extension View {
     }
 }
 
+/// A sheet over Home: a new course in a semester, a new study topic, or renaming a held card.
+private enum HomeSheet: Identifiable {
+    case newCourse(Semester)
+    case newTopic
+    case rename(CourseSummary)
+
+    var id: String {
+        switch self {
+        case .newCourse(let semester): "course.\(semester.id)"
+        case .newTopic: "topic"
+        case .rename(let course): "rename.\(course.id)"
+        }
+    }
+}
+
 /// The iPad's course column before she chooses a course, as when she has none or opened none yet.
 private struct NoCourseChosen: View {
     /// Nil while the courses load.
     let hasCourses: Bool?
+    /// A user account adds one with the sidebar's +.
+    let canAdd: Bool
 
     var body: some View {
         VStack(spacing: QBankSpacing.space3) {
@@ -331,7 +452,9 @@ private struct NoCourseChosen: View {
                 Text(hasCourses ? "Choose a course" : "No courses yet")
                     .qbankFont(.title3)
                     .foregroundStyle(.qbank(.text1))
-                Text(hasCourses ? "Its exam pages, folders, Review and Terms open here." : "A course appears here when its first question file is imported.")
+                Text(hasCourses
+                    ? "Its exam pages, folders, Review and Terms open here."
+                    : canAdd ? "Tap + to add one, or import its first question file." : "A course appears here when its first question file is imported.")
                     .qbankFont(.subheadline)
                     .foregroundStyle(.qbank(.text2))
                     .multilineTextAlignment(.center)

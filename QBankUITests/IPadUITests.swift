@@ -86,8 +86,10 @@ final class IPadUITests: XCTestCase {
             XCUIDevice.shared.orientation = orientation
             let field = app.textFields["signIn.email"]
             XCTAssertTrue(field.appears(timeout: 5))
+            // Measured once the turn has settled: just after it, the column can still be moving.
+            let centered = NSPredicate { _, _ in abs(field.frame.midX - app.windows.firstMatch.frame.midX) <= 1 }
+            XCTAssertEqual(XCTWaiter.wait(for: [expectation(for: centered, evaluatedWith: field)], timeout: 5), .completed, "\(field.frame.midX) is not the middle")
             XCTAssertLessThanOrEqual(field.frame.width, 480)
-            XCTAssertEqual(field.frame.midX, app.windows.firstMatch.frame.midX, accuracy: 1)
             attach(app, "ipad sign in, \(orientation == .portrait ? "portrait" : "landscape")")
         }
     }
@@ -155,7 +157,8 @@ final class IPadUITests: XCTestCase {
                 XCTAssertTrue(app.buttons["course.page.Exam 1"].appears(timeout: 5))
                 attach(app, "ipad course, \(tag)")
 
-                app.buttons["course.newPage"].tap()
+                app.buttons["course.add"].tap()
+                chooseFromMenu(app.buttons["course.add.page"])
                 let cancel = app.buttons["editPage.cancel"]
                 XCTAssertTrue(cancel.appears(timeout: 5))
                 attach(app, "ipad new exam page sheet, \(tag)")

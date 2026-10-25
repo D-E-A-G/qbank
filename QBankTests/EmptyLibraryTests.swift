@@ -57,12 +57,12 @@ struct EmptyLibraryTests {
         #expect(!model.canGoOn)
     }
 
-    @Test func settingsOnAnEmptyLibraryOffersSemesterOne() async {
+    @Test func homeOnAnEmptyLibraryOffersSemesterOne() async {
         let server = StubServer(["GET /api/semesters": .ok(Self.emptyLibrary)])
         let (app, _) = TestApp.make(server, account: .student())
-        let catalog = CatalogModel(app: app)
-        await catalog.load()
-        #expect(catalog.semesters == [])
-        #expect(catalog.nextSemesterNumber == 1)
+        let model = HomeModel(app: app)
+        await model.load()
+        #expect(model.semesters == [])
+        #expect(model.nextSemesterNumber == 1)
     }
 }
