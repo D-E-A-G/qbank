@@ -6,7 +6,9 @@ import SwiftUI
 /// verb first. Pressed: the fill darkens one step and the button scales to 0.98.
 /// Disabled: grey, a sunken fill with a muted label, so it reads as unavailable and
 /// its words stay legible in light and dark. (Fading the whole button, as the web
-/// does, leaves the primary label unreadable in dark mode.)
+/// does, leaves the primary label unreadable in dark mode.) A small plain button has no
+/// fill at rest, so disabled it takes the sunken one: a muted label alone reads as a
+/// working button.
 public struct QBankButtonStyle: ButtonStyle {
     public enum Variant: String, CaseIterable, Sendable {
         /// Tint fill, on-tint text.
@@ -140,10 +142,11 @@ private struct QBankButtonBody: View {
         }
     }
 
-    /// The fill at rest: grey when disabled, except for a plain button, which has none.
+    /// The fill at rest: grey when disabled, except for a plain button, which has none, unless
+    /// it is small: a bare text button is too easy to take for a working one.
     private var currentFill: QBankColorToken? {
         guard !isEnabled else { return fill }
-        return variant == .plain ? nil : .surfaceSunken
+        return variant == .plain && size != .small ? nil : .surfaceSunken
     }
 
     /// `nil` is no fill.
