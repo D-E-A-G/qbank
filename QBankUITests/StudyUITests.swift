@@ -482,6 +482,45 @@ final class StudyUITests: XCTestCase {
         XCTAssertTrue(app.buttons["folder.Week 1"].exists)
     }
 
+    @MainActor
+    func testFoldersEditShowsOnlyWhereFoldersCanBeOrdered() throws {
+        let app = launch("signed-in")
+        XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 10))
+
+        // One folder on no exam page: nothing to order, so no Edit, and no line about a connection.
+        XCTAssertTrue(app.staticTexts["Folders on no exam page. Open one to see its sets."].appears(timeout: 5))
+        XCTAssertFalse(app.buttons["course.editFolders"].exists)
+        XCTAssertFalse(app.staticTexts["course.orderNeedsConnection"].exists)
+        attach(app, "C folders, one loose folder")
+
+        // A second one: Edit shows up and puts the list in order.
+        openFolder(app, "Week 3", on: "Exam 2")
+        app.buttons["folder.page"].tap()
+        app.buttons["examPage.none"].tap()
+        app.buttons["examPage.save"].tap()
+        waitForLabel(app.staticTexts["folder.note"], containing: "On no exam page")
+        goBack(app, from: "Week 3")
+        goBack(app, from: "Exam 2")
+        let edit = app.buttons["course.editFolders"]
+        tapVisible(edit, in: app)
+        XCTAssertTrue(app.buttons["reorder.up.Week 3"].appears(timeout: 5))
+        XCTAssertEqual(edit.label, "Done, save folder order")
+        edit.tap()
+        XCTAssertTrue(app.buttons["folder.Week 3"].appears(timeout: 5))
+        XCTAssertEqual(edit.label, "Edit folder order")
+
+        // Without a connection it cannot be saved: no Edit, and a line that says why.
+        setNetwork(online: false)
+        let line = app.staticTexts["course.orderNeedsConnection"]
+        XCTAssertTrue(line.appears(timeout: 10))
+        XCTAssertEqual(line.label, "Putting folders in order needs a connection.")
+        XCTAssertFalse(edit.exists)
+        attach(app, "C folders, offline")
+        setNetwork(online: true)
+        XCTAssertTrue(edit.appears(timeout: 10))
+        XCTAssertFalse(line.exists)
+    }
+
     // MARK: Helpers
 
     /// Opens one of the course's three tiles from the course she landed on.

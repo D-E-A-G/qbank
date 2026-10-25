@@ -171,13 +171,17 @@ struct CourseView: View {
     }
 
     private func folders(_ layout: CourseLayout) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+        // As on the web, ordering is offered only when there are two folders to put in order, and
+        // while the phone can save it. Done stays while she is already ordering.
+        let hasOrder = layout.looseFolders.count > 1
+        let offersEdit = order != nil || (hasOrder && model.canEdit)
+        return VStack(alignment: .leading, spacing: 6) {
             SectionHead(
                 title: "Folders",
-                action: order == nil ? "Edit" : "Done",
+                action: offersEdit ? (order == nil ? "Edit" : "Done") : nil,
                 label: order == nil ? "Edit folder order" : "Done, save folder order",
                 identifier: "course.editFolders",
-                isEnabled: !isSavingOrder && (order != nil || (model.canEdit && layout.looseFolders.count > 1))
+                isEnabled: !isSavingOrder
             ) {
                 editOrder(layout.looseFolders)
             }
@@ -186,6 +190,13 @@ struct CourseView: View {
                 .qbankFont(.footnote)
                 .foregroundStyle(.qbank(.text3))
                 .padding(.horizontal, QBankSpacing.space5)
+            if hasOrder, !offersEdit {
+                Text("Putting folders in order needs a connection.")
+                    .qbankFont(.footnote)
+                    .foregroundStyle(.qbank(.text3))
+                    .padding(.horizontal, QBankSpacing.space5)
+                    .accessibilityIdentifier("course.orderNeedsConnection")
+            }
         }
     }
 
