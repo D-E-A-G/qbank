@@ -327,7 +327,20 @@ struct HomeView: View {
                 sheet = .rename(course)
             }
             .accessibilityIdentifier("home.hold.rename")
-            if course.kind != .topic {
+            if course.kind == .topic {
+                if model.canMove(course, by: -1) {
+                    Button("Move up", systemImage: "arrow.up") {
+                        Task { await model.move(course, by: -1) }
+                    }
+                    .accessibilityIdentifier("home.hold.up")
+                }
+                if model.canMove(course, by: 1) {
+                    Button("Move down", systemImage: "arrow.down") {
+                        Task { await model.move(course, by: 1) }
+                    }
+                    .accessibilityIdentifier("home.hold.down")
+                }
+            } else {
                 ForEach(model.otherSemesters(than: course)) { semester in
                     Button("Move to \(semester.name)", systemImage: "arrow.right.square") {
                         Task { await model.move(course, to: semester) }
@@ -335,7 +348,7 @@ struct HomeView: View {
                     .accessibilityIdentifier("home.hold.move.\(semester.number)")
                 }
             }
-            if course.archivedAt == nil {
+            if model.canArchive(course) {
                 Button {
                     Task { await model.setArchived(course, true) }
                 } label: {
@@ -344,7 +357,7 @@ struct HomeView: View {
                     Image(systemName: "archivebox")
                 }
                 .accessibilityIdentifier("home.hold.archive")
-            } else {
+            } else if course.archivedAt != nil {
                 Button("Unarchive", systemImage: "tray.and.arrow.up") {
                     Task { await model.setArchived(course, false) }
                 }

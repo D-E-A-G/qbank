@@ -120,7 +120,7 @@ final class TopicsUITests: XCTestCase {
     }
 
     @MainActor
-    func testHoldingATopicOnHomeRenamesAndArchivesIt() throws {
+    func testHoldingATopicOnHomeRenamesMovesAndArchivesIt() throws {
         try skipOnIPad()
         let app = launch("signed-in")
         XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 10))
@@ -156,12 +156,22 @@ final class TopicsUITests: XCTestCase {
         XCTAssertTrue(renamed.appears(timeout: 10))
         XCTAssertFalse(card.exists)
 
+        // The last topic moves up, above the other.
+        let studied = app.buttons["home.topic.Invented Spanish Verbs"]
+        reveal(renamed, in: app)
+        XCTAssertGreaterThan(renamed.frame.minY, studied.frame.minY)
+        renamed.press(forDuration: 1.2)
+        XCTAssertTrue(app.buttons["home.hold.up"].appears(timeout: 5))
+        XCTAssertFalse(app.buttons["home.hold.down"].exists, "the last one has no Move down")
+        chooseFromMenu(app.buttons["home.hold.up"])
+        let above = NSPredicate { _, _ in renamed.frame.minY < studied.frame.minY }
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation(for: above, evaluatedWith: renamed)], timeout: 10), .completed, "it went above the other")
+
         // Archive: Home lists the other under Study topics, and this one under Archived, closed.
         reveal(renamed, in: app)
         renamed.press(forDuration: 1.2)
         chooseFromMenu(app.buttons["home.hold.archive"])
         XCTAssertTrue(renamed.disappears(timeout: 10))
-        let studied = app.buttons["home.topic.Invented Spanish Verbs"]
         reveal(studied, in: app)
         let archived = app.buttons["home.archived"]
         tapVisible(archived, in: app)

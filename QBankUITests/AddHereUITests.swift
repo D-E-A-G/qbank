@@ -300,7 +300,7 @@ final class AddHereUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["New exam page"].appears(timeout: 5))
         app.buttons["editPage.save"].tap()
         XCTAssertTrue(app.navigationBars["Exam 1"].appears(timeout: 10))
-        XCTAssertTrue(app.staticTexts["No folders on this page yet. Tap + to add some."].exists)
+        XCTAssertTrue(app.staticTexts["No folders on this page yet. Add the folders this exam covers."].exists)
 
         app.buttons["page.add"].tap()
         chooseFromMenu(app.buttons["page.add.import"])

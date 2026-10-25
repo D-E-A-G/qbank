@@ -103,8 +103,12 @@ struct ExamPageView: View {
     private func addMenu(_ page: ExamPage) -> some View {
         Menu {
             Section("Add to \(page.exam.name)") {
-                Button("Import a question file here", systemImage: "square.and.arrow.down") {
+                Button {
                     adding = .importFile
+                } label: {
+                    Text("Import a question file here")
+                    Text("A JSON file from your agent")
+                    Image(systemName: "square.and.arrow.down")
                 }
                 .accessibilityIdentifier("page.add.import")
                 Button("New folder on this page", systemImage: "folder.badge.plus") {
@@ -198,7 +202,7 @@ struct ExamPageView: View {
                 .accessibilityIdentifier("page.editPage")
             }
             if page.folders.isEmpty {
-                EmptyCard(message: model.isStudent ? "No folders on this page yet. Tap + to add some." : "No folders on this page yet.", systemImage: "folder")
+                EmptyCard(message: model.isStudent ? "No folders on this page yet. \(model.words.addFolders)" : "No folders on this page yet.", systemImage: "folder")
             } else {
                 FolderList(folders: page.folders, order: $order)
                 if order != nil, page.folders.count > 1 {

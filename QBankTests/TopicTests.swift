@@ -167,6 +167,39 @@ struct TopicTests {
         #expect(model.editProblem == nil)
     }
 
+    @Test func aTopicHeldOnHomeMovesUpOrDownAmongTheOnesInUse() async throws {
+        let server = StubServer([
+            "GET /api/semesters": .ok(Self.catalog),
+            "PUT /api/topic-order": .ok(#"{"topics":[\#(Self.spanish),\#(Self.design),\#(Self.archivedTopic)]}"#),
+        ])
+        let (app, _) = TestApp.make(server, account: .student())
+        let model = HomeModel(app: app)
+        await model.load()
+        let design = try #require(model.topics.first)
+        let spanish = try #require(model.topics.last)
+        #expect(!model.canMove(design, by: -1), "the first one has no Move up")
+        #expect(model.canMove(design, by: 1))
+        #expect(model.canMove(spanish, by: -1))
+        #expect(!model.canMove(spanish, by: 1), "the last one in use has no Move down; archived ones do not count")
+        await model.move(design, by: 1)
+        #expect(try Self.body(server, "PUT /api/topic-order") as? [String: [String]] == ["topicIds": ["t2", "t1", "t3"]], "every topic, the archived one last")
+        #expect(server.calls.last == "GET /api/semesters", "the list is read again")
+        #expect(model.editProblem == nil)
+    }
+
+    @Test func onlyWhatIsInUseCanBeArchived() async throws {
+        let (app, _) = TestApp.make(StubServer(["GET /api/semesters": .ok(Self.catalog)]), account: .student())
+        let model = HomeModel(app: app)
+        await model.load()
+        let all = model.archived.flatMap(\.courses)
+        #expect(model.canArchive(try #require(model.courses(in: model.studiedSemesters[0]).first)))
+        #expect(model.canArchive(try #require(model.topics.first)))
+        #expect(!model.canArchive(try #require(all.first { $0.id == "c2" })), "an archived course has Unarchive")
+        #expect(!model.canArchive(try #require(all.first { $0.id == "c3" })), "a course of an archived semester is in Archived with it")
+        #expect(model.otherSemesters(than: try #require(all.first { $0.id == "c3" })).map(\.id) == ["s1"], "moving it brings it back")
+        #expect(!model.canArchive(try #require(all.first { $0.id == "t3" })))
+    }
+
     @Test func aSemesterIsArchivedByHand() async throws {
         let studied = Bodies.catalog([Bodies.semester(id: "s1", number: 1)])
         let archived = Bodies.catalog([Bodies.semester(id: "s1", number: 1, archived: true)])

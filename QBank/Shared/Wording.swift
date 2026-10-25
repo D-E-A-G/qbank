@@ -283,9 +283,17 @@ nonisolated struct KindWords: Equatable {
     let pages: String
     /// What New names them, with a number: "Exam" (Exam 1) or "Page" (Page 1).
     let numbered: String
+    /// What an empty page asks for: "Add the folders this exam covers."
+    let addFolders: String
 
-    static let course = KindWords(container: "course", page: "exam page", pageTitle: "Exam page", pages: "Exam pages", numbered: "Exam")
-    static let topic = KindWords(container: "topic", page: "study page", pageTitle: "Study page", pages: "Study pages", numbered: "Page")
+    static let course = KindWords(
+        container: "course", page: "exam page", pageTitle: "Exam page", pages: "Exam pages", numbered: "Exam",
+        addFolders: "Add the folders this exam covers."
+    )
+    static let topic = KindWords(
+        container: "topic", page: "study page", pageTitle: "Study page", pages: "Study pages", numbered: "Page",
+        addFolders: "Add the folders this page covers."
+    )
 }
 
 /// A course or topic as the screens name it: its kind, code and name.

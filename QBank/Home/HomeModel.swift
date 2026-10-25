@@ -101,6 +101,20 @@ final class HomeModel {
         studiedSemesters.filter { semester in !semester.courses.contains { $0.id == course.id } }
     }
 
+    /// Whether a course or topic can be archived: one in use, but not a course of a semester she
+    /// archived, which is in Archived with it; moving it to another semester brings it back.
+    func canArchive(_ course: CourseSummary) -> Bool {
+        guard course.archivedAt == nil else { return false }
+        if course.kind == .topic { return true }
+        return semesters?.first { semester in semester.courses.contains { $0.id == course.id } }?.archivedAt == nil
+    }
+
+    /// Whether a topic in use can move a place up (-1) or down (+1) among her topics in use.
+    func canMove(_ topic: CourseSummary, by step: Int) -> Bool {
+        guard let at = topics.firstIndex(where: { $0.id == topic.id }) else { return false }
+        return topics.indices.contains(at + step)
+    }
+
     /// A semester's courses in the owner's order.
     private static func ordered(_ courses: [CourseSummary]) -> [CourseSummary] {
         courses.sorted { ($0.sortOrder, $0.code) < ($1.sortOrder, $1.code) }
@@ -194,6 +208,19 @@ final class HomeModel {
     func move(_ course: CourseSummary, to semester: Semester) async {
         await edit { () async throws(QBankError) in
             _ = try await app.client.updateCourse(id: course.id, code: course.code, title: course.title, semesterID: semester.id)
+        }
+    }
+
+    /// Moves a topic a place up (-1) or down (+1) among her topics in use. The server takes every
+    /// topic of hers, so the archived ones go after the others, in the order they had.
+    func move(_ topic: CourseSummary, by step: Int) async {
+        guard canMove(topic, by: step), let all = catalog?.topics else { return }
+        var order = topics.map(\.id)
+        guard let at = order.firstIndex(of: topic.id) else { return }
+        order.swapAt(at, at + step)
+        let archived = all.filter { $0.archivedAt != nil }.map(\.id)
+        await edit { () async throws(QBankError) in
+            _ = try await app.client.setTopicOrder(order + archived)
         }
     }
 

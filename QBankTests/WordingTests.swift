@@ -115,8 +115,8 @@ struct WordingTests {
 
     /// A course says what it always said; a topic says topic and study page. Nothing else differs.
     @Test func aCourseKeepsItsWordsAndATopicSaysStudyPages() {
-        #expect(Wording.words(.course) == KindWords(container: "course", page: "exam page", pageTitle: "Exam page", pages: "Exam pages", numbered: "Exam"))
-        #expect(Wording.words(.topic) == KindWords(container: "topic", page: "study page", pageTitle: "Study page", pages: "Study pages", numbered: "Page"))
+        #expect(Wording.words(.course) == KindWords(container: "course", page: "exam page", pageTitle: "Exam page", pages: "Exam pages", numbered: "Exam", addFolders: "Add the folders this exam covers."))
+        #expect(Wording.words(.topic) == KindWords(container: "topic", page: "study page", pageTitle: "Study page", pages: "Study pages", numbered: "Page", addFolders: "Add the folders this page covers."))
         #expect(Wording.words(CourseKind(rawValue: "shelf")) == Wording.words(.course), "a kind this version does not know reads as a course")
     }
 
