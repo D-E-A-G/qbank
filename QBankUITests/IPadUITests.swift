@@ -155,7 +155,8 @@ final class IPadUITests: XCTestCase {
                 XCTAssertTrue(app.buttons["course.page.Exam 1"].appears(timeout: 5))
                 attach(app, "ipad course, \(tag)")
 
-                app.buttons["course.newPage"].tap()
+                app.buttons["course.add"].tap()
+                chooseFromMenu(app.buttons["course.add.page"])
                 let cancel = app.buttons["editPage.cancel"]
                 XCTAssertTrue(cancel.appears(timeout: 5))
                 attach(app, "ipad new exam page sheet, \(tag)")

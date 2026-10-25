@@ -6,19 +6,24 @@ import SwiftUI
 /// lists things: her exam pages, and the folders on no exam page. Each exam page and each folder
 /// opens as its own screen, sharing this screen's model. A study topic is the same screen, called
 /// by its name, with study pages for exam pages; `Wording.words(_:)` picks what differs.
+///
+/// The + at the top adds into the course: a question file, questions made from her material, a
+/// folder, or an exam page.
 struct CourseView: View {
     let app: AppModel
     let route: CourseRoute
     @State private var model: CourseModel
-    /// A new exam page she is making, and once made, its id.
-    @State private var makesPage = false
-    @State private var madePage: String?
+    /// The sheet the + opened, and once it made a page or filed a set, the screen to open when it
+    /// is down.
+    @State private var sheet: CourseSheet?
+    @State private var opensNext: CoursePage?
     /// The folders on no exam page in her order, while she edits it.
     @State private var order: [String]?
     @State private var isSavingOrder = false
     /// Why her order was not saved, in the server's words.
     @State private var orderProblem: String?
     @Environment(HomeNavigator.self) private var navigator: HomeNavigator?
+    @Environment(TabNavigator.self) private var tabs: TabNavigator?
 
     init(app: AppModel, route: CourseRoute) {
         self.app = app
@@ -35,12 +40,24 @@ struct CourseView: View {
         .qbankScreenBackground()
         .navigationTitle(model.course.map(Wording.name) ?? route.name ?? "Course")
         .screenColumnTitle()
+        .toolbar {
+            if model.isStudent, let course = model.course {
+                ToolbarItem(placement: .topBarTrailing) {
+                    addMenu(course)
+                }
+            }
+        }
         .refreshable { await model.load() }
-        .reloadsWithConnection(app) { await model.load() }
+        .reloadsWithConnection(app) {
+            await model.load()
+            await model.loadMaker()
+        }
         .task {
             async let place: Void = model.rememberPlace()
+            async let maker: Void = model.loadMaker()
             await model.load()
             await place
+            await maker
         }
         .onAppear {
             // Back from Review, Terms or an exam: its counts may have changed.
@@ -64,19 +81,75 @@ struct CourseView: View {
             case .recentlyDeleted: RecentlyDeletedView(app: app, courseID: model.id)
             }
         }
-        .sheet(isPresented: $makesPage, onDismiss: {
-            // A new page opens once the sheet is down.
-            guard let id = madePage else { return }
-            madePage = nil
-            navigator?.open(CoursePage.examPage(id))
-        }, content: {
+        .sheet(item: $sheet, onDismiss: {
+            // A new page, or the folder a set went into, opens once the sheet is down.
+            guard let next = opensNext else { return }
+            opensNext = nil
+            navigator?.open(next)
+        }, content: { sheet in
             if let course = model.course {
-                EditExamPageView(app: app, course: course, pageID: nil) { outcome in
-                    Task { await model.load() }
-                    if case .saved(let id) = outcome { madePage = id }
+                switch sheet {
+                case .importFile:
+                    ImportHereSheet(app: app, courseID: course.id) { set in
+                        self.sheet = nil
+                        Task { await model.load() }
+                        if set.courseID == course.id {
+                            opensNext = .folder(set.folderID)
+                        } else {
+                            // She picked another course in the sheet.
+                            tabs?.openFolder(courseID: set.courseID, name: nil, folderID: set.folderID)
+                        }
+                    }
+                case .newFolder:
+                    NewFolderSheet(model: model)
+                case .newPage:
+                    EditExamPageView(app: app, course: course, pageID: nil) { outcome in
+                        Task { await model.load() }
+                        if case .saved(let id) = outcome { opensNext = .examPage(id) }
+                    }
                 }
             }
         })
+    }
+
+    /// The + at the top: "Add to NURS 310", then Import a question file, Make questions when the
+    /// server allows it, New folder, and New exam page or, in a topic, New study page.
+    private func addMenu(_ course: CourseDetail) -> some View {
+        Menu {
+            Section("Add to \(Wording.name(course))") {
+                Button {
+                    sheet = .importFile
+                } label: {
+                    Text("Import a question file")
+                    Text("A JSON file from your agent")
+                    Image(systemName: "square.and.arrow.down")
+                }
+                .accessibilityIdentifier("course.add.import")
+                if model.canMake {
+                    Button {
+                        tabs?.makeQuestions(courseID: course.id, status: model.maker)
+                    } label: {
+                        Text("Make questions")
+                        Text("From your notes or photos")
+                        Image(systemName: "sparkles")
+                    }
+                    .accessibilityIdentifier("course.add.make")
+                }
+                Button("New folder", systemImage: "folder.badge.plus") {
+                    sheet = .newFolder
+                }
+                .accessibilityIdentifier("course.add.folder")
+                Button("New \(model.words.page)", systemImage: "square.stack.3d.up") {
+                    sheet = .newPage
+                }
+                .accessibilityIdentifier("course.add.page")
+            }
+        } label: {
+            Image(systemName: "plus")
+        }
+        .disabled(!model.canEdit || order != nil)
+        .accessibilityLabel("Add to \(Wording.name(course))")
+        .accessibilityIdentifier("course.add")
     }
 
     @ViewBuilder
@@ -150,11 +223,11 @@ struct CourseView: View {
     private func examPages(_ layout: CourseLayout) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             let words = model.words
-            SectionHead(title: words.pages, action: "New", label: "New \(words.page)", identifier: "course.newPage", isEnabled: model.canEdit && order == nil) {
-                makesPage = true
-            }
+            SectionHead(title: words.pages)
             if layout.pages.isEmpty {
-                EmptyCard(message: "No \(words.pages.lowercased()) yet. Tap New to make \(model.nextPageName).", systemImage: "square.stack.3d.up")
+                EmptyCard(message: model.isStudent
+                    ? "No \(words.pages.lowercased()) yet. Tap + to make \(model.nextPageName)."
+                    : "No \(words.pages.lowercased()) yet.", systemImage: "square.stack.3d.up")
                     .accessibilityIdentifier("course.noPages")
             } else {
                 QBankListGroup {
@@ -231,6 +304,15 @@ struct CourseView: View {
         }
     }
 
+}
+
+/// A sheet the course's + opens.
+private enum CourseSheet: String, Identifiable {
+    case importFile
+    case newFolder
+    case newPage
+
+    var id: String { rawValue }
 }
 
 extension View {

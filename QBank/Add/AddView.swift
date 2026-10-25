@@ -14,7 +14,8 @@ enum AddRoute: Hashable {
 }
 
 /// The Add tab: the ways to add questions, and her sets still being made. Import is for everyone;
-/// Make questions shows only when the server says this account may use it.
+/// Make questions shows only when the server says this account may use it. A course's + opens
+/// Make questions here, with that course picked.
 struct AddView: View {
     let app: AppModel
     @State private var path = NavigationPath()
@@ -53,6 +54,14 @@ struct AddView: View {
             .navigationDestination(for: AddRoute.self) { route in
                 destination(route)
             }
+        }
+        .onChange(of: tabs.makeRequest, initial: true) { _, request in
+            guard let request else { return }
+            tabs.makeRequest = nil
+            making = MakeModel(app: app, status: request.status ?? model.status, courseID: request.courseID)
+            var next = NavigationPath()
+            next.append(AddRoute.material)
+            path = next
         }
     }
 

@@ -68,10 +68,11 @@ final class MakeModel {
     /// still refuse anything out of range, in its words.
     let status: QuestionMakerStatus?
 
-    init(app: AppModel, status: QuestionMakerStatus?) {
+    /// `courseID` is the course whose + opened it, picked when it opens.
+    init(app: AppModel, status: QuestionMakerStatus?, courseID: String? = nil) {
         self.app = app
         self.status = status
-        destination = SetDestination(app: app, allowsNewCourse: false)
+        destination = SetDestination(app: app, courseID: courseID, allowsNewCourse: false)
         let level = status?.defaultLevel ?? .exam
         self.level = level
         count = status?.range(of: level).defaultCount ?? 15

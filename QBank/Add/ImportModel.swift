@@ -4,8 +4,9 @@ import QBankKit
 
 /// Import, as the web's Import screen does it: a question file from Files or pasted, checked by the
 /// server's importer, then filed under a course or study topic and folder. The set goes to the course's Unsorted
-/// folder unless she picks one; "Import here" on a folder opens it with that folder picked. A set
-/// whose name the course already has asks first: replace it, or import it as a separate set.
+/// folder unless she picks one; opened from a page, it starts on that page's course and folder (see
+/// `SetDestination`), and a new folder named from an exam page goes on that page. A set whose name
+/// the course already has asks first: replace it, or import it as a separate set.
 @Observable
 final class ImportModel {
     enum Source: Hashable {
@@ -47,9 +48,9 @@ final class ImportModel {
 
     private let app: AppModel
 
-    init(app: AppModel, courseID: String? = nil, folderID: String? = nil) {
+    init(app: AppModel, courseID: String? = nil, folderID: String? = nil, examPageID: String? = nil) {
         self.app = app
-        destination = SetDestination(app: app, courseID: courseID, folderID: folderID, allowsNewCourse: true)
+        destination = SetDestination(app: app, courseID: courseID, folderID: folderID, examPageID: examPageID, allowsNewCourse: true)
     }
 
     var isOnline: Bool {
@@ -129,6 +130,8 @@ final class ImportModel {
     /// with `replace` or `separate`.
     func commit(_ decision: ImportRequest.Decision = .import) async {
         guard let request = request(decision) else { return }
+        // A new folder named from an exam page goes on that page once the set made it.
+        let page = destination.folder == .new ? destination.examPageID : nil
         conflict = nil
         problem = nil
         isBusy = true
@@ -138,10 +141,14 @@ final class ImportModel {
             case .conflict(let found):
                 conflict = found
             case .imported(let set):
+                var pageID = set.examPageID
+                if pageID == nil, let page, (try? await app.client.placeFolder(id: set.folderID, onExamPage: page)) != nil {
+                    pageID = page
+                }
                 // Done names the exam page the folder is on, read from the course it landed in.
-                let landed = set.examPageID == nil ? nil : try? await app.client.course(id: set.courseID)
+                let landed = pageID == nil ? nil : try? await app.client.course(id: set.courseID)
                 let catalog = try? await app.client.catalog()
-                done = Done(set: set, examPageName: landed?.exams.first { $0.id == set.examPageID }?.name, course: catalog?.course(id: set.courseID))
+                done = Done(set: set, examPageName: landed?.exams.first { $0.id == pageID }?.name, course: catalog?.course(id: set.courseID))
                 saveForOffline(catalog)
             }
         } catch {

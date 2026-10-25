@@ -3,7 +3,7 @@ import QBankKit
 import Testing
 @testable import QBank
 
-/// Study topics on Home, in Settings, in Import and on a topic's own screens.
+/// Study topics on Home, held on Home, in Import and on a topic's own screens.
 @MainActor
 struct TopicTests {
     private static let design = Bodies.topic(id: "t1", title: "Invented Systems Design", order: 1)
@@ -43,14 +43,14 @@ struct TopicTests {
         let model = HomeModel(app: app)
         await model.load()
         #expect(model.archived.isEmpty)
-        #expect(model.canMakeTopic)
+        #expect(model.canEdit)
     }
 
-    @Test func onlyAUserAccountMakesTopicsAndNotFromThePhonesCopy() async throws {
+    @Test func onlyAUserAccountEditsHomeAndNotFromThePhonesCopy() async throws {
         let (admin, _) = TestApp.make(StubServer(["GET /api/semesters": .ok(Self.catalog)]), account: .admin)
         let viewing = HomeModel(app: admin)
         await viewing.load()
-        #expect(!viewing.showsNewTopic && !viewing.canMakeTopic)
+        #expect(!viewing.showsEditing && !viewing.canEdit)
 
         let server = StubServer(["GET /api/semesters": .ok(Self.catalog)])
         let (app, _) = TestApp.make(server, account: .student())
@@ -58,8 +58,8 @@ struct TopicTests {
         await model.load()
         server["GET /api/semesters"] = .offline
         await model.load()
-        #expect(model.showsNewTopic)
-        #expect(!model.canMakeTopic, "making a topic needs QBank")
+        #expect(model.showsEditing)
+        #expect(!model.canEdit, "adding, moving and archiving need QBank")
     }
 
     @Test func aTopicSheMadeOpensWithItsName() async throws {
@@ -113,57 +113,13 @@ struct TopicTests {
         #expect(model.problem == "You already have a topic named Invented Systems Design.")
     }
 
-    // MARK: Settings
+    // MARK: Holding a topic on Home, and a semester in Settings
 
     private func loaded(_ server: StubServer) async -> CatalogModel {
         let (app, _) = TestApp.make(server, account: .student())
         let catalog = CatalogModel(app: app)
         await catalog.load()
         return catalog
-    }
-
-    @Test func settingsListsStudiedTopicsThenArchivedOnes() async {
-        let unordered = Bodies.catalog([], topics: [Self.archivedTopic, Self.spanish, Self.design])
-        let catalog = await loaded(StubServer(["GET /api/semesters": .ok(unordered)]))
-        #expect(catalog.topics.map(\.id) == ["t2", "t1", "t3"], "her order as the server sent it, the archived ones last")
-        #expect(catalog.topics.map(CatalogModel.line(of:)) == ["10 questions · 2 folders", "10 questions · 2 folders", "10 questions · 2 folders · Archived"])
-    }
-
-    @Test func herOrderIsSentWithTheArchivedTopicsAfterIt() async throws {
-        let server = StubServer([
-            "GET /api/semesters": .ok(Self.catalog),
-            "PUT /api/topic-order": .ok(#"{"topics":[]}"#),
-        ])
-        let catalog = await loaded(server)
-        await catalog.saveTopicOrder(["t2", "t1"])
-        #expect(try Self.body(server, "PUT /api/topic-order") as? [String: [String]] == ["topicIds": ["t2", "t1", "t3"]])
-        #expect(catalog.topicProblem == nil)
-        #expect(server.calls.last == "GET /api/semesters", "the list is read again")
-    }
-
-    @Test func aStaleOrderSaysTheServersWords() async {
-        let server = StubServer([
-            "GET /api/semesters": .ok(Self.catalog),
-            "PUT /api/topic-order": .error(409, "request_refused", "Your topics changed. Reload and try again."),
-        ])
-        let catalog = await loaded(server)
-        await catalog.saveTopicOrder(["t1", "t2"])
-        #expect(catalog.topicProblem == "Your topics changed. Reload and try again.")
-    }
-
-    @Test func settingsAddsATopic() async throws {
-        let server = StubServer([
-            "GET /api/semesters": .ok(Bodies.semesters()),
-            "POST /api/topics": StubServer.Reply(status: 201, body: Self.design),
-        ])
-        let catalog = await loaded(server)
-        #expect(await catalog.addTopic(named: "  ") == false)
-        #expect(catalog.topicProblem == "Give the topic a name.")
-        server["GET /api/semesters"] = .ok(Bodies.semesters(topics: [Self.design]))
-        #expect(await catalog.addTopic(named: " Invented Systems Design "))
-        #expect(catalog.topicProblem == nil)
-        #expect(try Self.body(server, "POST /api/topics") as? [String: String] == ["title": "Invented Systems Design"])
-        #expect(catalog.topics.map(\.id) == ["t1"])
     }
 
     @Test func aTopicIsRenamedByItsTitleAlone() async throws {
@@ -188,24 +144,27 @@ struct TopicTests {
         #expect(model.topic?.title == "Invented Distributed Systems")
     }
 
-    @Test func aTopicIsArchivedAndUnarchivedByHand() async throws {
+    @Test func aTopicHeldOnHomeIsArchivedAndUnarchived() async throws {
         let server = StubServer([
-            "GET /api/semesters": .ok(Self.catalog),
+            "GET /api/semesters": .ok(Bodies.catalog([], topics: [Self.design])),
             "PATCH /api/courses/t1": .ok(Bodies.topic(id: "t1", title: "Invented Systems Design", archived: true)),
         ])
-        let catalog = await loaded(server)
-        let model = TopicEditModel(catalog: catalog, id: "t1")
-        #expect(!model.isArchived)
+        let (app, _) = TestApp.make(server, account: .student())
+        let model = HomeModel(app: app)
+        await model.load()
+        let topic = try #require(model.topics.first)
+        #expect(model.otherSemesters(than: topic).isEmpty, "a topic has no semester to move to")
         server["GET /api/semesters"] = .ok(Bodies.catalog([], topics: [Bodies.topic(id: "t1", title: "Invented Systems Design", archived: true)]))
-        await model.toggleArchived()
+        await model.setArchived(topic, true)
         #expect(try Self.body(server, "PATCH /api/courses/t1") as? [String: Bool] == ["archived": true])
-        #expect(model.isArchived)
-        #expect(model.note == "Archived. It moves to Archived on Home.")
+        #expect(model.topics.isEmpty)
+        #expect(model.archived.map(\.title) == ["Study topics"])
 
         server["GET /api/semesters"] = .ok(Bodies.catalog([], topics: [Self.design]))
-        await model.toggleArchived()
+        await model.setArchived(try #require(model.archived.first?.courses.first), false)
         #expect(try Self.body(server, "PATCH /api/courses/t1") as? [String: Bool] == ["archived": false])
-        #expect(model.note == "Unarchived. It shows under Study topics again.")
+        #expect(model.topics.map(\.id) == ["t1"])
+        #expect(model.editProblem == nil)
     }
 
     @Test func aSemesterIsArchivedByHand() async throws {

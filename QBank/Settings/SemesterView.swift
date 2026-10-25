@@ -2,16 +2,14 @@ import QBankDesign
 import QBankKit
 import SwiftUI
 
-/// One semester, with the web's fields: its name and dates, its courses, adding a course, and
-/// archiving it by hand.
+/// One semester, with the web's fields: its name and dates, and archiving it by hand. Home's +
+/// adds a course to it, and holding a course on Home moves it to another.
 struct SemesterView: View {
     @State private var model: SemesterModel
     @FocusState private var focus: Field?
 
     private enum Field {
         case name
-        case code
-        case title
     }
 
     init(catalog: CatalogModel, id: String) {
@@ -22,8 +20,6 @@ struct SemesterView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: QBankSpacing.space7) {
                 details
-                courses
-                addCourse
                 archive
             }
             .screenColumn()
@@ -71,69 +67,6 @@ struct SemesterView: View {
         }
     }
 
-    private var courses: some View {
-        QBankListGroup(header: "Courses", footer: "Open a course to rename it, move it to another semester, or archive it.") {
-            let courses = model.semester.map(CatalogModel.courses(in:)) ?? []
-            if courses.isEmpty {
-                Text("No courses yet. Add one below.")
-                    .qbankFont(.body)
-                    .foregroundStyle(.qbank(.text3))
-                    .frame(maxWidth: .infinity, minHeight: QBankSpacing.rowMin, alignment: .leading)
-                    .padding(.horizontal, QBankSpacing.rowPaddingHorizontal)
-                    .padding(.vertical, 11)
-            }
-            ForEach(courses) { course in
-                NavigationLink(value: SettingsRoute.course(course.id)) {
-                    QBankListRow(
-                        course.code,
-                        detail: course.archivedAt == nil ? course.title : "\(course.title) · Archived",
-                        showsChevron: true
-                    )
-                }
-                .buttonStyle(.qbankRow)
-                .accessibilityIdentifier("semester.course.\(course.code)")
-            }
-        }
-    }
-
-    private var addCourse: some View {
-        VStack(alignment: .leading, spacing: QBankSpacing.space4) {
-            QBankSectionHeader("Add a course")
-                .padding(.horizontal, QBankSpacing.space5)
-                .padding(.bottom, -6)
-            LabeledField(label: "Course code") {
-                TextField("Course code", text: $model.newCode, prompt: Text("NURS 406").foregroundStyle(.qbank(.text4)))
-                    .textInputAutocapitalization(.characters)
-                    .autocorrectionDisabled()
-                    .submitLabel(.next)
-                    .focused($focus, equals: .code)
-                    .onSubmit { focus = .title }
-                    .accessibilityIdentifier("semester.newCode")
-            }
-            LabeledField(label: "Course name") {
-                TextField("Course name", text: $model.newTitle, prompt: Text("Mental Health").foregroundStyle(.qbank(.text4)))
-                    .textInputAutocapitalization(.words)
-                    .submitLabel(.done)
-                    .focused($focus, equals: .title)
-                    .onSubmit(addCourseNow)
-                    .accessibilityIdentifier("semester.newTitle")
-            }
-            if let problem = model.addProblem {
-                ProblemText(text: problem)
-            }
-            Button(action: addCourseNow) {
-                if model.isAddingCourse {
-                    ProgressView().accessibilityLabel("Adding")
-                } else {
-                    Text("Add a course to \(model.semester?.name ?? "this semester")")
-                }
-            }
-            .buttonStyle(.qbank(.secondary, size: .large, fullWidth: true))
-            .disabled(model.isAddingCourse)
-            .accessibilityIdentifier("semester.addCourse")
-        }
-    }
-
     /// By hand only: nothing archives a semester when it ends.
     private var archive: some View {
         VStack(alignment: .leading, spacing: QBankSpacing.space3) {
@@ -167,10 +100,6 @@ struct SemesterView: View {
         }
     }
 
-    private func addCourseNow() {
-        focus = nil
-        Task { await model.addCourse() }
-    }
 }
 
 /// A list row for an optional calendar date: the date with a way to clear it, or "Add date".
