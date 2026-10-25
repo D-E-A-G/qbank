@@ -2,10 +2,10 @@ import Foundation
 import Observation
 import QBankKit
 
-/// Home: her semesters with their courses, her study topics, what she archived, and the course or
-/// topic she used last. Its + adds a semester, a course or a topic, and holding a course or topic
-/// moves or archives it. Without a connection it shows the copy saved on the phone, with her
-/// waiting answers counted in.
+/// Home: her semesters with their courses, her study topics, what she archived, what she deleted in
+/// the last 30 days, and the course or topic she used last. Its + adds a semester, a course or a
+/// topic, and holding a course or topic moves, archives or deletes it. Without a connection it shows
+/// the copy saved on the phone, with her waiting answers counted in.
 @Observable
 final class HomeModel {
     /// What she archived by hand, under its semester or Study topics: an archived semester with
@@ -27,6 +27,9 @@ final class HomeModel {
     private(set) var isEditing = false
     /// When the courses on screen were saved on the phone, or nil when they came from QBank just now.
     private(set) var savedAt: Date?
+    /// The courses and topics she deleted that Bring back can still return, for Home's last row.
+    /// Nil until read, and while Home shows the phone's copy.
+    private(set) var recentlyDeleted: RecentlyDeletedCourses?
     /// Each course's saved copy, for its "Saved" badge and to count waiting answers into its card.
     private(set) var savedCourses: [String: Cached<CourseDetail>] = [:]
     private(set) var waitingProgress = WaitingProgress(answers: [:])
@@ -86,7 +89,7 @@ final class HomeModel {
         isUserAccount
     }
 
-    /// Adding, moving and archiving need QBank, so not from the copy on the phone.
+    /// Adding, moving, archiving and deleting need QBank, so not from the copy on the phone.
     var canEdit: Bool {
         isUserAccount && savedAt == nil && app.connection.isOnline && !isEditing
     }
@@ -146,6 +149,19 @@ final class HomeModel {
             return
         }
         await readSaved()
+        await readDeleted()
+    }
+
+    /// What she deleted, for Home's last row. The list needs QBank, so the phone's copy has none; a
+    /// failed read keeps the row as it was.
+    private func readDeleted() async {
+        guard savedAt == nil else {
+            recentlyDeleted = nil
+            return
+        }
+        if let deleted = try? await app.client.recentlyDeletedCourses() {
+            recentlyDeleted = deleted
+        }
     }
 
     /// Saves every course for offline in the background. `force` saves again even if it just did.

@@ -3,11 +3,13 @@ import Observation
 import QBankKit
 
 /// Something she can delete: a set (a practice set, or an exam set of a folder's exam bank), a
-/// folder with every set in it, or one of her past exams.
+/// folder with every set in it, one of her past exams, or a course or study topic with everything in
+/// it, called by its name (a course's code, a topic's title).
 enum DeleteTarget: Hashable {
     case set(id: String, title: String)
     case folder(id: String, name: String)
     case exam(id: String)
+    case course(id: String, name: String)
 
     /// Brings it back as it was, within its 30 days.
     func undo(with client: QBankClient) async throws(QBankError) {
@@ -15,6 +17,7 @@ enum DeleteTarget: Hashable {
         case .set(let id, _): try await client.undoDeletePracticeSet(id: id)
         case .folder(let id, _): try await client.undoDeleteFolder(id: id)
         case .exam(let id): try await client.undoDeleteExam(id: id)
+        case .course(let id, _): try await client.undoDeleteCourse(id: id)
         }
     }
 }
@@ -36,32 +39,35 @@ nonisolated enum DeleteWording {
         return rest.isEmpty ? nil : (title, rest)
     }
 
-    /// The confirmation's title before the warning arrives: "Delete Week 1?", "Delete this exam?".
+    /// The confirmation's title before the warning arrives: "Delete Week 1?", "Delete this exam?",
+    /// "Delete NURS 220?".
     static func question(_ target: DeleteTarget) -> String {
         switch target {
         case .set(_, let title): "Delete \(title)?"
-        case .folder(_, let name): "Delete \(name)?"
+        case .folder(_, let name), .course(_, let name): "Delete \(name)?"
         case .exam: "Delete this exam?"
         }
     }
 
     /// The Undo bar's line once it is deleted: "Heart B deleted.", "Week 1 and its 3 sets deleted.",
-    /// "Exam deleted."
+    /// "Exam deleted.", "NURS 220 deleted."
     static func deleted(_ target: DeleteTarget, setCount: Int = 0) -> String {
         switch target {
         case .set(_, let title): "\(title) deleted."
         case .folder(_, let name): "\(name)\(withSets(setCount)) deleted."
         case .exam: "Exam deleted."
+        case .course(_, let name): "\(name) deleted."
         }
     }
 
     /// The Undo bar's line once Undo brought it back: "Heart B is back.", "Week 1 and its 3 sets
-    /// are back."
+    /// are back.", "NURS 220 is back."
     static func back(_ target: DeleteTarget, setCount: Int = 0) -> String {
         switch target {
         case .set(_, let title): "\(title) is back."
         case .folder(_, let name): setCount == 0 ? "\(name) is back." : "\(name)\(withSets(setCount)) are back."
         case .exam: "The exam is back."
+        case .course(_, let name): "\(name) is back."
         }
     }
 
@@ -160,6 +166,8 @@ final class DeleteModel {
             preview = folder
         case .exam(let id):
             preview = try await app.client.examDeletion(id: id)
+        case .course(let id, _):
+            preview = try await app.client.courseDeletion(id: id)
         }
         let split = DeleteWording.split(preview.message)
         return Warning(
@@ -177,6 +185,7 @@ final class DeleteModel {
         case .set(let id, _): try await app.client.deletePracticeSet(id: id, confirm: confirm)
         case .folder(let id, _): try await app.client.deleteFolder(id: id, confirm: confirm)
         case .exam(let id): try await app.client.deleteExam(id: id, confirm: confirm)
+        case .course(let id, _): try await app.client.deleteCourse(id: id, confirm: confirm)
         }
     }
 

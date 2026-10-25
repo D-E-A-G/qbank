@@ -76,6 +76,11 @@ nonisolated final class FakeTwinJobs: Sendable {
 
     typealias Reply = (Int, [String: Any])
 
+    /// Whether exam twins of hers are still being written in the course, so it cannot be deleted yet.
+    func isWorking(courseID: String, email: String) -> Bool {
+        state.withLock { state in state.jobs.contains { $0.owner == email && $0.courseID == courseID && $0.status == "running" } }
+    }
+
     /// The answer to a twin-job call, or nil for any other path.
     func answer(method: String, path: String, body: [String: Any], email: String, library: some FakeQuestionLibrary) -> Reply? {
         guard path == "/api/twin-jobs" || path.hasPrefix("/api/twin-jobs/") else { return nil }

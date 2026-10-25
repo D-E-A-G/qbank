@@ -1,0 +1,18 @@
+{
+  "recordedFrom": "01efcb8ed7a46bc276f71671872233e6e6e0f9a0",
+  "request": {
+    "method": "POST",
+    "path": "/api/courses/c0000000-0000-4000-8000-000000000801/undo-delete",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 409,
+    "headers": {},
+    "body": {
+      "error": "request_refused",
+      "message": "Semester 2 already has a course with the code NURS 220. Rename one of them, then bring this one back."
+    }
+  }
+}

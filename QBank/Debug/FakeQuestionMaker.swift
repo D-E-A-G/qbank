@@ -123,6 +123,13 @@ nonisolated final class FakeQuestionMaker: Sendable {
 
     typealias Reply = (Int, [String: Any])
 
+    /// Whether a set of hers is still being made in the course, so the course cannot be deleted yet.
+    func isWorking(courseID: String, email: String) -> Bool {
+        state.withLock { state in
+            state.jobs.contains { $0.owner == email && $0.courseID == courseID && ["running", "waiting"].contains($0.status) }
+        }
+    }
+
     /// The answer to a make-questions call, or nil for any other path.
     func answer(method: String, path: String, body: [String: Any], email: String, library: some FakeQuestionLibrary) -> Reply? {
         if method == "GET", path == "/api/question-maker" {

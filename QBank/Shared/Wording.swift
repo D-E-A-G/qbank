@@ -305,3 +305,4 @@ nonisolated protocol CourseNaming {
 
 nonisolated extension CourseSummary: CourseNaming {}
 nonisolated extension CourseDetail: CourseNaming {}
+nonisolated extension DeletedCourse: CourseNaming {}

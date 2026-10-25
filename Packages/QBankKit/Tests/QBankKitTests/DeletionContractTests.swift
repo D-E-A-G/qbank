@@ -5,9 +5,9 @@ import FoundationNetworking
 import Testing
 @testable import QBankKit
 
-/// Deleting a set, a folder with its sets, and a past exam, Undo, and Recently deleted, against
-/// recordings of the server's real routes: each call sends what the recorded request sent, and each
-/// recorded response decodes into the models.
+/// Deleting a course or study topic, a set, a folder with its sets, and a past exam, Undo, and
+/// Recently deleted, against recordings of the server's real routes: each call sends what the
+/// recorded request sent, and each recorded response decodes into the models.
 @Suite("Contract: deleting and Undo")
 struct DeletionContractTests {
     static let course = "c0000000-0000-4000-8000-000000000701"
@@ -21,6 +21,9 @@ struct DeletionContractTests {
     static let kidneys = "5e700000-0000-4000-8000-000000000705"
     static let pastExam = "e0000000-0000-4000-8000-000000000701"
     static let runningExam = "e0000000-0000-4000-8000-000000000702"
+    static let nurs220 = "c0000000-0000-4000-8000-000000000801"
+    static let pharmacology = "c0000000-0000-4000-8000-000000000802"
+    static let semester2 = "a0000000-0000-4000-8000-000000000802"
 
     // MARK: A set
 
@@ -224,5 +227,103 @@ struct DeletionContractTests {
         #expect(exam.exam.weeks == ["Week 2"])
         #expect(exam.exam.fullyRight == 2)
         #expect(exam.undoUntil > exam.deletedAt)
+    }
+
+    // MARK: A course or study topic
+
+    @Test func aCoursesPreviewAsksOnceNamingItsQuestions() async throws {
+        let fixture = try Fixture.load("course-delete-preview")
+        let transport = try FixtureTransport([fixture])
+        let (client, _) = TestClient.make(transport)
+        let preview = try await client.courseDeletion(id: Self.nurs220)
+        try expectRequest(transport.requests.first, matches: fixture)
+        #expect(preview.courseID == Self.nurs220)
+        #expect(preview.kind == .course)
+        #expect(preview.code == "NURS 220")
+        #expect(preview.title == "Fundamentals")
+        #expect(preview.semester?.id == Self.semester2)
+        #expect(preview.semester?.name == "Semester 2")
+        #expect([preview.folderCount, preview.examPageCount, preview.setCount, preview.questionCount, preview.examQuestionCount] == [1, 0, 2, 5, 0] as [Int])
+        #expect([preview.answeredCount, preview.reviewCount, preview.pastExamCount] == [1, 1, 1] as [Int])
+        #expect(preview.message == "Delete NURS 220 and its 5 questions? You can bring it back for 30 days.")
+        #expect(preview.refusal == nil)
+        #expect(preview.confirm == "bed4d3e1a5eaf8b4")
+        #expect(preview.undoDays == 30)
+    }
+
+    @Test func aTopicsPreviewNamesItByItsName() async throws {
+        let fixture = try Fixture.load("topic-delete-preview")
+        let transport = try FixtureTransport([fixture])
+        let (client, _) = TestClient.make(transport)
+        let preview = try await client.courseDeletion(id: Self.pharmacology)
+        try expectRequest(transport.requests.first, matches: fixture)
+        #expect(preview.kind == .topic)
+        #expect(preview.code == "")
+        #expect(preview.semester == nil)
+        #expect(preview.message == "Delete Pharmacology and its 3 questions? You can bring it back for 30 days.")
+    }
+
+    @Test func aCourseIsDeletedWithThePreviewsConfirm() async throws {
+        let fixture = try Fixture.load("course-delete")
+        let transport = try FixtureTransport([fixture])
+        let (client, _) = TestClient.make(transport)
+        try await client.deleteCourse(id: Self.nurs220, confirm: "bed4d3e1a5eaf8b4")
+        try expectRequest(transport.requests.first, matches: fixture)
+    }
+
+    @Test func aCourseWithAnExamGoingIsRefusedWithThePreviewsSentence() async throws {
+        let preview = try Fixture.load("course-delete-preview-in-use")
+        let refused = try Fixture.load("course-delete-in-use")
+        let transport = try FixtureTransport([preview, refused])
+        let (client, _) = TestClient.make(transport)
+        let shown = try await client.courseDeletion(id: Self.nurs220)
+        #expect(shown.refusal == "An exam in NURS 220 is still going. Finish or leave that exam first.")
+        let error = await #expect(throws: QBankError.self) {
+            try await client.deleteCourse(id: Self.nurs220, confirm: shown.confirm)
+        }
+        try expectRequest(transport.requests.first, matches: preview)
+        try expectRequest(transport.requests.last, matches: refused)
+        try MakeQuestionsContractTests.expect(error, is: refused, code: .inUse)
+    }
+
+    @Test func homesRecentlyDeletedListsCoursesAndTopicsNewestFirst() async throws {
+        let fixture = try Fixture.load("deleted-courses")
+        let transport = try FixtureTransport([fixture])
+        let (client, _) = TestClient.make(transport)
+        let deleted = try await client.recentlyDeletedCourses()
+        try expectRequest(transport.requests.first, matches: fixture)
+        #expect(deleted.undoDays == 30)
+        #expect(deleted.courses.map(\.id) == [Self.pharmacology, Self.nurs220])
+        let topic = try #require(deleted.courses.first)
+        #expect(topic.kind == .topic)
+        #expect(topic.semester == nil)
+        #expect(topic.questionCount == 3)
+        #expect(topic.undoRefusal == nil)
+        #expect(abs(topic.undoUntil.timeIntervalSince(topic.deletedAt) - 30 * 86_400) < 0.001)
+        let course = try #require(deleted.courses.last)
+        #expect(course.code == "NURS 220")
+        #expect(course.semester?.name == "Semester 2")
+        #expect(course.undoRefusal == "Semester 2 already has a course with the code NURS 220. Rename one of them, then bring this one back.")
+    }
+
+    @Test func undoBringsATopicBackAsItsCard() async throws {
+        let fixture = try Fixture.load("course-undo-delete")
+        let transport = try FixtureTransport([fixture])
+        let (client, _) = TestClient.make(transport)
+        let card = try await client.undoDeleteCourse(id: Self.pharmacology)
+        try expectRequest(transport.requests.first, matches: fixture)
+        #expect(card.id == Self.pharmacology)
+        #expect(card.kind == .topic)
+        #expect(card.title == "Pharmacology")
+        #expect(card.questionCount == 3)
+    }
+
+    @Test func undoOfACourseWhoseCodeIsTakenSaysSoInHerWords() async throws {
+        let fixture = try Fixture.load("course-undo-delete-code-taken")
+        let transport = try FixtureTransport([fixture])
+        let (client, _) = TestClient.make(transport)
+        let error = await #expect(throws: QBankError.self) { try await client.undoDeleteCourse(id: Self.nurs220) }
+        try expectRequest(transport.requests.first, matches: fixture)
+        try MakeQuestionsContractTests.expect(error, is: fixture, code: .requestRefused)
     }
 }

@@ -159,7 +159,7 @@ struct HomeEditingTests {
         #expect(model.nextSemesterNumber == 1)
         server["GET /api/semesters"] = .ok(Self.twoSemesters)
         await model.addSemester()
-        #expect(server.calls == ["GET /api/semesters", "POST /api/semesters", "GET /api/semesters"])
+        #expect(server.calls == ["GET /api/semesters", "GET /api/deleted-courses", "POST /api/semesters", "GET /api/semesters", "GET /api/deleted-courses"])
         #expect(try Self.body(server, "POST") == #"{"number":1}"#)
         #expect(model.editProblem == nil)
         #expect(model.nextSemesterNumber == 3)
@@ -171,7 +171,7 @@ struct HomeEditingTests {
         let model = await loaded(server)
         #expect(model.nextSemesterNumber == nil)
         await model.addSemester()
-        #expect(server.calls == ["GET /api/semesters"])
+        #expect(server.calls == ["GET /api/semesters", "GET /api/deleted-courses"])
     }
 
     @Test func aRefusalSaysTheServersWords() async {
@@ -224,7 +224,7 @@ struct HomeEditingTests {
         #expect(others.map(\.number) == [2], "not its own, nor one she archived")
         await model.move(course, to: try #require(others.first))
         #expect(try Self.body(server, "PATCH") == #"{"code":"NURS 406","semesterId":"s2","title":"Invented NURS 406"}"#)
-        #expect(server.calls.last == "GET /api/semesters", "the list is read again")
+        #expect(server.calls.suffix(2) == ["GET /api/semesters", "GET /api/deleted-courses"], "the list is read again")
     }
 
     @Test func nothingIsEditedFromThePhonesCopy() async throws {

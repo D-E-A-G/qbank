@@ -3,11 +3,12 @@ import QBankKit
 import SwiftUI
 
 /// The Home tab: her courses by semester, then her study topics, then what she archived, closed
-/// until she opens it. Opens the course or topic she used last on arrival. Without a connection it
-/// shows the courses saved on the phone, and how many answers wait to be sent.
+/// until she opens it, and last, once she deleted a course or topic, Recently deleted. Opens the
+/// course or topic she used last on arrival. Without a connection it shows the courses saved on the
+/// phone, and how many answers wait to be sent.
 ///
 /// The + at the top adds a course to a semester, a study topic, or the next semester. Touching and
-/// holding a course or topic opens, renames, moves or archives it.
+/// holding a course or topic opens, renames, moves, archives or deletes it.
 ///
 /// On iPhone, a course opens over the list. On iPad, the list stays in a sidebar and the course
 /// opens beside it, with its own screens; an iPad sharing its screen narrows it to one column.
@@ -20,6 +21,8 @@ struct HomeView: View {
     @State private var sheet: HomeSheet?
     @State private var made: CourseRoute?
     @State private var showsArchived = false
+    /// The course or topic whose Delete she chose, while its question is open.
+    @State private var deleting: DeleteRequest?
 
     init(app: AppModel, navigator: HomeNavigator) {
         self.app = app
@@ -57,6 +60,15 @@ struct HomeView: View {
                 RenameCourseView(app: app, catalog: model.catalog, course: course)
             }
         })
+        .deleteSheet(app: app, request: $deleting) { target in
+            if case .course(let id, _) = target {
+                navigator.closeDeleted(courseID: id)
+            }
+        }
+        .onChange(of: app.deletions.revision) {
+            // A course or topic deleted, or brought back with Undo or from Recently deleted.
+            Task { await model.load() }
+        }
         .task {
             await model.load()
             model.saveForOffline()
@@ -181,16 +193,21 @@ struct HomeView: View {
     }
 
     /// Opens Saved for offline: over Home on iPhone, beside it on iPad.
-    @ViewBuilder
     private func savedForOffline(@ViewBuilder label: () -> some View) -> some View {
+        opening(SavedForOfflineRoute(), label: label)
+    }
+
+    /// Opens a screen of Home's: over it on iPhone, beside it on iPad.
+    @ViewBuilder
+    private func opening(_ route: some Hashable, @ViewBuilder label: () -> some View) -> some View {
         if navigator.isSplit {
             Button {
-                navigator.open(SavedForOfflineRoute())
+                navigator.open(route)
             } label: {
                 label()
             }
         } else {
-            NavigationLink(value: SavedForOfflineRoute(), label: label)
+            NavigationLink(value: route, label: label)
         }
     }
 
@@ -231,6 +248,10 @@ struct HomeView: View {
                 topics
                 if !model.archived.isEmpty {
                     archived
+                }
+                if let deleted = model.recentlyDeleted, !deleted.courses.isEmpty {
+                    recentlyDeleted(deleted)
+                        .padding(.top, QBankSpacing.space5)
                 }
             }
         } else if let problem = model.problem {
@@ -303,6 +324,23 @@ struct HomeView: View {
         }
     }
 
+    /// Home's last row, once she deleted a course or topic: Recently deleted, which brings each back
+    /// for 30 days.
+    private func recentlyDeleted(_ deleted: RecentlyDeletedCourses) -> some View {
+        QBankListGroup {
+            opening(DeletedCoursesRoute()) {
+                QBankListRow(
+                    "Recently deleted",
+                    detail: DeletedCoursesWording.entry(count: deleted.courses.count, undoDays: deleted.undoDays),
+                    systemImage: "trash",
+                    showsChevron: true
+                )
+            }
+            .buttonStyle(.qbankRow)
+            .accessibilityIdentifier("home.recentlyDeleted")
+        }
+    }
+
     /// A course or topic card: pushes it on iPhone, and on iPad shows it beside the list, marked
     /// as the one open. Touching and holding it opens its menu.
     private func courseLink(_ course: CourseSummary) -> some View {
@@ -315,7 +353,8 @@ struct HomeView: View {
     }
 
     /// What holding a card offers: Open, then while QBank can be reached, Rename, Move to each other
-    /// semester she studies (a course only), and Archive, or Unarchive for one she archived.
+    /// semester she studies (a course only), Archive, or Unarchive for one she archived, and last, in
+    /// red, Delete, which asks once and keeps it 30 days in Recently deleted.
     @ViewBuilder
     private func heldMenu(_ course: CourseSummary) -> some View {
         Button("Open", systemImage: "arrow.right.circle") {
@@ -363,6 +402,10 @@ struct HomeView: View {
                 }
                 .accessibilityIdentifier("home.hold.unarchive")
             }
+            Button("Delete", systemImage: "trash", role: .destructive) {
+                deleting = DeleteRequest(target: .course(id: course.id, name: Wording.name(course)))
+            }
+            .accessibilityIdentifier("home.hold.delete")
         }
     }
 
@@ -403,7 +446,7 @@ struct HomeView: View {
 
 extension View {
     /// The screens a course leads to, on Home's navigation stack: Review, Terms, the Exam, its exam
-    /// twins, and Saved for offline.
+    /// twins, and Saved for offline and Recently deleted.
     func studyDestinations(app: AppModel) -> some View {
         navigationDestination(for: StudyRoute.self) { route in
             switch route {
@@ -415,6 +458,9 @@ extension View {
         }
         .navigationDestination(for: SavedForOfflineRoute.self) { _ in
             SavedForOfflineView(app: app)
+        }
+        .navigationDestination(for: DeletedCoursesRoute.self) { _ in
+            DeletedCoursesView(app: app)
         }
     }
 }

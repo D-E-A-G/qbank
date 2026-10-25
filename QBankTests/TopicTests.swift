@@ -183,7 +183,7 @@ struct TopicTests {
         #expect(!model.canMove(spanish, by: 1), "the last one in use has no Move down; archived ones do not count")
         await model.move(design, by: 1)
         #expect(try Self.body(server, "PUT /api/topic-order") as? [String: [String]] == ["topicIds": ["t2", "t1", "t3"]], "every topic, the archived one last")
-        #expect(server.calls.last == "GET /api/semesters", "the list is read again")
+        #expect(server.calls.suffix(2) == ["GET /api/semesters", "GET /api/deleted-courses"], "the list is read again")
         #expect(model.editProblem == nil)
     }
 
