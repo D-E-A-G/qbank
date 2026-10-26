@@ -24,8 +24,8 @@ The copy describes only what the build does. Apple rejects a listing that promis
 
 | Field | Value |
 |---|---|
-| Privacy Policy URL (required) | https://github.com/D-E-A-G/qbank/blob/main/docs/privacy-policy.md, once its contact line is filled in. A GitHub Pages copy like Kun's can replace it later; the link stays valid either way. |
-| Support URL (required) | https://github.com/D-E-A-G/qbank/issues |
+| Privacy Policy URL (required) | https://github.com/D-e-e-g/qbank/blob/main/docs/privacy-policy.md, once its contact line is filled in. A GitHub Pages copy like Kun's can replace it later; the link stays valid either way. |
+| Support URL (required) | https://github.com/D-e-e-g/qbank/issues |
 | Marketing URL (optional) | none |
 
 ## Promotional text
