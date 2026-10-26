@@ -18,7 +18,7 @@ The workflow references no secrets, reads the repository with a `contents: read`
 
 ## Trusted code: `xcode.yml`
 
-`qbank-v*` tags and manual runs (Actions > Xcode > Run workflow, or `gh workflow run xcode.yml -R D-E-A-G/qbank --ref <branch>`) run one Mac job; a push to `main` does not:
+`qbank-v*` tags and manual runs (Actions > Xcode > Run workflow, or `gh workflow run xcode.yml -R D-e-e-g/qbank --ref <branch>`) run one Mac job; a push to `main` does not:
 
 1. `test/package-tests.sh --macos`: `swift test` in every package under `Packages/` on the Mac host
 2. `xcodebuild test` of the `QBank` scheme (unit and UI tests) on a run-scoped iPhone simulator through `test/sim.sh`, then again on a run-scoped iPad simulator, where the iPad layout's UI tests run and the iPhone layout's skip themselves
@@ -33,7 +33,7 @@ The job runs on `${{ vars.MAC_RUNNER || 'macos-26' }}`. With no `MAC_RUNNER` rep
 To move the job to the self-hosted MacBook runner once it is registered with the label `macbook-14` (Xcode installed at `/Applications/Xcode.app`, a dedicated macOS user with nothing else on it):
 
 ```sh
-gh variable set MAC_RUNNER --repo D-E-A-G/qbank --body macbook-14
+gh variable set MAC_RUNNER --repo D-e-e-g/qbank --body macbook-14
 ```
 
 Delete the variable to go back to the hosted Mac. The job uses `DEVELOPER_DIR` rather than `sudo`, so the runner user needs no administrator rights.

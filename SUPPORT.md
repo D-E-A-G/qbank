@@ -4,7 +4,7 @@ Support here means help with the source code and documentation in this repositor
 
 ## Build, source, and documentation questions
 
-Open a public [GitHub issue](https://github.com/D-E-A-G/qbank/issues) for:
+Open a public [GitHub issue](https://github.com/D-e-e-g/qbank/issues) for:
 
 - Problems following the [getting started steps](README.md#getting-started) or running the simulator build and tests.
 - Questions about the code or the client-only boundary of this repository.

@@ -10,7 +10,7 @@ Security fixes land only on the `main` branch of this repository. If you build t
 
 Report vulnerabilities privately through GitHub's private vulnerability reporting for this repository:
 
-**<https://github.com/D-E-A-G/qbank/security/advisories/new>**
+**<https://github.com/D-e-e-g/qbank/security/advisories/new>**
 
 **Do not open a public issue, discussion, or pull request for a security or privacy finding.** This applies with extra force to anything involving sign-in, sessions, or a student's data: never post such findings, reproduction data, or screenshots publicly.
 
