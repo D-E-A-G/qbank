@@ -25,6 +25,10 @@ struct ChangePasswordRequest: Encodable {
     let newPassword: String
 }
 
+struct DeleteAccountRequest: Encodable {
+    let password: String
+}
+
 struct AddSemesterRequest: Encodable {
     let number: Int
 }

@@ -22,6 +22,9 @@ final class AppModel {
     private(set) var temporaryPassword: String?
     /// True once Home has opened the course she used last, so it happens once per sign-in.
     var hasLanded = false
+    /// Counts sign-ins on this phone, so each starts from fresh screens, even for the account that
+    /// just signed out.
+    private(set) var signIns = 0
 
     let client: QBankClient
     /// Light or dark, chosen in Settings and kept on this phone.
@@ -131,6 +134,7 @@ final class AppModel {
     /// After a sign-in with her password, or with a passkey (`password` nil). A password sign-in
     /// offers to save a passkey, as the web does.
     func signedIn(_ signedIn: SignedIn, password: String?) {
+        signIns += 1
         signedOutReason = nil
         hasLanded = false
         lock.signedIn()
@@ -171,6 +175,19 @@ final class AppModel {
     /// with the courses it saved and any answers still waiting to be sent.
     func signOut() async {
         try? await client.signOut()
+        await eraseAccount()
+    }
+
+    /// Deletes her user account on the server, for good, checked with her password. Once it is
+    /// gone the phone forgets it as a sign-out does, with the courses it saved and any answers still
+    /// waiting. A refusal deletes nothing, keeps her signed in, and is thrown for the screen to say.
+    func deleteAccount(password: String) async throws(QBankError) {
+        try await client.deleteAccount(password: password)
+        await eraseAccount()
+    }
+
+    /// Forgets the account signed in, and everything the phone kept for it.
+    private func eraseAccount() async {
         if let account {
             await offline?.close()
             offline = nil

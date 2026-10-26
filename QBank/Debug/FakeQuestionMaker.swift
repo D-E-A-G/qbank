@@ -130,6 +130,14 @@ nonisolated final class FakeQuestionMaker: Sendable {
         }
     }
 
+    /// Whether a set of hers is being written in the course right now, so her account cannot be
+    /// deleted yet. One waiting for her check is idle, and would go with the account.
+    func isRunning(courseID: String, email: String) -> Bool {
+        state.withLock { state in
+            state.jobs.contains { $0.owner == email && $0.courseID == courseID && $0.status == "running" }
+        }
+    }
+
     /// The answer to a make-questions call, or nil for any other path.
     func answer(method: String, path: String, body: [String: Any], email: String, library: some FakeQuestionLibrary) -> Reply? {
         if method == "GET", path == "/api/question-maker" {

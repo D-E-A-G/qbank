@@ -118,6 +118,23 @@ public struct QBankClient: Sendable {
         return signedIn
     }
 
+    /// Deletes the signed-in user account and everything it has, for good: its semesters, courses
+    /// and study topics with everything in them, its answers, progress, Review and past exams, its
+    /// jobs, passkeys and agent keys. Nothing goes to Recently deleted and there is no Undo. The
+    /// request names no account: it is always the one this session belongs to, checked with her
+    /// current password. Every session of the account ends, on every device, and this one is
+    /// forgotten here. Any 2xx means it is gone: the body is not read, and a stored session that
+    /// cannot be cleared is left to end with its next 401.
+    ///
+    /// Refusals delete nothing: a wrong password is 401 `invalid_credentials` and counts toward the
+    /// sign-in lock (`too_many_attempts`, 429, `retryAfterSeconds`); a temporary password is 403
+    /// `must_change_password`; the admin is 403 `admin_cannot_delete_account`; and a Make questions
+    /// or exam twins job still running in one of her courses is 409 `in_use`, whose message names it.
+    public func deleteAccount(password: String) async throws(QBankError) {
+        _ = try await exchange(Request(.delete, "/api/me", body: DeleteAccountRequest(password: password)))
+        try? sessionStore.clear()
+    }
+
     // MARK: Courses
 
     /// Home: her semesters with their courses, and her study topics.

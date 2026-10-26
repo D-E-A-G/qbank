@@ -26,11 +26,12 @@ The reviewer needs to understand this, so the review notes below say it in short
 4. **Forgot password?** explains that the app sends no email: the owner sets a temporary password from his admin account, and the user chooses a new one at the next sign-in (the **Choose a new password** screen).
 5. Signed in, the app opens on Home (courses by semester) and stays signed in for months unless the user signs out in Settings.
 6. After a password sign-in the app offers once to save a passkey for that device (**Not now** declines). A passkey is saved with the iOS passkey sheet, signs in through the same sheet with Face ID, Touch ID or the passcode, and is listed and removed in **Settings > Passkeys**. The app sends the server only the passkey's public key and signatures, never a biometric.
+7. **Settings > Delete account** deletes the signed-in user account and everything in it for good, after its current password: its courses and study topics, sets, answers, progress and past exams, on every device, with no Undo. The app then signs out and forgets what it kept on the phone. The admin account has no Delete account.
 
 Login rules this meets:
 
 - **Guideline 4.8 (Sign in with Apple)** does not apply: QBank uses only its own account system, no third-party or social login. Passkeys are a way into that same account.
-- **Guideline 5.1.1(v), account deletion:** required for apps that let people create an account, and QBank's app does: **Sign up**, for an email on the owner's list. The app has no **Delete account** yet, and it needs a server endpoint that does not exist. **Both must ship before an App Store submission.** TestFlight is not affected. Until then the privacy policy says how to ask the owner for deletion.
+- **Guideline 5.1.1(v), account deletion:** required for apps that let people create an account, and QBank's app does: **Sign up**, for an email on the owner's list. **Settings > Delete account** deletes the account from inside the app (step 7 above), through the server's `DELETE /api/me`.
 - **Guideline 2.1, demo account:** required because the app has a login; see below. The server must be up during review.
 
 ## Demo account
@@ -48,7 +49,7 @@ How to make it (owner, on the web app, about five minutes):
 2. On the web app's admin screen, add that email to the sign-up list.
 3. Sign out, choose **Sign up** in the app or on the web, and create the account with a strong password that is not used anywhere else.
 4. Sign in to the iPhone app with it once, answer a few questions in one course, and finish one short exam, so the reviewer sees a Review list and progress instead of empty screens.
-5. Keep the account after review: Apple may re-check it with each new version. Change its password after any version is approved if you like, and update App Store Connect at the same time.
+5. Keep the account after review: Apple may re-check it with each new version. Change its password after any version is approved if you like, and update App Store Connect at the same time. A reviewer may try **Delete account** on it; if it is gone, make it again the same way before the next submission.
 
 The demo account is an ordinary user account. It has its own sample courses and sets, and it sees only its own questions and answers. Nothing it does touches Khine's questions or progress.
 
@@ -56,7 +57,7 @@ Before every submission, a worker signs in to the TestFlight build of that versi
 
 ## Review notes
 
-Paste into App Store Connect (App Review Information > Notes). Fill the marked words first: the review contact, and ACCOUNT_DELETION_NOTE, which says where **Delete account** is in the app once it ships (Guideline 5.1.1(v) above).
+Paste into App Store Connect (App Review Information > Notes). Fill the marked words first: the review contact.
 
 ```text
 QBank is an NCLEX-style practice question bank for nursing students. It is the iPhone client of a private QBank server (https://qbank.dimitrygallego.com) that also serves a web app.
@@ -70,7 +71,7 @@ What to try:
 4. Open Exam in the course, pick folders (or "Wrong questions only"), and start a timed exam. "End exam" scores what was answered.
 5. Turn on Airplane Mode and answer a practice question: it is saved on the phone and sent when the connection returns. Exams need a connection.
 
-Accounts: Sign up makes an account only for an email the owner has added. ACCOUNT_DELETION_NOTE. There is no third-party or social login (Guideline 4.8 does not apply).
+Accounts: Sign up makes an account only for an email the owner has added. To delete an account in the app, open the Settings tab, tap Delete account, enter the account's password, and tap Delete account: the account and everything in it are deleted for good, on every device. There is no third-party or social login (Guideline 4.8 does not apply).
 
 The app has no ads, no tracking, no analytics, and no in-app purchases. It uses only standard HTTPS encryption.
 

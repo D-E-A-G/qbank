@@ -5,14 +5,16 @@ import SwiftUI
 /// Where a Settings row leads.
 enum SettingsRoute: Hashable {
     case changePassword
+    case deleteAccount
     case passkeys
     case semester(String)
     case savedForOffline
 }
 
-/// The Settings tab, as the web's Settings for a user account: her account, her semesters by name
-/// and dates, and Look and Color, then what is saved on this phone. Home's + adds a semester, a
-/// course or a topic, and holding one on Home renames, moves or archives it. Export stays on the web.
+/// The Settings tab, as the web's Settings for a user account: her account, which she can delete
+/// here, her semesters by name and dates, and Look and Color, then what is saved on this phone.
+/// Home's + adds a semester, a course or a topic, and holding one on Home renames, moves or
+/// archives it. Export stays on the web.
 struct SettingsView: View {
     let app: AppModel
     @State private var catalog: CatalogModel
@@ -60,6 +62,8 @@ struct SettingsView: View {
                 switch route {
                 case .changePassword:
                     ChangePasswordView(app: app)
+                case .deleteAccount:
+                    DeleteAccountView(app: app)
                 case .passkeys:
                     PasskeysView(model: passkeys, lock: app.lock)
                 case .semester(let id):
@@ -132,6 +136,14 @@ struct SettingsView: View {
             } message: {
                 let waiting = app.offline?.waiting.count ?? 0
                 Text("\(Wording.count(waiting, "answer")) \(waiting == 1 ? "has" : "have") not reached QBank yet. Signing out deletes \(waiting == 1 ? "it" : "them") from this \(Device.noun).")
+            }
+            if DeleteAccountModel.isOffered(to: app.account) {
+                NavigationLink(value: SettingsRoute.deleteAccount) {
+                    QBankListRow("Delete account", showsChevron: true, isDestructive: true)
+                }
+                .buttonStyle(.qbankRow)
+                .disabled(isSigningOut)
+                .accessibilityIdentifier("settings.deleteAccount")
             }
         }
     }

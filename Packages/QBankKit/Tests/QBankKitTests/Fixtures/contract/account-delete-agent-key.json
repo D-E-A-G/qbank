@@ -1,0 +1,20 @@
+{
+  "recordedFrom": "b11d26264edc454dc17155a007e05775c9a3ac61",
+  "request": {
+    "method": "DELETE",
+    "path": "/api/me",
+    "query": {},
+    "authorization": "Bearer synthetic-agent-key",
+    "body": {
+      "password": "synthetic-pass-2"
+    }
+  },
+  "response": {
+    "status": 403,
+    "headers": {},
+    "body": {
+      "error": "agent_key_not_allowed",
+      "message": "An agent key can't do this. Sign in to QBank to do it."
+    }
+  }
+}

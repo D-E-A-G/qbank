@@ -45,6 +45,51 @@ struct DebugLaunchScenarioTests {
         #expect(setup.exams.count == 3, "her past exams as in signed-in")
     }
 
+    /// Through the fake server: a wrong password deletes nothing, the right one deletes her account,
+    /// and then it neither works on this phone nor signs in again.
+    @Test func signedInScenarioDeletesHerAccountWithHerPassword() async throws {
+        let app = try #require(Self.launch("signed-in"))
+        let model = DeleteAccountModel(app: app)
+        model.password = "not-it"
+        await model.delete()
+        #expect(model.problem == "That password is not right.")
+        #expect(app.account?.email == FakeQBankServer.student.email)
+
+        model.password = FakeQBankServer.student.password
+        await model.delete()
+        #expect(app.route == .signedOut)
+        let error = await #expect(throws: QBankError.self) {
+            try await app.client.signIn(email: FakeQBankServer.student.email, password: FakeQBankServer.student.password)
+        }
+        #expect(error?.serverCode == .invalidCredentials)
+    }
+
+    /// A set still being written in one of her courses holds her account until it is filed.
+    @Test func makerScenarioCannotDeleteWhileASetIsBeingWritten() async throws {
+        let app = try #require(Self.launch("maker"))
+        let model = DeleteAccountModel(app: app)
+        model.password = FakeQBankServer.maker.password
+        await model.delete()
+        #expect(model.problem == "QBank is still making a set in NURS 310. Wait until it is filed, or cancel it, then delete your account.")
+        #expect(app.account?.email == FakeQBankServer.maker.email)
+    }
+
+    /// The fifth wrong password locks deleting, and the fake says so in its header too.
+    @Test func fakeServerLocksDeletingAfterFiveWrongPasswords() async throws {
+        let app = try #require(Self.launch("signed-in"))
+        let model = DeleteAccountModel(app: app)
+        for _ in 1...4 {
+            model.password = "not-it"
+            await model.delete()
+            #expect(model.problem == "That password is not right.")
+        }
+        model.password = "not-it"
+        await model.delete()
+        #expect(model.problem == "Too many tries. Try again in 15 minutes.")
+        #expect(model.canDelete == false)
+        #expect(app.account?.email == FakeQBankServer.student.email)
+    }
+
     @Test(arguments: [("maker", true), ("maker-not-set-up", false)])
     func makerScenariosSignInAsTheAccountThatMakesQuestions(scenario: String, isSetUp: Bool) async throws {
         let app = try #require(Self.launch(scenario))

@@ -262,6 +262,43 @@ final class QBankUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts[Self.email].appears(timeout: 5))
     }
 
+    /// Delete account says what goes for good and asks for her password; a wrong one deletes
+    /// nothing, and the right one signs her out of an account that no longer signs in.
+    @MainActor
+    func testDeleteAccountAsksForHerPasswordThenSignsHerOut() throws {
+        let app = launch("signed-in")
+        openSettings(app)
+        let row = app.buttons["settings.deleteAccount"]
+        XCTAssertTrue(row.appears(timeout: 5))
+        attach(app, "1d settings, delete account row")
+        row.tap()
+        XCTAssertTrue(app.navigationBars["Delete account"].appears(timeout: 5))
+        let message = app.staticTexts["deleteAccount.message"]
+        XCTAssertTrue(message.label.contains("deleted for good"), message.label)
+        XCTAssertTrue(message.label.contains("there is no Undo"), message.label)
+        attachLooks(app, "1d-4 delete account")
+
+        let delete = app.buttons["deleteAccount.delete"]
+        delete.tap()
+        XCTAssertTrue(app.staticTexts["Enter your password to delete your account."].appears(timeout: 5))
+
+        let password = app.secureTextFields["deleteAccount.password"]
+        type(password, "not-it")
+        delete.tap()
+        XCTAssertTrue(app.staticTexts["That password is not right."].appears(timeout: 5))
+        dismissKeyboard(app)
+        attach(app, "1d-4 delete account, wrong password")
+        XCTAssertTrue(app.navigationBars["Delete account"].exists, "still signed in, on the same screen")
+
+        type(password, Self.password)
+        delete.tap()
+        XCTAssertTrue(app.staticTexts["signIn.title"].appears(timeout: 10))
+        dismissSavePassword(app)
+
+        signIn(app, email: Self.email, password: Self.password)
+        XCTAssertTrue(app.staticTexts["That email or password is not right."].appears(timeout: 5), "the deleted account signs in no more")
+    }
+
     @MainActor
     func testSettingsKeepsSemestersForTheirNameAndDates() throws {
         let app = launch("signed-in")
