@@ -88,6 +88,10 @@ public struct ServerError: Error, Sendable, Equatable {
         public static let samePassword: Code = "same_password"
         public static let authFailed: Code = "auth_failed"
         public static let authUnavailable: Code = "auth_unavailable"
+        /// A call only her own signed-in session may make, such as deleting her account, sent with an agent key.
+        public static let agentKeyNotAllowed: Code = "agent_key_not_allowed"
+        /// Deleting the account, refused for the admin.
+        public static let adminCannotDeleteAccount: Code = "admin_cannot_delete_account"
         // Passkeys: an answer the server does not accept, and options it could not make.
         public static let invalidPasskey: Code = "invalid_passkey"
         public static let passkeyFailed: Code = "passkey_failed"

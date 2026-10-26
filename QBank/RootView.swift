@@ -16,8 +16,9 @@ struct RootView: View {
                     .transition(.opacity)
             case .signedIn(let account):
                 SignedInView(app: model)
-                    // A new sign-in starts from fresh screens.
-                    .id(account.id)
+                    // A new sign-in starts from fresh screens, even one made while the screens of
+                    // the same account's sign-out still fade.
+                    .id("\(account.id) \(model.signIns)")
                     .transition(.opacity)
             }
         }

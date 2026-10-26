@@ -81,11 +81,11 @@ While the app is tested through Apple's TestFlight, Apple may share with the own
 
 - **On the server:** your account, study content, answers, and progress are kept until the account is deleted. Expired sessions stop working; their records are removed with the account. Photos and files sent to make questions are deleted once the server has read them; the text of your material stays in the record of that set until the account is deleted. Deleting a course or study topic, a set, a folder, or a past exam in the app hides it everywhere, and Undo can bring it back as it was for 30 days; the server keeps it, with your answers to it, until the account is deleted, and nothing is ever deleted unless you confirm it.
 - **In backups:** up to about 30 days after deletion from the live server.
-- **On your iPhone or iPad:** until you sign out or delete the app.
+- **On your iPhone or iPad:** until you sign out, delete your account, or delete the app.
 
 ## Deleting your account and data
 
-The app cannot delete an account yet, so accounts are removed by the owner. To delete your account, ask the owner (contact below). He removes the account from the server, and with it everything linked to it: sign-in, sessions, passkeys, your study content (semesters, courses, topics, pages, folders, sets, questions, and terms), answers, progress, Review list, exams, the records of the sets you made questions for, and your last-opened course. Backup copies age out within about 30 days. To remove the copy on your device, sign out or delete the app.
+To delete your account, open **Settings > Delete account** in the app and enter your password. The server deletes the account for good, and with it everything linked to it: sign-in, sessions on every device, passkeys, your study content (semesters, courses, topics, pages, folders, sets, questions, and terms), answers, progress, Review list, exams, the records of the sets you made questions for, and your last-opened course. Nothing goes to Recently deleted and there is no Undo. The app then signs out and deletes what it kept on your device, including answers not yet sent. Your email stays on the owner's sign-up list until he removes it. Backup copies age out within about 30 days. You can also ask the owner to delete your account (contact below). To remove only the copy on your device, sign out or delete the app.
 
 If you only want a copy of your data, use **Export my progress** first.
 

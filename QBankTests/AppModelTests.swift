@@ -59,6 +59,20 @@ struct AppModelTests {
         #expect(server.calls == ["POST /api/sign-out"])
     }
 
+    /// Each sign-in counts, so the same account signing in again starts from fresh screens.
+    @Test func eachSignInCounts() async {
+        let server = StubServer(["POST /api/sign-out": .ok(#"{"status":"ok"}"#), "POST /api/sign-in/password": .ok(Bodies.signedIn())])
+        let (app, _) = TestApp.make(server, account: .student())
+        #expect(app.signIns == 0)
+        await app.signOut()
+        let signIn = SignInModel(app: app)
+        signIn.email = "student@example.com"
+        signIn.password = "synthetic-pass-1"
+        await signIn.signIn()
+        #expect(app.signIns == 1)
+        #expect(app.route == .signedIn(.student()))
+    }
+
     @Test func mustChangePasswordFromAnyCallOpensChoosePassword() {
         let (app, _) = TestApp.make(StubServer(), account: .student())
         let handled = app.handle(.server(ServerError(status: 403, code: .mustChangePassword, message: "Choose a new password to continue.")))

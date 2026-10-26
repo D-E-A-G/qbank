@@ -135,6 +135,154 @@ struct ChangePasswordModelTests {
 }
 
 @MainActor
+struct DeleteAccountModelTests {
+    /// A clock the test moves on by hand.
+    private final class Clock {
+        var now = Date(timeIntervalSince1970: 1_800_000_000)
+    }
+
+    private func model(_ server: StubServer, clock: Clock = Clock(), storage: PhoneStorage = .memory(), connection: Connection = Connection()) -> (DeleteAccountModel, AppModel, InMemorySessionStore) {
+        let (app, store) = TestApp.make(server, account: .student(), storage: storage, connection: connection)
+        let model = DeleteAccountModel(app: app) { clock.now }
+        model.password = "synthetic-pass-1"
+        return (model, app, store)
+    }
+
+    @Test func aDeleteSendsOnlyHerPasswordAndSignsHerOut() async throws {
+        let server = StubServer(["DELETE /api/me": .ok(#"{"status":"deleted"}"#)])
+        let (model, app, store) = model(server)
+        app.hasLanded = true
+        await model.delete()
+        #expect(model.problem == nil)
+        #expect(app.route == .signedOut)
+        #expect(app.signedOutReason == nil)
+        #expect(app.hasLanded == false)
+        #expect(try store.load() == nil)
+        #expect(server.calls == ["DELETE /api/me"])
+        let body = try #require(server.requests.last?.httpBody)
+        #expect(String(decoding: body, as: UTF8.self) == #"{"password":"synthetic-pass-1"}"#)
+    }
+
+    /// Once the account is gone the phone keeps nothing of it, as after a sign-out: no saved
+    /// courses, no answers waiting to be sent.
+    @Test func aDeleteLeavesNothingOfHersOnThePhone() async throws {
+        let storage = PhoneStorage.memory()
+        let server = StubServer(["GET /api/semesters": .ok(Bodies.semesters()), "DELETE /api/me": .ok(#"{"status":"deleted"}"#)])
+        let (model, app, _) = model(server, storage: storage, connection: Connection(isOnline: false))
+        try await AppModelTests.waitingAnswer(app)
+        _ = try await app.offline?.load(.catalog) { () async throws(QBankError) in try await app.client.catalog() }
+        #expect(model.waitingCount == 1)
+        await model.delete()
+        #expect(app.offline == nil)
+
+        let (again, _) = TestApp.make(server, account: .student(), storage: storage)
+        #expect(again.offline?.waiting.isEmpty == true)
+        #expect(await again.offline?.saved(.catalog) == nil)
+    }
+
+    @Test func noPasswordIsAskedForBeforeSending() async {
+        let server = StubServer()
+        let (model, app, _) = model(server)
+        model.password = ""
+        await model.delete()
+        #expect(model.problem == "Enter your password to delete your account.")
+        #expect(server.requests.isEmpty)
+        #expect(app.route == .signedIn(.student()))
+    }
+
+    @Test func aWrongPasswordSaysSoAndKeepsHerSignedIn() async throws {
+        let server = StubServer(["DELETE /api/me": .error(401, "invalid_credentials", "That password is not right.")])
+        let (model, app, store) = model(server)
+        await model.delete()
+        #expect(model.problem == "That password is not right.")
+        #expect(model.password.isEmpty)
+        #expect(model.canDelete)
+        #expect(app.route == .signedIn(.student()))
+        #expect(try store.load()?.token == TestApp.token)
+    }
+
+    /// Each refusal deletes nothing: she stays signed in and reads the server's sentence.
+    @Test(arguments: [
+        (409, "in_use", "QBank is still making a set in NURS 310. Wait until it is filed, or cancel it, then delete your account."),
+        (403, "admin_cannot_delete_account", "The admin account can't be deleted."),
+        (403, "agent_key_not_allowed", "An agent key can't do this. Sign in to QBank to do it."),
+        (400, "invalid_request", "Check the fields and try again."),
+        (503, "auth_unavailable", "Sign-in is not available right now."),
+    ])
+    func aRefusalSaysWhyInTheServersWords(status: Int, code: String, message: String) async throws {
+        let server = StubServer(["DELETE /api/me": .error(status, code, message)])
+        let (model, app, store) = model(server)
+        await model.delete()
+        #expect(model.problem == message)
+        #expect(model.password == "synthetic-pass-1")
+        #expect(app.route == .signedIn(.student()))
+        #expect(try store.load()?.token == TestApp.token)
+    }
+
+    /// Too many wrong passwords: Delete waits until the lock's time has passed, then the line goes.
+    @Test func aLockWaitsForItsTime() async {
+        let clock = Clock()
+        let locked = StubServer.Reply(
+            status: 429,
+            body: #"{"error":"too_many_attempts","message":"Too many tries. Try again in 15 minutes.","retryAfterSeconds":900}"#,
+            headers: ["retry-after": "900"]
+        )
+        let server = StubServer(["DELETE /api/me": locked])
+        let (model, app, _) = model(server, clock: clock)
+        await model.delete()
+        #expect(model.problem == "Too many tries. Try again in 15 minutes.")
+        #expect(model.lockedUntil == clock.now.addingTimeInterval(900))
+        #expect(model.canDelete == false)
+        #expect(model.password.isEmpty)
+        #expect(app.route == .signedIn(.student()))
+
+        model.password = "synthetic-pass-1"
+        await model.delete()
+        #expect(server.calls == ["DELETE /api/me"], "nothing is sent while locked")
+
+        clock.now += 899
+        model.lockEnded()
+        #expect(model.canDelete == false)
+        clock.now += 1
+        model.lockEnded()
+        #expect(model.canDelete)
+        #expect(model.lockedUntil == nil)
+        #expect(model.problem == nil)
+    }
+
+    /// A temporary password leads to choosing a new one first, as any call does.
+    @Test func aTemporaryPasswordLeadsToChoosingANewOne() async {
+        let server = StubServer(["DELETE /api/me": .error(403, "must_change_password", "Choose a new password to continue.")])
+        let (model, app, _) = model(server)
+        await model.delete()
+        #expect(app.route == .choosingPassword(.student()))
+        #expect(model.problem == nil)
+    }
+
+    @Test func anEndedSessionSignsHerOut() async {
+        let server = StubServer(["DELETE /api/me": .error(401, "unauthenticated", "Sign in to continue.")])
+        let (model, app, _) = model(server)
+        await model.delete()
+        #expect(app.route == .signedOut)
+        #expect(app.signedOutReason == "Your session ended. Sign in again.")
+    }
+
+    @Test func noSignalIsSaidPlainlyAndDeletesNothing() async {
+        let (model, app, _) = model(StubServer(["DELETE /api/me": .offline]))
+        await model.delete()
+        #expect(model.problem == "No connection. Check Wi-Fi or cellular data and try again.")
+        #expect(app.route == .signedIn(.student()))
+        #expect(model.password == "synthetic-pass-1")
+    }
+
+    @Test func onlyAUserAccountIsOfferedIt() {
+        #expect(DeleteAccountModel.isOffered(to: .student()))
+        #expect(DeleteAccountModel.isOffered(to: .admin) == false)
+        #expect(DeleteAccountModel.isOffered(to: nil) == false)
+    }
+}
+
+@MainActor
 struct CatalogModelTests {
     static let twoSemesters = Bodies.catalog([
         Bodies.semester(id: "s1", number: 1, courses: [

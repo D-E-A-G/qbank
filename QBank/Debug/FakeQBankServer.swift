@@ -103,6 +103,8 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary, Fak
         var importCount = 0
         /// Refused sign-ups by email; the fifth locks that email's sign-up.
         var signUpRefusals: [String: Int] = [:]
+        /// Wrong passwords to delete an account, by email; the fifth locks deleting it.
+        var wrongDeletePasswords: [String: Int] = [:]
     }
 
     private let state: Mutex<State>
@@ -197,6 +199,10 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary, Fak
         } else {
             (status, body) = answer(method: method, path: url.path(), query: query, token: token, body: fields, rawBody: request.httpBody)
         }
+        // A lock says how long in its header too, as the server's does.
+        if let retryAfter = body["retryAfterSeconds"] as? Int {
+            headers["retry-after"] = String(retryAfter)
+        }
         // A 204 has no body, as the server sends it.
         let data = status == 204 ? Data() : try JSONSerialization.data(withJSONObject: body)
         let response = HTTPURLResponse(url: url, statusCode: status, httpVersion: "HTTP/1.1", headerFields: headers)!
@@ -241,6 +247,8 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary, Fak
             return (200, ["status": "ok"])
         case ("POST", "/api/account/password"):
             return changePassword(account, token: token, current: body["currentPassword"] as? String ?? "", new: body["newPassword"] as? String ?? "")
+        case ("DELETE", "/api/me"):
+            return deleteAccount(account, password: body["password"] as? String ?? "")
         default:
             break
         }
@@ -365,6 +373,8 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary, Fak
     }
 
     private static let signUpLimit = 5
+    /// Wrong passwords before deleting the account locks, as sign-in locks.
+    private static let passwordLimit = 5
 
     /// A new session for the account that matches, as a sign-in answers it.
     private func startSession(for matches: (Account) -> Bool) -> Reply {
@@ -379,6 +389,58 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary, Fak
             return failure(401, "invalid_credentials", "That email or password is not right.")
         }
         return (200, ["token": token, "user": account.json, "expiresAt": date(days: 30)])
+    }
+
+    /// Deletes the account signed in, for good, in the real route's order: the fields' rules, a
+    /// temporary password, the lock, her password, then a job still running in one of her courses.
+    /// Its sessions end on every device, and it signs in no more. The fifth wrong password locks it.
+    private func deleteAccount(_ account: Account, password: String) -> Reply {
+        guard (1...128).contains(password.utf16.count) else {
+            return failure(400, "invalid_request", "Check the fields and try again.")
+        }
+        if account.mustChangePassword {
+            return failure(403, "must_change_password", "Choose a new password to continue.")
+        }
+        let checked = state.withLock { state -> Bool? in
+            if state.wrongDeletePasswords[account.email, default: 0] >= Self.passwordLimit { return nil }
+            guard password == account.password else {
+                state.wrongDeletePasswords[account.email, default: 0] += 1
+                return state.wrongDeletePasswords[account.email]! >= Self.passwordLimit ? nil : false
+            }
+            return true
+        }
+        switch checked {
+        case nil:
+            var reply = failure(429, "too_many_attempts", "Too many tries. Try again in 15 minutes.")
+            reply.1["retryAfterSeconds"] = 900
+            return reply
+        case false?:
+            return failure(401, "invalid_credentials", "That password is not right.")
+        case true?:
+            break
+        }
+        if let inUse = accountInUse(email: account.email) {
+            return failure(409, "in_use", inUse)
+        }
+        state.withLock { state in
+            state.accounts.removeAll { $0.email == account.email }
+            state.sessions = state.sessions.filter { $0.value != account.email }
+        }
+        return (200, ["status": "deleted"])
+    }
+
+    /// The sentence refusing to delete her account now: a job still running in one of her courses.
+    private func accountInUse(email: String) -> String? {
+        let courses = state.withLock { $0.courses.filter { $0.deletedAt == nil } }
+        for course in courses {
+            if twinJobs.isWorking(courseID: course.id, email: email) {
+                return "QBank is still writing exam twins in \(Self.name(course)). Wait until they are filed, or cancel them, then delete your account."
+            }
+            if questionMaker.isRunning(courseID: course.id, email: email) {
+                return "QBank is still making a set in \(Self.name(course)). Wait until it is filed, or cancel it, then delete your account."
+            }
+        }
+        return nil
     }
 
     /// Her color scheme, which the real route takes only by its name and answers with her account.

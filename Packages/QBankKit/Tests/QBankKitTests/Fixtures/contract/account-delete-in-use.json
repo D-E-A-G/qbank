@@ -1,0 +1,20 @@
+{
+  "recordedFrom": "b11d26264edc454dc17155a007e05775c9a3ac61",
+  "request": {
+    "method": "DELETE",
+    "path": "/api/me",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": {
+      "password": "synthetic-pass-2"
+    }
+  },
+  "response": {
+    "status": 409,
+    "headers": {},
+    "body": {
+      "error": "in_use",
+      "message": "QBank is still making a set in NURS 101. Wait until it is filed, or cancel it, then delete your account."
+    }
+  }
+}

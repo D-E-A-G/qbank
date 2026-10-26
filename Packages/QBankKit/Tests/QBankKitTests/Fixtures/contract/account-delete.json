@@ -1,0 +1,19 @@
+{
+  "recordedFrom": "b11d26264edc454dc17155a007e05775c9a3ac61",
+  "request": {
+    "method": "DELETE",
+    "path": "/api/me",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": {
+      "password": "synthetic-pass-2"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "status": "deleted"
+    }
+  }
+}
