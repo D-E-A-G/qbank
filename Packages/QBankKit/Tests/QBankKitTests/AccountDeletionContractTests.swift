@@ -20,6 +20,22 @@ struct AccountDeletionContractTests {
         #expect(try store.load() == nil)
     }
 
+    /// A 2xx means the account is gone, whatever the body says: the session is forgotten and nothing throws.
+    @Test(arguments: ["", "<html>ok</html>", #"{"status":"something-new"}"#])
+    func anyTwoHundredMeansDeleted(body: String) async throws {
+        let (client, store) = TestClient.make(FixtureTransport(status: 200, body: body))
+        try await client.deleteAccount(password: "synthetic-pass-2")
+        #expect(try store.load() == nil)
+    }
+
+    /// The server already deleted it, so a session that will not clear is not a refusal.
+    @Test func aSessionThatCannotBeClearedDoesNotLookLikeARefusal() async throws {
+        let transport = FixtureTransport(status: 200, body: #"{"status":"deleted"}"#)
+        let client = QBankClient(configuration: APIConfiguration(baseURL: TestClient.baseURL), transport: transport, sessionStore: UnclearableSessionStore())
+        try await client.deleteAccount(password: "synthetic-pass-2")
+        #expect(transport.requests.count == 1)
+    }
+
     /// The account's sessions ended with it: her other device's, and this one's if it tries again.
     @Test(arguments: ["session-after-account-delete", "account-delete-signed-out"])
     func afterADeleteEverySessionNeedsSignIn(name: String) async throws {
@@ -101,5 +117,13 @@ struct AccountDeletionContractTests {
         let response = try #require(HTTPURLResponse(url: TestClient.baseURL, statusCode: fixture.response.status, httpVersion: "HTTP/1.1", headerFields: nil))
         let error = QBankClient.failure(status: fixture.response.status, data: try fixture.responseData, response: response)
         try MakeQuestionsContractTests.expect(error, is: fixture, code: .invalidRequest)
+    }
+}
+
+struct UnclearableSessionStore: SessionStore {
+    func load() throws(StorageError) -> StoredSession? { StoredSession(token: "synthetic-session-token") }
+    func save(_ session: StoredSession) throws(StorageError) {}
+    func clear() throws(StorageError) {
+        throw StorageError(operation: "clear session", reason: "locked", status: -25308)
     }
 }

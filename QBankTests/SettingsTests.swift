@@ -180,6 +180,43 @@ struct DeleteAccountModelTests {
         #expect(await again.offline?.saved(.catalog) == nil)
     }
 
+    /// The server already deleted the account, so a session the phone cannot clear still signs her out
+    /// and erases what the phone kept.
+    @Test func aDeleteSignsHerOutAndErasesEvenWhenTheSessionWillNotClear() async throws {
+        struct Unclearable: SessionStore {
+            let inner: InMemorySessionStore
+            func load() throws(StorageError) -> StoredSession? { try inner.load() }
+            func save(_ session: StoredSession) throws(StorageError) { try inner.save(session) }
+            func clear() throws(StorageError) {
+                throw StorageError(operation: "clear session", reason: "locked", status: -25308)
+            }
+        }
+        let storage = PhoneStorage.memory()
+        let server = StubServer(["DELETE /api/me": .ok(#"{"status":"deleted"}"#)])
+        let store = Unclearable(inner: InMemorySessionStore(StoredSession(token: TestApp.token, expiresAt: nil, account: .student())))
+        let defaults = TestApp.freshDefaults()
+        let client = QBankClient(configuration: APIConfiguration(baseURL: URL(string: "https://stub.invalid")!), transport: server, sessionStore: store)
+        let app = AppModel(
+            client: client,
+            look: LookStore(defaults: defaults),
+            lock: AppLock(defaults: defaults, owner: DebugDeviceOwner(.faceID)),
+            storage: storage,
+            connection: Connection(isOnline: false),
+            passkeys: DebugPasskeyAuthenticator(.none),
+            passkeyOffer: PasskeyOffer(defaults: defaults)
+        )
+        try await AppModelTests.waitingAnswer(app)
+        let model = DeleteAccountModel(app: app)
+        model.password = "synthetic-pass-1"
+        await model.delete()
+        #expect(model.problem == nil)
+        #expect(app.route == .signedOut)
+        #expect(app.offline == nil)
+
+        let (again, _) = TestApp.make(server, account: .student(), storage: storage)
+        #expect(again.offline?.waiting.isEmpty == true)
+    }
+
     @Test func noPasswordIsAskedForBeforeSending() async {
         let server = StubServer()
         let (model, app, _) = model(server)
