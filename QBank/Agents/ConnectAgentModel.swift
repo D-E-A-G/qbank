@@ -40,6 +40,9 @@ final class ConnectAgentModel {
     /// After an approval, the ids of the keys listed then, until a new one shows or the polls run out.
     private(set) var watching: Set<String>?
 
+    /// False when she approved before her keys had loaded: there is no earlier list to tell a new key by.
+    private var watchingFromLoadedList = true
+
     private let app: AppModel
     private let now: () -> Date
     private let pickupInterval: Duration
@@ -108,6 +111,7 @@ final class ConnectAgentModel {
             code = ""
             stage = .answered(approved: approve, name: pairing.name)
             if approve {
+                watchingFromLoadedList = keys != nil
                 watching = Set((keys ?? []).map(\.id))
             }
         } catch {
@@ -118,7 +122,8 @@ final class ConnectAgentModel {
     }
 
     /// After an approval the agent picks its key up on its next poll, and only then is it listed:
-    /// reads the list again until a key that was not there shows, or the polls run out. The screen
+    /// reads the list again until a key that was not there shows, or the polls run out (all of them when
+    /// there was no earlier list to compare against). The screen
     /// runs it while `watching` is set.
     func watchForPickup() async {
         guard let known = watching else { return }
@@ -132,7 +137,7 @@ final class ConnectAgentModel {
                 let listed = try await app.client.agentKeys()
                 keys = listed
                 loadProblem = nil
-                if listed.contains(where: { !known.contains($0.id) }) { break }
+                if watchingFromLoadedList, listed.contains(where: { !known.contains($0.id) }) { break }
             } catch {
                 if app.handle(error) { return }
             }

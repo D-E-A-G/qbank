@@ -140,6 +140,24 @@ struct ConnectAgentModelTests {
         #expect(ConnectAgentModel.pickupPolls == 30)
     }
 
+    /// Approved before the keys loaded: nothing earlier to compare, so an already listed key is not
+    /// taken for the new one and the polls go on.
+    @Test func anApprovalBeforeTheKeysLoadedKeepsPollingPastTheFirstAnswer() async {
+        let server = StubServer([
+            "GET /api/agent-keys": .ok(Bodies.agentKeys([Self.macKey])),
+            "POST /api/agent-pairings/lookup": .ok(Bodies.agentPairing()),
+            "POST /api/agent-pairings/approve": .ok(Bodies.agentPairing(status: "approved")),
+        ])
+        let (model, _) = make(server)
+        model.code = "KXPD-MWRT"
+        await model.lookUp()
+        await model.answer(approve: true)
+        #expect(model.keys == nil)
+        await model.watchForPickup()
+        #expect(model.watching == nil)
+        #expect(server.calls.filter { $0 == "GET /api/agent-keys" }.count == ConnectAgentModel.pickupPolls)
+    }
+
     @Test func aDenialMakesNoKeyAndWatchesForNone() async throws {
         let server = StubServer([
             "POST /api/agent-pairings/lookup": .ok(Bodies.agentPairing(name: "Library desktop agent", scopes: ["import", "manage"])),
