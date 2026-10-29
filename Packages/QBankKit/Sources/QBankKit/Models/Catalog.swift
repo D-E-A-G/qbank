@@ -478,11 +478,15 @@ public struct PracticeSetSummary: Codable, Sendable, Equatable, Identifiable {
     public let fullyRightCount: Int
     public let lastAnsweredAt: Date?
     public let questionIDs: [String]
+    /// The agent key that imported this version of the set, or nil when she imported it in the app,
+    /// QBank made it, or it came from a server or a saved copy from before agent keys.
+    public let importedByAgent: ImportingAgent?
 
     enum CodingKeys: String, CodingKey {
         case id, title, description, questionCount, importedAt, activeSince, status, canRestore
         case answeredCount, fullyRightCount, lastAnsweredAt
         case questionIDs = "questionIds"
+        case importedByAgent
     }
 }
 

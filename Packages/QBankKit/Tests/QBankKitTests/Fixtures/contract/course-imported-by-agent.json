@@ -1,0 +1,140 @@
+{
+  "recordedFrom": "b11d26264edc454dc17155a007e05775c9a3ac61",
+  "request": {
+    "method": "GET",
+    "path": "/api/courses/5fd870de-aebb-44ac-b6b3-a7aa431a5fb5",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "id": "5fd870de-aebb-44ac-b6b3-a7aa431a5fb5",
+      "kind": "course",
+      "code": "NURS 401",
+      "title": "Invented Agents Course",
+      "archivedAt": null,
+      "semester": {
+        "id": "2a4e23bb-6dd3-4f6e-8b7a-f7553ef38640",
+        "number": 1,
+        "name": "Semester 1"
+      },
+      "questionCount": 6,
+      "examQuestionCount": 6,
+      "examTimeLimitSeconds": 540,
+      "weekCount": 1,
+      "folderCount": 1,
+      "termCount": 0,
+      "reviewCount": 0,
+      "answeredCount": 0,
+      "fullyRightCount": 0,
+      "points": 0,
+      "maxPoints": 0,
+      "weeks": [
+        {
+          "label": "Week 1",
+          "sets": [
+            {
+              "id": "96910cf1-1ff1-404b-980d-a7b0f3c5a8a9",
+              "title": "Week 1 - Set 1: Her own set",
+              "description": "Invented practice set.",
+              "questionCount": 3,
+              "importedAt": "2026-10-29T02:59:27.326Z",
+              "activeSince": "2026-10-29T02:59:27.326Z",
+              "status": "imported",
+              "canRestore": false,
+              "answeredCount": 0,
+              "fullyRightCount": 0,
+              "lastAnsweredAt": null,
+              "questionIds": [
+                "b0a78ac6-7b4b-405d-9892-4ae934197318",
+                "5f700871-7497-408d-9493-bcde8c05d52c",
+                "8e5665cb-30c6-4949-9ba1-4adc9ff9288f"
+              ],
+              "importedByAgent": null
+            },
+            {
+              "id": "ee6a9d94-1291-41bf-a29e-96ac76cc8384",
+              "title": "Week 1 - Set 2: From her agent",
+              "description": "Invented practice set.",
+              "questionCount": 3,
+              "importedAt": "2026-10-29T02:59:27.332Z",
+              "activeSince": "2026-10-29T02:59:27.332Z",
+              "status": "imported",
+              "canRestore": false,
+              "answeredCount": 0,
+              "fullyRightCount": 0,
+              "lastAnsweredAt": null,
+              "questionIds": [
+                "33123e00-a733-400f-aea1-11a1a2e40c68",
+                "022a72b6-04df-480c-bbbd-cbe190752078",
+                "38dead5a-16b0-4796-bfdc-0d7001d1165e"
+              ],
+              "importedByAgent": {
+                "id": "00518827-fd6b-4f10-a8b0-6353559224ab",
+                "name": "My MacBook agent"
+              }
+            }
+          ],
+          "examBankCount": 0
+        }
+      ],
+      "folders": [
+        {
+          "id": "d25f8a9f-05d7-4618-b341-fda444083766",
+          "name": "Week 1",
+          "examPageId": null,
+          "sortOrder": 1,
+          "sets": [
+            {
+              "id": "96910cf1-1ff1-404b-980d-a7b0f3c5a8a9",
+              "title": "Week 1 - Set 1: Her own set",
+              "description": "Invented practice set.",
+              "questionCount": 3,
+              "importedAt": "2026-10-29T02:59:27.326Z",
+              "activeSince": "2026-10-29T02:59:27.326Z",
+              "status": "imported",
+              "canRestore": false,
+              "answeredCount": 0,
+              "fullyRightCount": 0,
+              "lastAnsweredAt": null,
+              "questionIds": [
+                "b0a78ac6-7b4b-405d-9892-4ae934197318",
+                "5f700871-7497-408d-9493-bcde8c05d52c",
+                "8e5665cb-30c6-4949-9ba1-4adc9ff9288f"
+              ],
+              "importedByAgent": null
+            },
+            {
+              "id": "ee6a9d94-1291-41bf-a29e-96ac76cc8384",
+              "title": "Week 1 - Set 2: From her agent",
+              "description": "Invented practice set.",
+              "questionCount": 3,
+              "importedAt": "2026-10-29T02:59:27.332Z",
+              "activeSince": "2026-10-29T02:59:27.332Z",
+              "status": "imported",
+              "canRestore": false,
+              "answeredCount": 0,
+              "fullyRightCount": 0,
+              "lastAnsweredAt": null,
+              "questionIds": [
+                "33123e00-a733-400f-aea1-11a1a2e40c68",
+                "022a72b6-04df-480c-bbbd-cbe190752078",
+                "38dead5a-16b0-4796-bfdc-0d7001d1165e"
+              ],
+              "importedByAgent": {
+                "id": "00518827-fd6b-4f10-a8b0-6353559224ab",
+                "name": "My MacBook agent"
+              }
+            }
+          ],
+          "examBankCount": 0,
+          "examSets": []
+        }
+      ],
+      "exams": []
+    }
+  }
+}

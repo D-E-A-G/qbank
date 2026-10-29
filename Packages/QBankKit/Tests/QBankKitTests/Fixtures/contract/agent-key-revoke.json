@@ -1,0 +1,24 @@
+{
+  "recordedFrom": "b11d26264edc454dc17155a007e05775c9a3ac61",
+  "request": {
+    "method": "POST",
+    "path": "/api/agent-keys/c925031b-bff0-4153-aca1-ab8ff8648f21/revoke",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "id": "c925031b-bff0-4153-aca1-ab8ff8648f21",
+      "name": "Old phone agent",
+      "scopes": [
+        "import"
+      ],
+      "createdAt": "2026-10-29T02:59:27.315Z",
+      "lastUsedAt": null,
+      "revokedAt": "2026-10-29T02:59:27.351Z"
+    }
+  }
+}

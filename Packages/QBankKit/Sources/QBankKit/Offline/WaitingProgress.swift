@@ -67,7 +67,7 @@ public struct WaitingProgress: Sendable, Equatable {
             id: set.id, title: set.title, description: set.description, questionCount: set.questionCount,
             importedAt: set.importedAt, activeSince: set.activeSince, status: set.status, canRestore: set.canRestore,
             answeredCount: answered, fullyRightCount: fullyRight, lastAnsweredAt: lastAnsweredAt,
-            questionIDs: set.questionIDs
+            questionIDs: set.questionIDs, importedByAgent: set.importedByAgent
         )
     }
 

@@ -13,7 +13,7 @@ struct WaitingProgressTests {
             id: id, title: "Invented \(id)", description: "", questionCount: questions,
             importedAt: day, activeSince: day, status: .imported, canRestore: false,
             answeredCount: answered, fullyRightCount: right, lastAnsweredAt: lastAnsweredAt,
-            questionIDs: (0..<questions).map { "\(id)-q\($0)" }
+            questionIDs: (0..<questions).map { "\(id)-q\($0)" }, importedByAgent: nil
         )
     }
 

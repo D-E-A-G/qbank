@@ -5,6 +5,7 @@ import SwiftUI
 /// Where a Settings row leads.
 enum SettingsRoute: Hashable {
     case changePassword
+    case connectAgent
     case deleteAccount
     case passkeys
     case semester(String)
@@ -12,7 +13,8 @@ enum SettingsRoute: Hashable {
 }
 
 /// The Settings tab, as the web's Settings for a user account: her account, which she can delete
-/// here, her semesters by name and dates, and Look and Color, then what is saved on this phone.
+/// here, with her passkeys and her agent keys, her semesters by name and dates, and Look and Color,
+/// then what is saved on this phone.
 /// Home's + adds a semester, a course or a topic, and holding one on Home renames, moves or
 /// archives it. Export stays on the web.
 struct SettingsView: View {
@@ -62,6 +64,8 @@ struct SettingsView: View {
                 switch route {
                 case .changePassword:
                     ChangePasswordView(app: app)
+                case .connectAgent:
+                    ConnectAgentView(app: app)
                 case .deleteAccount:
                     DeleteAccountView(app: app)
                 case .passkeys:
@@ -110,6 +114,11 @@ struct SettingsView: View {
             }
             .buttonStyle(.qbankRow)
             .accessibilityIdentifier("settings.passkeys")
+            NavigationLink(value: SettingsRoute.connectAgent) {
+                QBankListRow("Connect an agent", detail: AgentWording.settingsDetail, showsChevron: true)
+            }
+            .buttonStyle(.qbankRow)
+            .accessibilityIdentifier("settings.connectAgent")
             Button {
                 if app.offline?.waiting.isEmpty == false {
                     asksToSignOut = true

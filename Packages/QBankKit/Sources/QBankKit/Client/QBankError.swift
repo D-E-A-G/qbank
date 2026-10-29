@@ -95,6 +95,10 @@ public struct ServerError: Error, Sendable, Equatable {
         // Passkeys: an answer the server does not accept, and options it could not make.
         public static let invalidPasskey: Code = "invalid_passkey"
         public static let passkeyFailed: Code = "passkey_failed"
+        // Connect an agent: no agent waiting under that code (mistyped, answered already, or run
+        // out), and no key of hers with that id.
+        public static let pairingNotFound: Code = "pairing_not_found"
+        public static let agentKeyNotFound: Code = "agent_key_not_found"
         // Any request whose fields do not meet the route's rules, such as a new password under 8 characters.
         public static let invalidRequest: Code = "invalid_request"
         // Content.

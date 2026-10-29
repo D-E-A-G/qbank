@@ -175,6 +175,11 @@ final class IPadUITests: XCTestCase {
                 attach(app, "ipad passkeys, \(tag)")
                 goBack(app, from: "Passkeys")
                 XCTAssertTrue(app.buttons["settings.changePassword"].appears(timeout: 5))
+                tapVisible(app.buttons["settings.connectAgent"], in: app)
+                expectReadingColumn(app.buttons["connectAgent.continue"])
+                attach(app, "ipad connect an agent, \(tag)")
+                goBack(app, from: "Connect an agent")
+                XCTAssertTrue(app.buttons["settings.changePassword"].appears(timeout: 5))
 
                 openTab(app, "Add")
                 XCTAssertTrue(app.buttons["add.import"].appears(timeout: 5))

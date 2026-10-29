@@ -118,6 +118,8 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary, Fak
     private let twinJobs: FakeTwinJobs
     /// Passkey sign-in and Settings' passkeys. The student has one, saved on her Mac.
     private let passkeys: FakePasskeys
+    /// Connect an agent: two agents waiting under their codes, and the student's agent key.
+    private let agents: FakeAgents
     /// Deleting her sets, folders and past exams, and Undo.
     private let deletions: FakeDeletions
 
@@ -142,6 +144,7 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary, Fak
         questionMaker = FakeQuestionMaker(allowed: [Self.maker.email], isSetUp: makerIsSetUp, seededFor: Self.maker.email, now: now)
         twinJobs = FakeTwinJobs(maker: questionMaker, study: study)
         passkeys = FakePasskeys(studentEmail: Self.student.email, now: now)
+        agents = FakeAgents(studentEmail: Self.student.email, now: now)
         deletions = FakeDeletions(study: study)
         state = Mutex(State(
             accounts: [
@@ -254,6 +257,9 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary, Fak
         }
         if account.mustChangePassword {
             return failure(403, "must_change_password", "Choose a new password to continue.")
+        }
+        if FakeAgents.handles(path) {
+            return agents.answer(method: method, path: path, body: body, email: account.email)
         }
         if let reply = courseDeletion(method: method, path: path, query: query, email: account.email) {
             return reply
@@ -848,6 +854,7 @@ nonisolated final class FakeQBankServer: HTTPTransport, FakeQuestionLibrary, Fak
             "id": id, "title": entry.title, "description": "", "questionCount": entry.questions,
             "importedAt": QBankJSON.formatDate(entry.importedAt), "activeSince": QBankJSON.formatDate(entry.importedAt),
             "status": entry.status, "canRestore": entry.canRestore, "questionIds": questionIDs,
+            "importedByAgent": FakeAgents.importer(ofSet: id) ?? NSNull(),
         ]
         if latest.isEmpty {
             json["answeredCount"] = earlier?.answered ?? 0

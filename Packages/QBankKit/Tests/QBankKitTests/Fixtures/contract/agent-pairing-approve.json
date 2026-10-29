@@ -1,0 +1,36 @@
+{
+  "recordedFrom": "b11d26264edc454dc17155a007e05775c9a3ac61",
+  "request": {
+    "method": "POST",
+    "path": "/api/agent-pairings/approve",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": {
+      "userCode": "MNQT-XPJQ"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "name": "My MacBook agent",
+      "scopes": [
+        "import",
+        "read"
+      ],
+      "scopeTexts": [
+        {
+          "scope": "import",
+          "text": "Import question sets into your courses and topics, and see your courses, folders and sets to do it."
+        },
+        {
+          "scope": "read",
+          "text": "Read how you answered: where you stand by topic, your Review lists, your exams and your progress export. It changes nothing."
+        }
+      ],
+      "status": "approved",
+      "createdAt": "2026-10-29T02:59:27.265Z",
+      "expiresAt": "2026-10-29T03:09:27.265Z"
+    }
+  }
+}
