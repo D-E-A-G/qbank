@@ -1,0 +1,17 @@
+{
+  "recordedFrom": "b11d26264edc454dc17155a007e05775c9a3ac61",
+  "request": {
+    "method": "GET",
+    "path": "/api/agent-keys",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "keys": []
+    }
+  }
+}

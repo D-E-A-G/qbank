@@ -217,6 +217,22 @@ enum Bodies {
         #"{"passkeys":[\#(passkeys.joined(separator: ","))]}"#
     }
 
+    /// An agent waiting under a code, with the server's words for each scope it asks for.
+    static func agentPairing(name: String = "Study laptop agent", scopes: [String] = ["import", "read"], status: String = "pending") -> String {
+        let quoted = scopes.map { "\"\($0)\"" }.joined(separator: ",")
+        let texts = scopes.map { #"{"scope":"\#($0)","text":"Server words for \#($0)."}"# }.joined(separator: ",")
+        return #"{"name":"\#(name)","scopes":[\#(quoted)],"scopeTexts":[\#(texts)],"status":"\#(status)","createdAt":"2026-10-25T15:00:00.000Z","expiresAt":"2026-10-25T15:10:00.000Z"}"#
+    }
+
+    static func agentKey(id: String, name: String, scopes: [String] = ["import", "read"], revokedAt: String? = nil) -> String {
+        let quoted = scopes.map { "\"\($0)\"" }.joined(separator: ",")
+        return #"{"id":"\#(id)","name":"\#(name)","scopes":[\#(quoted)],"createdAt":"2026-10-01T10:00:00.000Z","lastUsedAt":null,"revokedAt":\#(revokedAt.map { "\"\($0)\"" } ?? "null")}"#
+    }
+
+    static func agentKeys(_ keys: [String]) -> String {
+        #"{"keys":[\#(keys.joined(separator: ","))]}"#
+    }
+
     static func place(_ courseID: String?) -> String {
         #"{"courseId":\#(courseID.map { "\"\($0)\"" } ?? "null")}"#
     }

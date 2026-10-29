@@ -596,6 +596,16 @@ else
   pass "no backend, deployment, infrastructure, or credential files are tracked"
 fi
 
+# --- Words the app shows --------------------------------------------------------
+
+# Her own AI agent is "agent" or "your agent" in the app, never a product's name.
+named="$(git grep -il --untracked 'firstmate' -- QBank Packages || true)"
+if [ -n "$named" ]; then
+  fail "the app and its packages say agent, never Firstmate: $named"
+else
+  pass "the app and its packages say agent, never Firstmate"
+fi
+
 echo
 if [ "$FAILURES" -gt 0 ]; then
   echo "$FAILURES check(s) failed." >&2

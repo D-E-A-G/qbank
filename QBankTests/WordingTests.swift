@@ -150,4 +150,149 @@ struct WordingTests {
         let topic = try QBankJSON.decoder.decode(CourseDetail.self, from: Data(StudyBodies.topicDetail().utf8))
         #expect(Wording.summary(topic) == "4 questions · 2 folders")
     }
+
+    // MARK: Connect an agent, worded as the web's agents.ts and AgentsScreen.tsx
+
+    private func agentKey(created: Date, lastUsed: Date? = nil, revoked: Date? = nil) -> AgentKey {
+        AgentKey(id: "k1", name: "My MacBook agent", scopes: [.import], createdAt: created, lastUsedAt: lastUsed, revokedAt: revoked)
+    }
+
+    private func pairing(scopes: [AgentScope] = [.import, .manage], texts: [AgentPairing.ScopeText]? = nil) -> AgentPairing {
+        AgentPairing(
+            name: "My MacBook agent", scopes: scopes,
+            scopeTexts: texts ?? [
+                .init(scope: .import, text: "Import question sets into your courses and topics."),
+                .init(scope: .manage, text: "Add, change and delete your courses, topics, folders and sets. Anything it deletes goes to Recently deleted."),
+            ],
+            status: .pending, createdAt: now, expiresAt: now.addingTimeInterval(600)
+        )
+    }
+
+    @Test func theAgentScreensFixedLinesAreTheWebs() {
+        #expect(AgentWording.settingsDetail == "Approve its code, and see your keys")
+        #expect(AgentWording.intro == "Your agent shows you a short code. Enter it here to see what the agent asks to do, then approve or deny it. You never see or copy a key: the agent picks its own up.")
+        #expect(AgentWording.codeHint == "The code your agent shows you, such as BCDF\u{2011}GHJK. It lasts 10 minutes.", "a non-breaking hyphen")
+        #expect(AgentWording.noCode == "Enter the code your agent shows you.")
+        #expect(AgentWording.loadingKeys == "Loading your keys.")
+        #expect(AgentWording.noKeys == "No agent keys yet. When you approve an agent, its key shows here.")
+        #expect(AgentWording.keysFooter == "Each key works for this account only, and only for what it was approved to do. Revoking one stops it at once; what it imported or changed stays as it is.")
+        #expect(AgentWording.revokedKey == "Revoked: it never works again")
+        #expect(AgentWording.mostAccess == "Most access")
+        #expect(AgentWording.approved("My MacBook agent") == "Approved My MacBook agent. It picks up its key within a few seconds, and then it shows under Your keys.")
+        #expect(AgentWording.denied("My MacBook agent") == "Denied My MacBook agent. No key was made.")
+        #expect(AgentWording.revokeTitle("My MacBook agent") == "Revoke My MacBook agent?")
+        #expect(AgentWording.revoked("My MacBook agent") == "Revoked My MacBook agent. It stopped working just now.")
+        #expect(AgentWording.importedBy(isStudent: true) == "Imported by your agent")
+        #expect(AgentWording.importedBy(isStudent: false) == "Imported by an agent")
+    }
+
+    @Test func theCodeIsTrimmedAndInCapitalsWithItsDashOrWithout() {
+        #expect(AgentWording.cleanCode("  bcdf-ghjk \n") == "BCDF-GHJK")
+        #expect(AgentWording.cleanCode("bcdfghjk") == "BCDFGHJK")
+        #expect(AgentWording.cleanCode("   ") == "")
+    }
+
+    @Test func importIsSaidPlainlyAndNeverReplacesOrDeletesASet() {
+        #expect(AgentWording.scopeWords(.import, admin: false) == .init(
+            title: "Import question sets",
+            detail: "Into the courses and topics of your account, reading them to file each set. It never replaces, moves, renames, or deletes a set."
+        ))
+        #expect(AgentWording.scopeWords(.import, admin: true).detail == "Into the courses and topics of the user account you look after, reading them to file each set. It never replaces, moves, renames, or deletes a set.")
+    }
+
+    @Test func readIsReadOnly() {
+        #expect(AgentWording.scopeWords(.read, admin: false) == .init(
+            title: "Read progress, read-only",
+            detail: "Where you stand by topic, your Review lists, your exams, and your progress export. It changes nothing."
+        ))
+    }
+
+    @Test func manageAddsChangesAndDeletesWithEveryDeleteInRecentlyDeleted() {
+        #expect(AgentWording.scopeWords(.manage, admin: false) == .init(
+            title: "Add, change, and delete your content",
+            detail: "The sets, questions, folders, courses, and topics of your account, as you can in QBank. Anything it deletes goes to Recently deleted, where Undo brings it back for 30 days."
+        ))
+        #expect(AgentWording.scopeWords(.manage, admin: true) == .init(
+            title: "Add, change, and delete content",
+            detail: "The sets, questions, folders, courses, and topics of the user account you look after, as you can in QBank. Anything it deletes goes to Recently deleted, where Undo brings it back for 30 days."
+        ))
+        #expect(AgentWording.isStrongest(.manage))
+        #expect(!AgentWording.isStrongest(.import))
+        #expect(!AgentWording.isStrongest(.read))
+    }
+
+    @Test func aScopeAddedLaterShowsByItsName() {
+        #expect(AgentWording.scopeWords(AgentScope(rawValue: "export"), admin: false) == .init(title: "export", detail: "QBank has not described this one here yet."))
+    }
+
+    @Test func eachAskedScopeHasTheServersWordsInItsOrderUnderAShortTitle() {
+        #expect(AgentWording.pairingScopes(pairing(), admin: false) == [
+            .init(scope: .import, title: "Import question sets", detail: "Import question sets into your courses and topics.", isStrongest: false),
+            .init(
+                scope: .manage, title: "Add, change, and delete your content",
+                detail: "Add, change and delete your courses, topics, folders and sets. Anything it deletes goes to Recently deleted.", isStrongest: true
+            ),
+        ])
+        let fallback = AgentWording.pairingScopes(pairing(scopes: [.import, .read], texts: [.init(scope: .import, text: "Server words.")]), admin: false)
+        #expect(fallback.map(\.detail) == ["Server words.", AgentWording.scopeWords(.read, admin: false).detail], "its own words only where the server sent none")
+    }
+
+    @Test func theCodeLineSaysWhenItStopsWorking() {
+        let ends = now.addingTimeInterval(600).formatted(date: .omitted, time: .shortened)
+        #expect(AgentWording.codeLine("JJHN-ZNKD", pairing()) == "Code JJHN-ZNKD · Works until \(ends)")
+    }
+
+    @Test func theNoteSaysAKeyNeverDeletesUnlessItManagesAndThenWithUndo() {
+        #expect(AgentWording.approvalNote([.import, .read]) == "Approve only a code your own agent is showing you now. Its key never changes a password, deletes anything, or reaches your other keys.")
+        #expect(AgentWording.approvalNote([.import, .manage]) == "Approve only a code your own agent is showing you now. Its key never answers questions for you, changes a password, or reaches your other keys, and what it deletes goes to Recently deleted.")
+    }
+
+    @Test func aKeysRowSaysWhatItCanDoInAFewWords() {
+        let manage = "add, change, and delete your sets, questions, folders, courses, and topics. What it deletes goes to Recently deleted."
+        #expect(AgentWording.scopesLine([.import]) == "Can import sets")
+        #expect(AgentWording.scopesLine([.import, .read]) == "Can import sets and read progress")
+        #expect(AgentWording.scopesLine([.import, .read, AgentScope(rawValue: "export")]) == "Can import sets, read progress and export")
+        #expect(AgentWording.scopesLine([]) == "Can do nothing")
+        #expect(AgentWording.scopesLine([.manage]) == "Can \(manage)")
+        #expect(AgentWording.scopesLine([.import, .manage]) == "Can \(manage)")
+        #expect(AgentWording.scopesLine([.import, .read, .manage]) == "Can read progress, and \(manage)")
+    }
+
+    @Test func revokingSaysWhatItLeaves() {
+        #expect(AgentWording.revokeMessage([.import]) == "Its key stops working at once and for good. The sets it imported stay where they are. To connect this agent again, approve a new code from it.")
+        #expect(AgentWording.revokeMessage([.import, .manage]) == "Its key stops working at once and for good. What it imported or changed stays as it is, and what it deleted stays in Recently deleted. To connect this agent again, approve a new code from it.")
+    }
+
+    @Test func aKeySaysWhenItWasMadeAndLastUsedOrRevoked() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        let earlier = now.addingTimeInterval(-9 * 86_400)
+        let day = Wording.when(earlier, now: now, calendar: calendar)
+        #expect(AgentWording.keyDates(agentKey(created: earlier), now: now, calendar: calendar) == "Made \(day) · Never used")
+        #expect(AgentWording.keyDates(agentKey(created: earlier, lastUsed: now), now: now, calendar: calendar) == "Made \(day) · Last used today")
+        #expect(AgentWording.keyDates(agentKey(created: now), now: now, calendar: calendar) == "Made today · Never used")
+        #expect(AgentWording.keyDates(agentKey(created: earlier, lastUsed: now, revoked: now), now: now, calendar: calendar) == "Made \(day) · Revoked today", "revoked, not last used")
+    }
+
+    /// Always "agent": never the name of the agent she happens to use.
+    @Test func theAgentWordsNeverNameAProduct() {
+        var lines = [
+            AgentWording.settingsDetail, AgentWording.intro, AgentWording.codeHint, AgentWording.noCode, AgentWording.loadingKeys,
+            AgentWording.noKeys, AgentWording.keysFooter, AgentWording.revokedKey, AgentWording.mostAccess,
+            AgentWording.importedBy(isStudent: true), AgentWording.importedBy(isStudent: false),
+        ]
+        for scopes in [[AgentScope.import], [.import, .read], [.import, .manage], [AgentScope(rawValue: "export")]] {
+            lines += [AgentWording.approvalNote(scopes), AgentWording.scopesLine(scopes), AgentWording.revokeMessage(scopes)]
+            for scope in scopes {
+                for admin in [false, true] {
+                    let words = AgentWording.scopeWords(scope, admin: admin)
+                    lines += [words.title, words.detail]
+                }
+            }
+        }
+        for line in lines {
+            #expect(!line.localizedCaseInsensitiveContains("firstmate"), "\(line)")
+            #expect(!line.localizedCaseInsensitiveContains("student"), "\(line)")
+        }
+    }
 }

@@ -618,6 +618,45 @@ public struct QBankClient: Sendable {
         let _: StatusResponse = try await send(Request(.delete, "/api/passkeys/\(id)"))
     }
 
+    // MARK: Agents
+
+    /// The agent waiting under the code her agent shows her, before she answers: its name and what
+    /// its key would be able to do. The server takes the code in any case, with or without its dash.
+    ///
+    /// No agent waiting under it (mistyped, answered already, or past its 10 minutes) is 404
+    /// `pairing_not_found`. Codes count like passwords: five that match nothing lock her answers for
+    /// 15 minutes (`too_many_attempts`, 429, `retryAfterSeconds`), the right code included.
+    public func agentPairing(code: String) async throws(QBankError) -> AgentPairing {
+        try await send(Request(.post, "/api/agent-pairings/lookup", body: AgentPairingCodeRequest(userCode: code)))
+    }
+
+    /// Approves the agent waiting under the code, for this account. The agent picks its key up on its
+    /// next poll, and only then does `agentKeys()` list it. Refused as `agentPairing(code:)` is.
+    @discardableResult
+    public func approveAgentPairing(code: String) async throws(QBankError) -> AgentPairing {
+        try await send(Request(.post, "/api/agent-pairings/approve", body: AgentPairingCodeRequest(userCode: code)))
+    }
+
+    /// Denies the agent waiting under the code: no key is made. Refused as `agentPairing(code:)` is.
+    @discardableResult
+    public func denyAgentPairing(code: String) async throws(QBankError) -> AgentPairing {
+        try await send(Request(.post, "/api/agent-pairings/deny", body: AgentPairingCodeRequest(userCode: code)))
+    }
+
+    /// The account's agent keys, newest first, revoked ones included. Never a key itself.
+    public func agentKeys() async throws(QBankError) -> [AgentKey] {
+        let response: AgentKeysResponse = try await send(Request(.get, "/api/agent-keys"))
+        return response.keys
+    }
+
+    /// Revokes one of her agent keys: it stops working at once and for good, and stays listed. What it
+    /// imported keeps its name. Revoking a revoked key changes nothing. A key she does not have is 404
+    /// `agent_key_not_found`.
+    @discardableResult
+    public func revokeAgentKey(id: String) async throws(QBankError) -> AgentKey {
+        try await send(Request(.post, "/api/agent-keys/\(id)/revoke"))
+    }
+
     // MARK: Plumbing
 
     private func store(_ signedIn: SignedIn) throws(QBankError) {

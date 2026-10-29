@@ -145,6 +145,74 @@ struct DebugLaunchScenarioTests {
         #expect(passkeys.problem == "This \(Device.model) already has a passkey for your account.")
     }
 
+    /// Through the fake server, as the server answers: her agent's key, an agent's code in small
+    /// letters and without its dash, an approval whose key is listed once the agent picks it up, a
+    /// revoke that stays, and the code answered already.
+    @Test func signedInScenarioPairsAnAgentAndRevokesItsKey() async throws {
+        let app = try #require(Self.launch("signed-in"))
+        let model = ConnectAgentModel(app: app, pickupInterval: .milliseconds(100))
+        await model.load()
+        #expect(model.keys?.map(\.name) == [FakeAgents.macKey.name])
+        #expect(model.keys?.first?.lastUsedAt != nil, "it imported a set")
+
+        model.code = FakeAgents.importCode.lowercased().replacingOccurrences(of: "-", with: "")
+        await model.lookUp()
+        guard case .found(_, let pairing) = model.stage else {
+            Issue.record("no agent under the code: \(model.stage)")
+            return
+        }
+        #expect(pairing.name == FakeAgents.importAgent)
+        #expect(pairing.scopes == [.import, .read])
+        #expect(pairing.scopeTexts.map(\.scope) == [.import, .read])
+
+        await model.answer(approve: true)
+        #expect(model.stage == .answered(approved: true, name: FakeAgents.importAgent))
+        await model.watchForPickup()
+        #expect(model.watching == nil)
+        #expect(model.keys?.map(\.name) == [FakeAgents.importAgent, FakeAgents.macKey.name], "newest first, once the agent picked it up")
+        #expect(model.keys?.first?.lastUsedAt == nil)
+
+        await model.revoke(try #require(model.keys?.first))
+        #expect(model.revoked == "Revoked \(FakeAgents.importAgent). It stopped working just now.")
+        await model.load()
+        #expect(model.keys?.map(\.isRevoked) == [true, false], "the server keeps it revoked, in its place")
+
+        model.code = FakeAgents.importCode
+        await model.lookUp()
+        #expect(model.stage == .answered(approved: true, name: FakeAgents.importAgent))
+        #expect(model.problem == "No agent is waiting under that code. Codes last 10 minutes: ask the agent for its new one.", "answered already")
+    }
+
+    @Test func fakeServerDeniesAnAgentWithoutMakingAKey() async throws {
+        let app = try #require(Self.launch("signed-in"))
+        let pairing = try await app.client.agentPairing(code: FakeAgents.manageCode)
+        #expect(pairing.name == FakeAgents.manageAgent)
+        #expect(pairing.scopes == [.import, .manage])
+        #expect(try await app.client.denyAgentPairing(code: FakeAgents.manageCode).status == .denied)
+        try await Task.sleep(for: .seconds(FakeAgents.pickupDelay))
+        #expect(try await app.client.agentKeys().map(\.name) == [FakeAgents.macKey.name])
+    }
+
+    /// Five codes that match nothing lock her answers for 15 minutes, the right code included.
+    @Test func fakeServerLocksAgentCodesAfterFiveThatMatchNothing() async throws {
+        let app = try #require(Self.launch("signed-in"))
+        for _ in 1...4 {
+            let error = await #expect(throws: QBankError.self) { _ = try await app.client.agentPairing(code: "ZZZZ-ZZZZ") }
+            #expect(error?.serverCode == .pairingNotFound)
+        }
+        let fifth = await #expect(throws: QBankError.self) { _ = try await app.client.agentPairing(code: "ZZZZ-ZZZZ") }
+        #expect(fifth == .server(ServerError(status: 429, code: .tooManyAttempts, message: "Too many tries. Try again in 15 minutes.", retryAfterSeconds: 900)))
+        let right = await #expect(throws: QBankError.self) { _ = try await app.client.agentPairing(code: FakeAgents.importCode) }
+        #expect(right?.serverCode == .tooManyAttempts)
+    }
+
+    @Test func fakeServerSaysWhichSetHerAgentImported() async throws {
+        let app = try #require(Self.launch("signed-in"))
+        let sets = try await app.client.course(id: FakeQBankServer.mentalHealthID).folders.flatMap(\.sets)
+        #expect(sets.filter { $0.importedByAgent != nil }.map(\.id) == [FakeAgents.importedSetID])
+        #expect(sets.first { $0.id == FakeAgents.importedSetID }?.importedByAgent == ImportingAgent(id: FakeAgents.macKey.id, name: FakeAgents.macKey.name))
+    }
+
     @Test func fakeServerSignsInAndRefusesWrongPasswords() async throws {
         let app = try #require(Self.launch("signed-out"))
         let model = SignInModel(app: app)

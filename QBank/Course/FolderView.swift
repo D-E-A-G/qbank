@@ -170,7 +170,7 @@ struct FolderView: View {
                 QBankListGroup {
                     ForEach(folder.sets) { set in
                         if let selection {
-                            SelectRow(set: set, isSelected: selection.contains(set.id)) {
+                            SelectRow(set: set, isSelected: selection.contains(set.id), isStudent: model.isStudent) {
                                 toggle(set)
                             }
                         } else {
@@ -241,6 +241,7 @@ private struct MoveBar: View {
 private struct SelectRow: View {
     let set: PracticeSetSummary
     let isSelected: Bool
+    let isStudent: Bool
     let toggle: () -> Void
 
     var body: some View {
@@ -250,7 +251,7 @@ private struct SelectRow: View {
                     .font(.title2)
                     .foregroundStyle(.qbank(isSelected ? .tint : .separatorStrong))
                     .accessibilityHidden(true)
-                SetText(set: set)
+                SetText(set: set, isStudent: isStudent)
             }
             .padding(.horizontal, QBankSpacing.rowPaddingHorizontal)
             .padding(.vertical, 10)
@@ -309,7 +310,7 @@ private struct SetRow: View {
 
     private func label(showsChevron: Bool) -> some View {
         HStack(spacing: QBankSpacing.space4) {
-            SetText(set: set)
+            SetText(set: set, isStudent: isStudent)
             if showsChevron {
                 Image(systemName: "chevron.right")
                     .font(.footnote.weight(.semibold))
@@ -325,9 +326,11 @@ private struct SetRow: View {
     }
 }
 
-/// A set's title and status line, as the web's folder rows set them: callout over subhead.
+/// A set's title and status line, as the web's folder rows set them: callout over subhead, and
+/// under them who imported it when her agent did.
 private struct SetText: View {
     let set: PracticeSetSummary
+    let isStudent: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -338,6 +341,11 @@ private struct SetText: View {
             QBankDetailText(Wording.status(set))
                 .qbankFont(.subheadline)
                 .foregroundStyle(.qbank(.text2))
+            if set.importedByAgent != nil {
+                Text(AgentWording.importedBy(isStudent: isStudent))
+                    .qbankFont(.subheadline)
+                    .foregroundStyle(.qbank(.text2))
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

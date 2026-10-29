@@ -1,0 +1,36 @@
+{
+  "recordedFrom": "b11d26264edc454dc17155a007e05775c9a3ac61",
+  "request": {
+    "method": "POST",
+    "path": "/api/agent-pairings/lookup",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": {
+      "userCode": "WHWP-QSTD"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "name": "Study laptop agent",
+      "scopes": [
+        "import",
+        "manage"
+      ],
+      "scopeTexts": [
+        {
+          "scope": "import",
+          "text": "Import question sets into your courses and topics, and see your courses, folders and sets to do it."
+        },
+        {
+          "scope": "manage",
+          "text": "Add, change and delete your courses, topics, folders and sets, as you can in QBank: make and rename them, move sets, replace or restore a set's questions, and set up exam and study pages. Anything it deletes goes to Recently deleted, where you can bring it back for 30 days. It never answers questions for you."
+        }
+      ],
+      "status": "pending",
+      "createdAt": "2026-10-29T02:59:27.285Z",
+      "expiresAt": "2026-10-29T03:09:27.285Z"
+    }
+  }
+}
