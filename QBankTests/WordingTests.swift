@@ -120,6 +120,31 @@ struct WordingTests {
         #expect(Wording.words(CourseKind(rawValue: "shelf")) == Wording.words(.course), "a kind this version does not know reads as a course")
     }
 
+    /// Deleting a page says page in the course's or topic's words, as the web does.
+    @Test func deletingAPageSaysExamPageInACourseAndStudyPageInATopic() {
+        #expect(KindWords.course.deletePage == "Delete this exam page")
+        #expect(KindWords.topic.deletePage == "Delete this study page")
+        #expect(KindWords.course.pageGone == "This exam page is not in the course anymore. If it was deleted, Recently deleted in the course can bring it back.")
+        #expect(KindWords.topic.pageGone == "This study page is not in the topic anymore. If it was deleted, Recently deleted in the topic can bring it back.")
+        #expect(KindWords.course.recentlyDeleted == "Bring back exam pages, folders, sets and exams for 30 days")
+        #expect(KindWords.topic.recentlyDeleted == "Bring back study pages, folders, sets and exams for 30 days")
+    }
+
+    /// An exam page's warning title, Undo bar lines and Recently deleted line.
+    @Test func aDeletedExamPageIsCalledByItsName() {
+        let page = DeleteTarget.examPage(id: "p", name: "Exam 2")
+        #expect(DeleteWording.question(page) == "Delete Exam 2?")
+        #expect(DeleteWording.deleted(page) == "Exam 2 deleted.")
+        #expect(DeleteWording.back(page) == "Exam 2 is back.")
+        let deleted = { (names: [String]) in
+            DeletedExamPage(id: "p", name: "Exam 2", folders: names.map { DeletedExamPage.Folder(id: $0, name: $0) }, pastExamCount: 0, deletedAt: .now, undoUntil: .now, undoRefusal: nil)
+        }
+        #expect(RecentlyDeletedWording.folders(deleted([])) == "No folders")
+        #expect(RecentlyDeletedWording.folders(deleted(["Week 3", "Week 4"])) == "Week 3, Week 4")
+        #expect(RecentlyDeletedWording.folders(deleted(["Week 3", "Week 4", "Week 5"])) == "Week 3, Week 4, Week 5")
+        #expect(RecentlyDeletedWording.folders(deleted(["First Pass", "Second Pass", "Week 3", "Week 4", "Week 5"])) == "First Pass, Second Pass and 3 more")
+    }
+
     @Test func aCourseIsCalledByItsCodeAndATopicByItsName() {
         let course = CourseRef(id: "c1", code: "NURS 420", title: "Health assessment")
         let topic = CourseRef(id: "t1", code: "", title: "Invented Systems Design", kind: .topic)

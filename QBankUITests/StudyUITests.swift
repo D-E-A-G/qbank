@@ -469,16 +469,18 @@ final class StudyUITests: XCTestCase {
         XCTAssertFalse(app.buttons["folder.Week 1"].exists)
         XCTAssertTrue(app.buttons["folder.Week 3"].exists)
 
-        // Removing the page puts its folders back under Folders; no set moves.
+        // Deleting the page puts its folders under Folders; no set moves.
         app.buttons["course.page.Exam 1"].tap()
         app.buttons["page.edit"].tap()
         app.buttons["page.editPage"].tap()
         XCTAssertTrue(app.navigationBars["Edit Exam 1"].appears(timeout: 5))
         XCTAssertTrue(app.buttons["editPage.chip.free.Week 3"].exists)
-        XCTAssertTrue(app.staticTexts["Its folders go back under Folders. No set moves."].exists)
         attach(app, "C edit exam page")
-        tapVisible(app.buttons["editPage.remove"], in: app)
-        XCTAssertTrue(app.navigationBars["NURS 220"].appears(timeout: 10), "a removed page closes")
+        tapVisible(app.buttons["editPage.delete"], in: app)
+        XCTAssertTrue(app.staticTexts["deleteSheet.message"].appears(timeout: 5))
+        XCTAssertEqual(app.staticTexts["deleteSheet.message"].label, "Its 2 folders stay, with their sets and your progress, under Folders: Week 1 and Week 2. You can undo this for 30 days.")
+        tapWhenStill(app.buttons["deleteSheet.confirm"])
+        XCTAssertTrue(app.navigationBars["NURS 220"].appears(timeout: 10), "a deleted page closes")
         XCTAssertTrue(app.staticTexts["No exam pages yet. Tap + to make Exam 1."].appears(timeout: 5))
         XCTAssertTrue(app.buttons["folder.Week 1"].exists)
     }

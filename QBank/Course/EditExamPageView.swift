@@ -4,8 +4,8 @@ import SwiftUI
 
 /// The exam page editor, as a sheet: Cancel, New exam page or Edit Exam 2, Done; the page's name,
 /// the course's folders as chips, and how many questions its folders hold. A topic's study page
-/// also has its primer link. A page that exists can be removed here; its folders go back under
-/// Folders.
+/// also has its primer link. A page that exists ends with Delete, which closes the editor and asks
+/// in the server's words; the page alone goes, and its folders stay.
 struct EditExamPageView: View {
     @State private var model: EditExamPageModel
     @FocusState private var naming: Bool
@@ -47,15 +47,14 @@ struct EditExamPageView: View {
                 .padding(.top, QBankSpacing.space2)
                 .disabled(model.isSaving)
             }
-            if !model.isNew {
-                Button("Remove this \(model.words.page)", role: .destructive) {
-                    Task { if let outcome = await model.remove() { close(outcome) } }
+            if model.offersDelete {
+                Button(model.words.deletePage, systemImage: "trash", role: .destructive) {
+                    close(.delete)
                 }
                 .buttonStyle(.qbank(.destructive, size: .large, fullWidth: true))
                 .disabled(model.isSaving)
                 .padding(.top, QBankSpacing.space3)
-                .accessibilityIdentifier("editPage.remove")
-                SheetHint(text: "Its folders go back under Folders. No set moves.")
+                .accessibilityIdentifier("editPage.delete")
             }
         }
     }

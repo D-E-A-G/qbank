@@ -811,15 +811,6 @@ struct FolderContractTests {
         #expect(exam.folderIDs == [Self.week2, Self.week1], "the page keeps the order sent")
     }
 
-    @Test func deleteReadsTheEmptyAnswer() async throws {
-        let fixture = try Fixture.load("course-exam-delete")
-        let transport = try FixtureTransport([fixture])
-        let (client, _) = TestClient.make(transport)
-        try await client.deleteCourseExam(id: Self.examTwo)
-        try expectRequest(transport.requests.first, matches: fixture)
-        #expect(fixture.response.status == 204)
-    }
-
     @Test func createFolderMakesAnEmptyOneOnNoExamPage() async throws {
         let fixture = try Fixture.load("folder-create")
         let transport = try FixtureTransport([fixture])
@@ -913,7 +904,6 @@ struct FolderContractTests {
         ("course-exam-create-unknown-folder", 400, "That folder is not in this course."),
         ("course-exam-create-blank", 400, "Exam name is required."),
         ("course-exam-update-folder-taken", 409, "Week 1 is in Midterm."),
-        ("course-exam-delete-name-taken", 409, "NURS 101 already has a folder named Week 3 in its Folders list. Rename one of them before removing Exam 2."),
         ("course-exam-not-found", 404, "That exam is not in the app."),
     ])
     func examPageRefusalsSayWhyInHerWords(name: String, status: Int, message: String) async throws {
@@ -930,7 +920,7 @@ struct FolderContractTests {
             case "PUT":
                 _ = try await client.updateCourseExam(id: id, name: body?["name"]?.stringValue ?? "", folderIDs: folders)
             default:
-                try await client.deleteCourseExam(id: id)
+                _ = try await client.courseExamDeletion(id: String(fixture.request.path.split(separator: "/")[2]))
             }
         }
         try expectRequest(transport.requests.first, matches: fixture)

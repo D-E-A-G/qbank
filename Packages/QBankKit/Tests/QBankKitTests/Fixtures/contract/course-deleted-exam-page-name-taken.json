@@ -1,0 +1,45 @@
+{
+  "recordedFrom": "4de36443ffecd8065d104b79bc6d3690e9adf04f",
+  "request": {
+    "method": "GET",
+    "path": "/api/courses/c0000000-0000-4000-8000-000000000901/deleted",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "undoDays": 30,
+      "examPages": [
+        {
+          "id": "ce000000-0000-4000-8000-000000000902",
+          "name": "Exam 2",
+          "folders": [
+            {
+              "id": "f0000000-0000-4000-8000-000000000902",
+              "name": "Week 3"
+            },
+            {
+              "id": "f0000000-0000-4000-8000-000000000903",
+              "name": "Week 4"
+            },
+            {
+              "id": "f0000000-0000-4000-8000-000000000904",
+              "name": "Week 5"
+            }
+          ],
+          "pastExamCount": 1,
+          "deletedAt": "2026-10-29T02:59:27.348Z",
+          "undoUntil": "2026-11-28T02:59:27.348Z",
+          "undoRefusal": "This course already has an exam named Exam 2. Rename one of them, then bring this one back.",
+          "deletedByAgent": null
+        }
+      ],
+      "folders": [],
+      "sets": [],
+      "exams": []
+    }
+  }
+}

@@ -1,6 +1,7 @@
 import Foundation
 
-// Deleting a course or study topic, a set, a folder with every set in it, or a past exam, and Undo.
+// Deleting a course or study topic, an exam page alone, a set, a folder with every set in it, or a
+// past exam, and Undo.
 // Every delete is three steps: its preview names what goes and hands out `confirm`; the delete sends
 // that `confirm` and takes exactly what the preview named, or is refused when something changed
 // since; Undo brings it back as it was for `undoDays` (30). Nothing is ever deleted except by her
@@ -122,6 +123,47 @@ public struct FolderDeletion: Decodable, Sendable, Equatable, DeletionPreview {
     }
 }
 
+/// What deleting an exam page (a study page, in a topic) changes: the page alone goes. Its folders
+/// stay in the course, on no page at the end of its Folders list, with their sets and her progress,
+/// and her past exams over it stay in Exam setup; Undo puts them back on it.
+public struct ExamPageDeletion: Decodable, Sendable, Equatable, DeletionPreview {
+    /// A folder on the page. It stays, with everything in it.
+    public struct Folder: Decodable, Sendable, Equatable, Identifiable {
+        public let id: String
+        public let name: String
+        public let setCount: Int
+        public let questionCount: Int
+    }
+
+    public let examPageID: String
+    public let courseID: String
+    public let name: String
+    /// Its folders, in her order on it.
+    public let folders: [Folder]
+    public let folderCount: Int
+    public let setCount: Int
+    public let questionCount: Int
+    public let examQuestionCount: Int
+    /// Of those questions, the ones she has answered. Those answers keep counting.
+    public let answeredCount: Int
+    /// Her past exams over the page. They stay, on no page until Undo.
+    public let pastExamCount: Int
+    /// Her standing now and once it is deleted, which are the same.
+    public let progress: StandingChange
+    public let message: String
+    /// Set while one of its folders has the name of a folder already in the Folders list.
+    public let refusal: String?
+    public let confirm: String
+    public let undoDays: Int
+
+    private enum CodingKeys: String, CodingKey {
+        case name, folders, folderCount, setCount, questionCount, examQuestionCount, answeredCount, pastExamCount
+        case progress, message, refusal, confirm, undoDays
+        case examPageID = "examPageId"
+        case courseID = "courseId"
+    }
+}
+
 /// What deleting a past exam changes: her answers on it stop counting, so questions go back to an
 /// earlier answer or to not answered.
 public struct ExamDeletion: Decodable, Sendable, Equatable, DeletionPreview {
@@ -235,20 +277,73 @@ public struct DeletedCourse: Decodable, Sendable, Equatable, Identifiable {
 /// bring back.
 public struct RecentlyDeleted: Decodable, Sendable, Equatable {
     public let undoDays: Int
+    /// Exam pages (study pages, in a topic) she deleted. A server from before exam pages could be
+    /// deleted sends none.
+    public let examPages: [DeletedExamPage]
     public let folders: [DeletedFolder]
     /// Sets she deleted on their own. Sets that went with a folder are under it.
     public let sets: [DeletedSet]
     public let exams: [DeletedExam]
 
-    public init(undoDays: Int, folders: [DeletedFolder], sets: [DeletedSet], exams: [DeletedExam]) {
+    public init(undoDays: Int, examPages: [DeletedExamPage] = [], folders: [DeletedFolder], sets: [DeletedSet], exams: [DeletedExam]) {
         self.undoDays = undoDays
+        self.examPages = examPages
         self.folders = folders
         self.sets = sets
         self.exams = exams
     }
 
+    private enum CodingKeys: String, CodingKey {
+        case undoDays, examPages, folders, sets, exams
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        undoDays = try container.decode(Int.self, forKey: .undoDays)
+        examPages = try container.decodeIfPresent([DeletedExamPage].self, forKey: .examPages) ?? []
+        folders = try container.decode([DeletedFolder].self, forKey: .folders)
+        sets = try container.decode([DeletedSet].self, forKey: .sets)
+        exams = try container.decode([DeletedExam].self, forKey: .exams)
+    }
+
     public var isEmpty: Bool {
-        folders.isEmpty && sets.isEmpty && exams.isEmpty
+        examPages.isEmpty && folders.isEmpty && sets.isEmpty && exams.isEmpty
+    }
+}
+
+/// An exam page she deleted, with the folders Undo puts back on it. They are in the course's
+/// Folders list meanwhile.
+public struct DeletedExamPage: Decodable, Sendable, Equatable, Identifiable {
+    public struct Folder: Decodable, Sendable, Equatable, Identifiable {
+        public let id: String
+        public let name: String
+
+        public init(id: String, name: String) {
+            self.id = id
+            self.name = name
+        }
+    }
+
+    public let id: String
+    public let name: String
+    /// In its order.
+    public let folders: [Folder]
+    /// Her past exams that belong to it again with Undo.
+    public let pastExamCount: Int
+    public let deletedAt: Date
+    /// Undo is refused after this.
+    public let undoUntil: Date
+    /// Why Undo would be refused now, such as another page having its name, or nil.
+    public let undoRefusal: String?
+
+    public init(id: String, name: String, folders: [Folder], pastExamCount: Int, deletedAt: Date, undoUntil: Date, undoRefusal: String?) {
+        self.id = id
+        self.name = name
+        self.folders = folders
+        self.pastExamCount = pastExamCount
+        self.deletedAt = deletedAt
+        self.undoUntil = undoUntil
+        self.undoRefusal = undoRefusal
     }
 }
 

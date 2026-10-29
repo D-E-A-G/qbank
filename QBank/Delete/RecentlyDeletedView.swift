@@ -2,14 +2,18 @@ import QBankDesign
 import QBankKit
 import SwiftUI
 
-/// A course's Recently deleted: the folders, sets and past exams she deleted in the last 30 days,
-/// newest first, each with Bring back. A folder brings back the sets that went with it.
+/// A course's Recently deleted: the exam pages, folders, sets and past exams she deleted in the last
+/// 30 days, newest first, each with Bring back. A folder brings back the sets that went with it. An
+/// exam page went alone: its folders are in the course meanwhile, and Bring back puts them back on it.
 struct RecentlyDeletedView: View {
     @State private var model: RecentlyDeletedModel
     let app: AppModel
+    /// The words of a course's exam pages or a topic's study pages.
+    let words: KindWords
 
-    init(app: AppModel, courseID: String) {
+    init(app: AppModel, courseID: String, words: KindWords) {
         self.app = app
+        self.words = words
         _model = State(initialValue: RecentlyDeletedModel(app: app, courseID: courseID))
     }
 
@@ -51,6 +55,20 @@ struct RecentlyDeletedView: View {
                 EmptyCard(message: "Nothing deleted in the last \(deleted.undoDays) days.", systemImage: "trash")
                     .accessibilityIdentifier("deleted.empty")
             } else {
+                if !deleted.examPages.isEmpty {
+                    QBankListGroup(header: words.pages) {
+                        ForEach(deleted.examPages) { page in
+                            row(
+                                .examPage(id: page.id, name: page.name),
+                                title: page.name,
+                                lines: [RecentlyDeletedWording.folders(page), RecentlyDeletedWording.window(deletedAt: page.deletedAt, undoUntil: page.undoUntil)],
+                                systemImage: "square.stack.3d.up",
+                                refusal: page.undoRefusal,
+                                back: DeleteWording.back(.examPage(id: page.id, name: page.name))
+                            )
+                        }
+                    }
+                }
                 if !deleted.folders.isEmpty {
                     QBankListGroup(header: "Folders") {
                         ForEach(deleted.folders) { folder in

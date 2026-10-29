@@ -1,0 +1,63 @@
+{
+  "recordedFrom": "4de36443ffecd8065d104b79bc6d3690e9adf04f",
+  "request": {
+    "method": "GET",
+    "path": "/api/course-exams/ce000000-0000-4000-8000-000000000903/delete-preview",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "examPageId": "ce000000-0000-4000-8000-000000000903",
+      "courseId": "c0000000-0000-4000-8000-000000000901",
+      "name": "Exam 2",
+      "folders": [
+        {
+          "id": "f0000000-0000-4000-8000-000000000906",
+          "name": "First Pass",
+          "setCount": 0,
+          "questionCount": 0
+        }
+      ],
+      "pastExamCount": 0,
+      "folderCount": 1,
+      "setCount": 0,
+      "questionCount": 0,
+      "examQuestionCount": 0,
+      "answeredCount": 0,
+      "progress": {
+        "answeredCount": {
+          "before": 1,
+          "after": 1
+        },
+        "fullyRightCount": {
+          "before": 1,
+          "after": 1
+        },
+        "reviewCount": {
+          "before": 0,
+          "after": 0
+        },
+        "points": {
+          "before": 1,
+          "after": 1
+        },
+        "maxPoints": {
+          "before": 1,
+          "after": 1
+        },
+        "wrongCount": {
+          "before": 0,
+          "after": 0
+        }
+      },
+      "message": "Delete Exam 2? Its folder First Pass stays, with its sets and your progress, under Folders. You can undo this for 30 days.",
+      "refusal": "NURS 101 already has a folder named First Pass in its Folders list. Rename one of them before deleting Exam 2.",
+      "confirm": "39a0458ed50cf404",
+      "undoDays": 30
+    }
+  }
+}

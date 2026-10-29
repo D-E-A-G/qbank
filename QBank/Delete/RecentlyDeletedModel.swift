@@ -2,8 +2,8 @@ import Foundation
 import Observation
 import QBankKit
 
-/// A course's Recently deleted: the folders and sets she deleted and her past exams she deleted,
-/// in the last 30 days, newest first, each with Bring back until its days run out.
+/// A course's Recently deleted: the exam pages, folders and sets she deleted and her past exams she
+/// deleted, in the last 30 days, newest first, each with Bring back until its days run out.
 @Observable
 final class RecentlyDeletedModel {
     let courseID: String
@@ -66,6 +66,15 @@ final class RecentlyDeletedModel {
 
 /// The lines Recently deleted shows, worded as the rest of the app words them.
 nonisolated enum RecentlyDeletedWording {
+    /// An exam page's line: the folders Bring back puts back on it, "Week 3, Week 4", the first two
+    /// and how many more past three ("Week 1, Week 2 and 3 more"), or "No folders".
+    static func folders(_ page: DeletedExamPage) -> String {
+        let names = page.folders.map(\.name)
+        guard !names.isEmpty else { return "No folders" }
+        guard names.count > 3 else { return names.joined(separator: ", ") }
+        return "\(names.prefix(2).joined(separator: ", ")) and \(names.count - 2) more"
+    }
+
     /// A folder's line: its sets by name, "Heart A, Heart B and Heart A exam", or "No sets".
     static func sets(_ folder: DeletedFolder) -> String {
         guard !folder.sets.isEmpty else { return "No sets" }

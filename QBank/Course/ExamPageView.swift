@@ -5,7 +5,9 @@ import SwiftUI
 /// An exam page: its folders and sets, Start exam over them, its folders in her order, and the
 /// exams she took over them. Edit puts the folders in order and offers the page's name and folders.
 /// The + at the top adds into the page: a question file, a new folder, or folders she has.
-/// A topic's study page is the same screen, with its primer link when it has one.
+/// A topic's study page is the same screen, with its primer link when it has one. Its editor ends
+/// with Delete: the page goes to Recently deleted, and its folders stay in the course, with their
+/// sets, at the end of its Folders list.
 struct ExamPageView: View {
     let app: AppModel
     let model: CourseModel
@@ -19,9 +21,12 @@ struct ExamPageView: View {
     /// The sheet the + opened, and once a set was filed, the folder to open when it is down.
     @State private var adding: PageSheet?
     @State private var opensFolder: String?
-    @State private var isRemoved = false
+    /// True once the page is deleted, so the screen leaves instead of saying it is gone.
+    @State private var isDeleted = false
+    /// She asked the editor to delete the page: its warning opens once the editor is down.
+    @State private var deletesPage = false
     @State private var problem: String?
-    /// The past exam she asked to delete, while its warning is open.
+    /// The page or a past exam she asked to delete, while its warning is open.
     @State private var deleting: DeleteRequest?
     @Environment(\.dismiss) private var dismiss
     @Environment(HomeNavigator.self) private var navigator: HomeNavigator?
@@ -33,9 +38,9 @@ struct ExamPageView: View {
                 content(page)
                     .screenColumn()
                     .padding(.bottom, QBankSpacing.space7)
-            } else if model.course != nil, !isRemoved {
-                // Removed elsewhere, such as on the web, while it was open here.
-                EmptyCard(message: "This \(model.words.page) is not in the \(model.words.container) anymore. Its folders are under Folders.", systemImage: "square.stack.3d.up")
+            } else if model.course != nil, !isDeleted {
+                // Deleted elsewhere, such as on the web, while it was open here.
+                EmptyCard(message: model.words.pageGone, systemImage: "square.stack.3d.up")
                     .screenColumn()
                     .padding(.top, QBankSpacing.space4)
             }
@@ -58,16 +63,26 @@ struct ExamPageView: View {
             // A folder or exam deleted, or brought back with Undo while this page is open.
             Task { await model.load() }
         }
-        .deleteSheet(app: app, request: $deleting)
+        .deleteSheet(app: app, request: $deleting) { target in
+            if case .examPage = target {
+                isDeleted = true
+                dismiss()
+            }
+        }
         .sheet(isPresented: $editsPage, onDismiss: {
-            // A removed page leaves once the sheet is down.
             order = nil
-            if isRemoved { dismiss() }
+            // Delete in the editor asks once the editor is down.
+            guard deletesPage, let page = model.layout?.page(id) else { return }
+            deletesPage = false
+            deleting = DeleteRequest(target: .examPage(id: page.id, name: page.exam.name))
         }, content: {
             if let course = model.course {
                 EditExamPageView(app: app, course: course, pageID: id) { outcome in
-                    Task { await model.load() }
-                    isRemoved = outcome == .removed
+                    if outcome == .delete {
+                        deletesPage = true
+                    } else {
+                        Task { await model.load() }
+                    }
                 }
             }
         })

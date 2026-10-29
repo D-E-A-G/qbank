@@ -1,0 +1,20 @@
+{
+  "recordedFrom": "4de36443ffecd8065d104b79bc6d3690e9adf04f",
+  "request": {
+    "method": "DELETE",
+    "path": "/api/course-exams/ce000000-0000-4000-8000-000000000902",
+    "query": {
+      "confirm": "0a8ebda3b1da4351"
+    },
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 409,
+    "headers": {},
+    "body": {
+      "error": "deletion_changed",
+      "message": "Exam 2 changed since you were warned. Look again before deleting it."
+    }
+  }
+}
