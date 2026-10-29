@@ -1,0 +1,69 @@
+{
+  "recordedFrom": "4de36443ffecd8065d104b79bc6d3690e9adf04f",
+  "request": {
+    "method": "GET",
+    "path": "/api/course-exams/ce000000-0000-4000-8000-000000000902/delete-preview",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "examPageId": "ce000000-0000-4000-8000-000000000902",
+      "courseId": "c0000000-0000-4000-8000-000000000901",
+      "name": "Exam 2",
+      "folders": [
+        {
+          "id": "f0000000-0000-4000-8000-000000000902",
+          "name": "Week 3",
+          "setCount": 1,
+          "questionCount": 2
+        },
+        {
+          "id": "f0000000-0000-4000-8000-000000000903",
+          "name": "Week 4",
+          "setCount": 2,
+          "questionCount": 5
+        }
+      ],
+      "pastExamCount": 1,
+      "folderCount": 2,
+      "setCount": 3,
+      "questionCount": 5,
+      "examQuestionCount": 2,
+      "answeredCount": 1,
+      "progress": {
+        "answeredCount": {
+          "before": 1,
+          "after": 1
+        },
+        "fullyRightCount": {
+          "before": 1,
+          "after": 1
+        },
+        "reviewCount": {
+          "before": 0,
+          "after": 0
+        },
+        "points": {
+          "before": 1,
+          "after": 1
+        },
+        "maxPoints": {
+          "before": 1,
+          "after": 1
+        },
+        "wrongCount": {
+          "before": 0,
+          "after": 0
+        }
+      },
+      "message": "Delete Exam 2? Its 2 folders stay, with their sets and your progress, under Folders: Week 3 and Week 4. Your 1 past exam over it stays. You can undo this for 30 days.",
+      "refusal": null,
+      "confirm": "0a8ebda3b1da4351",
+      "undoDays": 30
+    }
+  }
+}

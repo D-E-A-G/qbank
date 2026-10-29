@@ -1,0 +1,18 @@
+{
+  "recordedFrom": "4de36443ffecd8065d104b79bc6d3690e9adf04f",
+  "request": {
+    "method": "POST",
+    "path": "/api/course-exams/ce000000-0000-4000-8000-000000000901/undo-delete",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 409,
+    "headers": {},
+    "body": {
+      "error": "undo_expired",
+      "message": "Exam 1 was deleted more than 30 days ago, so it can't be brought back."
+    }
+  }
+}

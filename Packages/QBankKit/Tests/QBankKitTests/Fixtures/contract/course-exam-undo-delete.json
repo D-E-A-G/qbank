@@ -1,0 +1,30 @@
+{
+  "recordedFrom": "4de36443ffecd8065d104b79bc6d3690e9adf04f",
+  "request": {
+    "method": "POST",
+    "path": "/api/course-exams/ce000000-0000-4000-8000-000000000902/undo-delete",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "id": "ce000000-0000-4000-8000-000000000902",
+      "name": "Exam 2",
+      "sortOrder": 2,
+      "weekLabels": [
+        "Week 3",
+        "Week 4",
+        "Week 5"
+      ],
+      "folderIds": [
+        "f0000000-0000-4000-8000-000000000902",
+        "f0000000-0000-4000-8000-000000000903",
+        "f0000000-0000-4000-8000-000000000904"
+      ],
+      "linkUrl": null
+    }
+  }
+}

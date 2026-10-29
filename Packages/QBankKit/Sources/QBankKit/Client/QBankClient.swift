@@ -382,7 +382,8 @@ public struct QBankClient: Sendable {
         try await send(Request(.post, "/api/exams/\(id)/undo-delete"))
     }
 
-    /// The course's folders and sets, and her past exams, deleted in the last 30 days, newest first.
+    /// The course's exam pages, folders and sets, and her past exams, deleted in the last 30 days,
+    /// newest first.
     public func recentlyDeleted(courseID: String) async throws(QBankError) -> RecentlyDeleted {
         try await send(Request(.get, "/api/courses/\(courseID)/deleted"))
     }
@@ -431,11 +432,26 @@ public struct QBankClient: Sendable {
         try await send(Request(.put, "/api/course-exams/\(id)", body: CourseExamRequest(name: name, folderIds: folderIDs, link: link)))
     }
 
-    /// Removes an exam page. Its folders go back to the end of the course's Folders list; their sets
-    /// and her past exams stay as they are. Refused with 409 when one of its folders has the name of
-    /// a folder already in that list.
-    public func deleteCourseExam(id: String) async throws(QBankError) {
-        _ = try await exchange(Request(.delete, "/api/course-exams/\(id)"))
+    /// What deleting an exam page changes: the page alone goes, and its folders stay, named, with
+    /// their sets. A page she deleted is 404.
+    public func courseExamDeletion(id: String) async throws(QBankError) -> ExamPageDeletion {
+        try await send(Request(.get, "/api/course-exams/\(id)/delete-preview"))
+    }
+
+    /// Deletes an exam page, as its preview named: the page alone. Its folders show on no page, at
+    /// the end of the course's Folders list, with their sets and her progress, and her past exams
+    /// stay in Exam setup. Refused with 409 `deletion_changed` when the page or its folders changed
+    /// since the preview, and with 409 while one of its folders has the name of a folder already in
+    /// the Folders list; nothing is deleted then.
+    public func deleteCourseExam(id: String, confirm: String) async throws(QBankError) {
+        _ = try await exchange(Request(.delete, "/api/course-exams/\(id)", query: [("confirm", confirm)]))
+    }
+
+    /// Brings back an exam page she deleted, within 30 days, in its place with the folders still on
+    /// no other page back on it. Refused while another page has its name, and with `undo_expired`
+    /// after 30 days. Returns the page.
+    public func undoDeleteCourseExam(id: String) async throws(QBankError) -> CourseExam {
+        try await send(Request(.post, "/api/course-exams/\(id)/undo-delete"))
     }
 
     // MARK: Semesters and courses

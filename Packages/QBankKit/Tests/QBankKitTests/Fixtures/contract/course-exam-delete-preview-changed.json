@@ -1,0 +1,75 @@
+{
+  "recordedFrom": "4de36443ffecd8065d104b79bc6d3690e9adf04f",
+  "request": {
+    "method": "GET",
+    "path": "/api/course-exams/ce000000-0000-4000-8000-000000000902/delete-preview",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "examPageId": "ce000000-0000-4000-8000-000000000902",
+      "courseId": "c0000000-0000-4000-8000-000000000901",
+      "name": "Exam 2",
+      "folders": [
+        {
+          "id": "f0000000-0000-4000-8000-000000000902",
+          "name": "Week 3",
+          "setCount": 1,
+          "questionCount": 2
+        },
+        {
+          "id": "f0000000-0000-4000-8000-000000000903",
+          "name": "Week 4",
+          "setCount": 2,
+          "questionCount": 5
+        },
+        {
+          "id": "f0000000-0000-4000-8000-000000000904",
+          "name": "Week 5",
+          "setCount": 1,
+          "questionCount": 2
+        }
+      ],
+      "pastExamCount": 1,
+      "folderCount": 3,
+      "setCount": 4,
+      "questionCount": 7,
+      "examQuestionCount": 2,
+      "answeredCount": 1,
+      "progress": {
+        "answeredCount": {
+          "before": 1,
+          "after": 1
+        },
+        "fullyRightCount": {
+          "before": 1,
+          "after": 1
+        },
+        "reviewCount": {
+          "before": 0,
+          "after": 0
+        },
+        "points": {
+          "before": 1,
+          "after": 1
+        },
+        "maxPoints": {
+          "before": 1,
+          "after": 1
+        },
+        "wrongCount": {
+          "before": 0,
+          "after": 0
+        }
+      },
+      "message": "Delete Exam 2? Its 3 folders stay, with their sets and your progress, under Folders: Week 3, Week 4 and Week 5. Your 1 past exam over it stays. You can undo this for 30 days.",
+      "refusal": null,
+      "confirm": "d7a1616e2b52947b",
+      "undoDays": 30
+    }
+  }
+}

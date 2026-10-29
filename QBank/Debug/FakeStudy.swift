@@ -233,12 +233,8 @@ nonisolated final class FakeStudy: Sendable {
             default: return nil
             }
         }
-        if parts.count == 3, parts[0] == "api", parts[1] == "course-exams" {
-            switch method {
-            case "PUT": return saveCourseExam(courseID: nil, id: parts[2], body: body)
-            case "DELETE": return deleteCourseExam(id: parts[2])
-            default: return nil
-            }
+        if parts.count == 3, parts[0] == "api", parts[1] == "course-exams", method == "PUT" {
+            return saveCourseExam(courseID: nil, id: parts[2], body: body)
         }
         if parts.count == 3, parts[0] == "api", parts[1] == "folders", method == "PATCH" {
             return Self.reply(changeFolder(id: parts[2], body: body), status: 200, folderJSON)
@@ -1095,30 +1091,6 @@ nonisolated final class FakeStudy: Sendable {
         }
     }
 
-    /// Removes an exam page. Its folders go to the end of the Folders list, unless one has the name
-    /// of a folder already there.
-    private func deleteCourseExam(id: String) -> Reply {
-        state.withLock { state -> Reply in
-            guard let page = state.courseExams.first(where: { $0.id == id }) else {
-                return Self.failure(404, "request_refused", "That exam is not in the app.")
-            }
-            let own = Self.ordered(state, courseID: page.courseID).filter { $0.examPageID == id }
-            for folder in own {
-                if let clash = state.folders.first(where: { $0.courseID == page.courseID && $0.examPageID == nil && $0.name.lowercased() == folder.name.lowercased() }) {
-                    let code = Self.codes[page.courseID] ?? "This course"
-                    return Self.failure(409, "request_refused", "\(code) already has a folder named \(clash.name) in its Folders list. Rename one of them before removing \(page.name).")
-                }
-            }
-            for folder in own {
-                guard let index = state.folders.firstIndex(where: { $0.id == folder.id }) else { continue }
-                state.folders[index].sortOrder = Self.end(of: nil, courseID: page.courseID, in: state)
-                state.folders[index].examPageID = nil
-            }
-            state.courseExams.removeAll { $0.id == id }
-            return (204, [:])
-        }
-    }
-
     // MARK: Deleting, for `FakeDeletions`
 
     /// A folder's exam sets: its exam bank's questions, by the set they came from. An imported or
@@ -1229,6 +1201,95 @@ nonisolated final class FakeStudy: Sendable {
                 return "\(clash.message.dropLast()). Rename one of them, then bring this one back."
             }
             state.folders.append(folder)
+            return nil
+        }
+    }
+
+    /// An exam page she has, with its folders in her order on it.
+    func page(_ id: String) -> (page: CourseExam, folders: [Folder])? {
+        state.withLock { state in
+            state.courseExams.first { $0.id == id }.map { page in
+                (page, Self.ordered(state, courseID: page.courseID).filter { $0.examPageID == id })
+            }
+        }
+    }
+
+    /// The exam page as `GET /api/courses/{id}` lists it.
+    func pageJSON(_ id: String) -> [String: Any]? {
+        state.withLock { state in state.courseExams.first { $0.id == id }.map { Self.pageJSON($0, in: state) } }
+    }
+
+    /// Why the page cannot be deleted now, in the server's words: one of its folders has the name of
+    /// a folder in the Folders list, where it would show.
+    func pageDeleteRefusal(_ id: String) -> String? {
+        state.withLock { state in
+            guard let page = state.courseExams.first(where: { $0.id == id }) else { return nil }
+            for folder in Self.ordered(state, courseID: page.courseID) where folder.examPageID == id {
+                if let clash = state.folders.first(where: { $0.courseID == page.courseID && $0.examPageID == nil && $0.name.lowercased() == folder.name.lowercased() }) {
+                    let name = Self.codes[page.courseID] ?? "This course"
+                    return "\(name) already has a folder named \(clash.name) in its Folders list. Rename one of them before deleting \(page.name)."
+                }
+            }
+            return nil
+        }
+    }
+
+    /// Her ended exams that belong to the page, as Exam setup places them; with `folderIDs`, as if
+    /// those folders were on it.
+    func pastExams(onPage id: String, folderIDs: [String]? = nil) -> Int {
+        state.withLock { state in
+            if let folderIDs {
+                return state.exams.count { $0.finishedAt != nil && !$0.folderIDs.isEmpty && $0.folderIDs.allSatisfy(folderIDs.contains) }
+            }
+            return state.exams.count { $0.finishedAt != nil && Self.page(of: $0, in: state) == id }
+        }
+    }
+
+    /// Takes an exam page out of its course. Its folders stay, at the end of the Folders list in the
+    /// page's order; each is remembered with its place on the page, for Undo.
+    func take(page id: String) -> (page: CourseExam, folders: [(id: String, sortOrder: Int)])? {
+        state.withLock { state in
+            guard let index = state.courseExams.firstIndex(where: { $0.id == id }) else { return nil }
+            let page = state.courseExams.remove(at: index)
+            let own = state.folders.filter { $0.examPageID == id }.sorted { ($0.sortOrder, $0.name) < ($1.sortOrder, $1.name) }
+            for folder in own {
+                guard let at = state.folders.firstIndex(where: { $0.id == folder.id }) else { continue }
+                state.folders[at].sortOrder = Self.end(of: nil, courseID: page.courseID, in: state)
+                state.folders[at].examPageID = nil
+            }
+            return (page, own.map { ($0.id, $0.sortOrder) })
+        }
+    }
+
+    /// Of a deleted page's folders, the ones Undo puts back on it: still in the course, on no page.
+    func foldersBack(_ folders: [(id: String, sortOrder: Int)]) -> [Folder] {
+        state.withLock { state in
+            folders.compactMap { remembered in state.folders.first { $0.id == remembered.id && $0.examPageID == nil } }
+        }
+    }
+
+    /// Why a deleted exam page cannot come back now, in the server's words: another page has its name.
+    func pageNameClash(_ page: CourseExam) -> String? {
+        state.withLock { state in Self.pageNameClash(page, in: state) }
+    }
+
+    private static func pageNameClash(_ page: CourseExam, in state: State) -> String? {
+        state.courseExams.first { $0.courseID == page.courseID && $0.name.lowercased() == page.name.lowercased() }.map { clash in
+            "This course already has an exam named \(clash.name). Rename one of them, then bring this one back."
+        }
+    }
+
+    /// Puts a deleted exam page back in its place, with its folders still on no page back on it in
+    /// its order. Refused, in the server's words, while another page has its name.
+    func putBack(page: CourseExam, folders: [(id: String, sortOrder: Int)]) -> String? {
+        state.withLock { state in
+            if let clash = Self.pageNameClash(page, in: state) { return clash }
+            state.courseExams.append(page)
+            for remembered in folders {
+                guard let index = state.folders.firstIndex(where: { $0.id == remembered.id && $0.examPageID == nil }) else { continue }
+                state.folders[index].examPageID = page.id
+                state.folders[index].sortOrder = remembered.sortOrder
+            }
             return nil
         }
     }

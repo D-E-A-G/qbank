@@ -3,7 +3,7 @@ import QBankKit
 import Testing
 @testable import QBank
 
-/// Deleting a course or topic, a set, a folder with its sets, and a past exam, Undo, and Recently
+/// Deleting a course or topic, an exam page, a set, a folder with its sets, and a past exam, Undo, and Recently
 /// deleted, end to end against the fake server, which follows the server's rules and words; and the
 /// confirm a delete sends and the refusals it shows, against a stub.
 @MainActor
@@ -119,6 +119,79 @@ struct DeletionTests {
         await course.load()
         #expect(course.layout?.page(FakeStudy.exam1)?.folders.map(\.name) == ["Week 1", "Week 2"])
         #expect(course.folder(FakeStudy.week2)?.sets.count == 2, "with its sets")
+    }
+
+    // MARK: An exam page
+
+    /// Its warning names the folders that stay and her past exams over it, in the server's words.
+    @Test func anExamPagesWarningSaysItsFoldersStay() async throws {
+        let model = DeleteModel(app: Self.app(), target: .examPage(id: FakeStudy.exam1, name: "Exam 1"))
+        #expect(model.title == "Delete Exam 1?", "before the warning arrives")
+        await model.load()
+        let warning = try #require(model.warning)
+        #expect(warning.title == "Delete Exam 1?")
+        #expect(warning.message == "Its 2 folders stay, with their sets and your progress, under Folders: Week 1 and Week 2. Your 2 past exams over it stay. You can undo this for 30 days.")
+        #expect(warning.refusal == nil)
+        #expect(warning.deleted == "Exam 1 deleted.")
+        #expect(warning.back == "Exam 1 is back.")
+        #expect(model.canDelete)
+    }
+
+    /// The page alone goes: its folders stay in the course, at the end of its Folders list with their
+    /// sets and her progress, and her past exams stay in Exam setup. Undo puts them back on it.
+    @Test func aDeletedExamPageLeavesItsFoldersInTheCourseAndUndoPutsThemBack() async throws {
+        let app = Self.app()
+        let course = await Self.course(app)
+        let answered = course.course?.answeredCount
+        let ref = CourseRef(id: FakeQBankServer.mentalHealthID, code: "NURS 310", title: "Mental Health")
+        let setup = ExamSetupModel(app: app, route: ExamSetupRoute(course: ref))
+        await setup.load()
+        let pastExams = setup.setup?.exams.map(\.id)
+        let model = DeleteModel(app: app, target: .examPage(id: FakeStudy.exam1, name: "Exam 1"))
+        await model.load()
+        #expect(await model.delete())
+        #expect(app.deletions.offer?.line == "Exam 1 deleted.")
+        await course.load()
+        #expect(course.layout?.page(FakeStudy.exam1) == nil)
+        #expect(course.course?.exams.map(\.name) == ["Exam 2"])
+        #expect(course.course?.folders.filter { $0.examPageID == nil }.map(\.name) == ["Weeks 1-3", "Week 1", "Week 2"], "at the end of Folders, in the page's order")
+        #expect(course.folder(FakeStudy.week2)?.sets.map(\.id) == [Self.communication, "psychosocial-v2"], "with their sets")
+        #expect(course.course?.answeredCount == answered, "and her progress")
+        await setup.load()
+        #expect(setup.setup?.exams.map(\.id) == pastExams, "her past exams stay")
+
+        await app.deletions.undo(with: app)
+        #expect(app.deletions.offer?.state == .undone)
+        #expect(app.deletions.offer?.back == "Exam 1 is back.")
+        await course.load()
+        #expect(course.layout?.page(FakeStudy.exam1)?.folders.map(\.name) == ["Week 1", "Week 2"], "back on it, in its order")
+        #expect(course.course?.folders.filter { $0.examPageID == nil }.map(\.name) == ["Weeks 1-3"])
+    }
+
+    /// One of its folders has the name of a folder in the Folders list, where it would show.
+    @Test func anExamPageWhoseFolderNameIsInTheFoldersListWaits() async throws {
+        let app = Self.app()
+        try await app.client.createFolder(courseID: FakeQBankServer.mentalHealthID, name: "Week 2")
+        let model = DeleteModel(app: app, target: .examPage(id: FakeStudy.exam1, name: "Exam 1"))
+        await model.load()
+        #expect(model.warning?.refusal == "NURS 310 already has a folder named Week 2 in its Folders list. Rename one of them before deleting Exam 1.")
+        #expect(!model.canDelete)
+        #expect(await model.delete() == false)
+        let course = await Self.course(app)
+        #expect(course.layout?.page(FakeStudy.exam1)?.folders.count == 2, "nothing was deleted")
+    }
+
+    /// Its folders changed since she was warned: nothing is deleted, and the new warning names them.
+    @Test func anExamPageThatChangedSinceTheWarningIsReadAgain() async throws {
+        let app = Self.app()
+        let model = DeleteModel(app: app, target: .examPage(id: FakeStudy.exam2, name: "Exam 2"))
+        await model.load()
+        #expect(model.warning?.message == "Its folder Week 3 stays, with its sets and your progress, under Folders. You can undo this for 30 days.")
+        _ = try await app.client.updateCourseExam(id: FakeStudy.exam2, name: "Exam 2", folderIDs: [FakeStudy.week3, FakeStudy.weeks1to3])
+        #expect(await model.delete() == false)
+        #expect(model.problem == "Exam 2 changed since you were warned. Look again before deleting it.")
+        #expect(model.warning?.message == "Its 2 folders stay, with their sets and your progress, under Folders: Week 3 and Weeks 1-3. You can undo this for 30 days.")
+        #expect(await model.delete())
     }
 
     // MARK: A past exam
@@ -239,6 +312,73 @@ struct DeletionTests {
         #expect(list.deleted?.sets.map(\.title) == ["Mixed Clinical Judgment"])
         let course = await Self.course(app)
         #expect(course.layout?.page(FakeStudy.exam2)?.folders.map(\.name) == ["Week 3"], "back on Exam 2")
+    }
+
+    @Test func recentlyDeletedListsAnExamPageFirstAndBringsItBackWithItsFolders() async throws {
+        let app = Self.app()
+        let deleteFolder = DeleteModel(app: app, target: .folder(id: FakeStudy.weeks1to3, name: "Weeks 1-3"))
+        await deleteFolder.load()
+        #expect(await deleteFolder.delete())
+        let deletePage = DeleteModel(app: app, target: .examPage(id: FakeStudy.exam1, name: "Exam 1"))
+        await deletePage.load()
+        #expect(await deletePage.delete())
+
+        let list = RecentlyDeletedModel(app: app, courseID: FakeQBankServer.mentalHealthID)
+        await list.load()
+        let deleted = try #require(list.deleted)
+        #expect(deleted.examPages.map(\.name) == ["Exam 1"])
+        #expect(deleted.folders.map(\.name) == ["Weeks 1-3"])
+        let page = try #require(deleted.examPages.first)
+        #expect(RecentlyDeletedWording.folders(page) == "Week 1, Week 2")
+        #expect(page.pastExamCount == 2)
+        #expect(page.undoRefusal == nil)
+
+        await list.bringBack(.examPage(id: page.id, name: page.name), saying: DeleteWording.back(.examPage(id: page.id, name: page.name)))
+        #expect(list.back == "Exam 1 is back.")
+        #expect(list.problem == nil)
+        #expect(list.deleted?.examPages.isEmpty == true)
+        let course = await Self.course(app)
+        #expect(course.layout?.page(FakeStudy.exam1)?.folders.map(\.name) == ["Week 1", "Week 2"], "back on Exam 1")
+    }
+
+    /// Another page has its name now: the row says so, and Bring back is refused in the same words.
+    @Test func anExamPageWhoseNameIsTakenSinceWaitsInRecentlyDeleted() async throws {
+        let app = Self.app()
+        let model = DeleteModel(app: app, target: .examPage(id: FakeStudy.exam2, name: "Exam 2"))
+        await model.load()
+        #expect(await model.delete())
+        _ = try await app.client.createCourseExam(courseID: FakeQBankServer.mentalHealthID, name: "Exam 2", folderIDs: [])
+        let list = RecentlyDeletedModel(app: app, courseID: FakeQBankServer.mentalHealthID)
+        await list.load()
+        let taken = "This course already has an exam named Exam 2. Rename one of them, then bring this one back."
+        #expect(list.deleted?.examPages.first?.undoRefusal == taken)
+        await list.bringBack(.examPage(id: FakeStudy.exam2, name: "Exam 2"), saying: "Exam 2 is back.")
+        #expect(list.problem == taken)
+    }
+
+    /// The preview and the delete are at the page's own address, and the delete sends the preview's confirm.
+    @Test func anExamPageIsDeletedWithItsPreviewsConfirm() async throws {
+        let server = StubServer([
+            "GET /api/course-exams/p1/delete-preview": .ok(#"{"examPageId":"p1","courseId":"c1","name":"Exam 2","folders":[{"id":"f1","name":"Week 3","setCount":1,"questionCount":2}],"folderCount":1,"setCount":1,"questionCount":2,"examQuestionCount":0,"answeredCount":0,"pastExamCount":0,"progress":\#(Self.standing),"message":"Delete Exam 2? Its folder Week 3 stays, with its sets and your progress, under Folders. You can undo this for 30 days.","refusal":null,"confirm":"page-token","undoDays":30}"#),
+            "DELETE /api/course-exams/p1": StubServer.Reply(status: 204, body: ""),
+        ])
+        let (app, _) = TestApp.make(server, account: .student())
+        let model = DeleteModel(app: app, target: .examPage(id: "p1", name: "Exam 2"))
+        await model.load()
+        #expect(model.warning?.message == "Its folder Week 3 stays, with its sets and your progress, under Folders. You can undo this for 30 days.")
+        #expect(await model.delete())
+        #expect(server.calls == ["GET /api/course-exams/p1/delete-preview", "DELETE /api/course-exams/p1"])
+        let confirm = server.requests.last.flatMap { URLComponents(url: $0.url!, resolvingAgainstBaseURL: false)?.queryItems }
+        #expect(confirm == [URLQueryItem(name: "confirm", value: "page-token")])
+        #expect(app.deletions.offer?.line == "Exam 2 deleted.")
+    }
+
+    @Test func undoOfAnExamPageTooLateSaysSoInTheServersWords() async throws {
+        let server = StubServer(["POST /api/course-exams/p1/undo-delete": .error(409, "undo_expired", "Exam 2 was deleted more than 30 days ago, so it can't be brought back.")])
+        let (app, _) = TestApp.make(server, account: .student())
+        app.deletions.deleted(.examPage(id: "p1", name: "Exam 2"), line: "Exam 2 deleted.", back: "Exam 2 is back.")
+        await app.deletions.undo(with: app)
+        #expect(app.deletions.offer?.state == .failed("Exam 2 was deleted more than 30 days ago, so it can't be brought back."))
     }
 
     @Test func aSetWhoseFolderIsDeletedWaitsForTheFolder() async throws {

@@ -532,15 +532,34 @@ struct DebugLaunchScenarioTests {
         }
         #expect(Wording.problem(clash) == "NURS 310 already has a folder named Week 2.", "her Folders list has a Week 2 already")
 
-        // Removing a page puts its folders back under Folders, unless one's name is taken there.
-        let held = try await #require(throws: QBankError.self) { try await app.client.deleteCourseExam(id: FakeStudy.exam1) }
-        #expect(Wording.problem(held) == "NURS 310 already has a folder named Week 2 in its Folders list. Rename one of them before removing Exam 1.")
-        try await app.client.deleteCourseExam(id: created.id)
-        let gone = try await #require(throws: QBankError.self) { try await app.client.deleteCourseExam(id: created.id) }
-        #expect(Wording.problem(gone) == "That exam is not in the app.")
+        // Deleting a page puts its folders under Folders, unless one's name is taken there.
+        let preview = try await app.client.courseExamDeletion(id: FakeStudy.exam1)
+        #expect(preview.refusal == "NURS 310 already has a folder named Week 2 in its Folders list. Rename one of them before deleting Exam 1.")
+        let held = try await #require(throws: QBankError.self) { try await app.client.deleteCourseExam(id: FakeStudy.exam1, confirm: preview.confirm) }
+        #expect(Wording.problem(held) == preview.refusal)
+        let made = try await app.client.courseExamDeletion(id: created.id)
+        #expect(made.message == "Delete Exam 3? Its folder Weeks 1-3 stays, with its sets and your progress, under Folders. You can undo this for 30 days.")
+        let unconfirmed = try await #require(throws: QBankError.self) { try await app.client.deleteCourseExam(id: created.id, confirm: "stale") }
+        #expect(unconfirmed.serverCode == .deletionChanged)
+        #expect(Wording.problem(unconfirmed) == "Exam 3 changed since you were warned. Look again before deleting it.")
+        try await app.client.deleteCourseExam(id: created.id, confirm: made.confirm)
+        let gone = try await #require(throws: QBankError.self) { _ = try await app.client.courseExamDeletion(id: created.id) }
+        #expect(Wording.problem(gone) == "That exam page was deleted.")
         let course = try await app.client.course(id: id)
         #expect(course.exams.map(\.name) == ["Exam 1", "Exam 2"])
-        #expect(course.folders.filter { $0.examPageID == nil }.map(\.name) == ["Week 2", "Weeks 1-3"], "its folder is back under Folders, at the end")
+        #expect(course.folders.filter { $0.examPageID == nil }.map(\.name) == ["Week 2", "Weeks 1-3"], "its folder is under Folders, at the end")
+
+        // Undo puts it back with its folder; a page of its name meanwhile holds it in Recently deleted.
+        let back = try await app.client.undoDeleteCourseExam(id: created.id)
+        #expect(back.folderIDs == [FakeStudy.weeks1to3])
+        let again = try await app.client.courseExamDeletion(id: created.id)
+        try await app.client.deleteCourseExam(id: created.id, confirm: again.confirm)
+        _ = try await app.client.createCourseExam(courseID: id, name: "exam 3", folderIDs: [])
+        let refused = try await #require(throws: QBankError.self) { _ = try await app.client.undoDeleteCourseExam(id: created.id) }
+        #expect(Wording.problem(refused) == "This course already has an exam named exam 3. Rename one of them, then bring this one back.")
+        let deleted = try await app.client.recentlyDeleted(courseID: id)
+        #expect(deleted.examPages.map(\.name) == ["Exam 3"])
+        #expect(deleted.examPages.first?.undoRefusal == Wording.problem(refused))
     }
 
     @Test func fakeServerKeepsFolderRules() async throws {

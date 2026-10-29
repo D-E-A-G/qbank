@@ -15,8 +15,9 @@ nonisolated protocol FakeDeletionLibrary {
 /// The fake server's deletes and Undo, with the rules and words of the real routes
 /// (`content/deletions.ts`, `exams/deletions.ts`): a preview names what goes and hands out a
 /// `confirm`, the delete takes exactly that or is refused when it changed, and Undo brings it back
-/// for 30 days. A delete takes the set, folder or exam out of `FakeStudy`, so every read leaves it
-/// out, and keeps it here to put back.
+/// for 30 days. A delete takes the set, folder, exam page or exam out of `FakeStudy`, so every read
+/// leaves it out, and keeps it here to put back. An exam page goes alone: its folders stay in the
+/// course, on no page, until Undo puts them back on it.
 nonisolated final class FakeDeletions: Sendable {
     typealias Reply = (Int, [String: Any])
 
@@ -29,6 +30,8 @@ nonisolated final class FakeDeletions: Sendable {
             case examSet(id: String, title: String, folderID: String, folderName: String, questionIDs: [String])
             /// A folder, with the sets that went with it, practice sets then exam sets.
             case folder(FakeStudy.Folder, sets: [(id: String, title: String, kind: String, questionCount: Int)])
+            /// An exam page, with its folders as they were on it, for Undo to put back.
+            case examPage(FakeStudy.CourseExam, folders: [(id: String, sortOrder: Int)])
             /// The exam, and as Exam setup listed it, in JSON.
             case exam(FakeStudy.Exam, summary: Data)
         }
@@ -62,6 +65,9 @@ nonisolated final class FakeDeletions: Sendable {
         case ("GET", "folders", "delete-preview"): return Self.reply(folderPreview(id, library))
         case ("DELETE", "folders", nil): return deleteFolder(id, confirm: query["confirm"], library)
         case ("POST", "folders", "undo-delete"): return undoFolder(id, library)
+        case ("GET", "course-exams", "delete-preview"): return Self.reply(pagePreview(id, library))
+        case ("DELETE", "course-exams", nil): return deletePage(id, confirm: query["confirm"])
+        case ("POST", "course-exams", "undo-delete"): return undoPage(id)
         case ("GET", "exams", "delete-preview"): return Self.reply(examPreview(id))
         case ("DELETE", "exams", nil): return isStudent ? deleteExam(id, confirm: query["confirm"]) : Self.adminRefused
         case ("POST", "exams", "undo-delete"): return isStudent ? undoExam(id) : Self.adminRefused
@@ -203,7 +209,7 @@ nonisolated final class FakeDeletions: Sendable {
                 switch entry.kind {
                 case .set(let setID, _, _, _, _, _), .examSet(let setID, _, _, _, _): setID == id
                 case .folder(_, let sets): sets.contains { $0.id == id }
-                case .exam: false
+                case .examPage, .exam: false
                 }
             }
         }
@@ -322,6 +328,105 @@ nonisolated final class FakeDeletions: Sendable {
         }
     }
 
+    // MARK: Exam pages
+
+    private struct PagePlan {
+        let page: FakeStudy.CourseExam
+        let folders: [FakeStudy.Folder]
+        let refusal: String?
+        let confirm: String
+    }
+
+    private func pagePlan(_ id: String) -> Result<PagePlan, Refusal> {
+        guard let (page, folders) = study.page(id) else {
+            return .failure(deletedPage(id) != nil ? Refusal(404, "request_refused", "That exam page was deleted.") : Refusal(404, "request_refused", "That exam is not in the app."))
+        }
+        return .success(PagePlan(
+            page: page, folders: folders, refusal: study.pageDeleteRefusal(id),
+            confirm: Self.token(["exam-page", page.id, page.name] + folders.map { "\($0.id):\($0.name)" })
+        ))
+    }
+
+    private func pagePreview(_ id: String, _ library: some FakeDeletionLibrary) -> Result<[String: Any], Refusal> {
+        pagePlan(id).map { plan in
+            let pastExams = study.pastExams(onPage: id)
+            let practice = plan.folders.map { folder in folder.sets.compactMap(library.deletionSet) }
+            let folders = zip(plan.folders, practice).map { folder, sets in
+                [
+                    "id": folder.id, "name": folder.name, "setCount": sets.count + FakeStudy.examSets(folder).count,
+                    "questionCount": sets.reduce(0) { $0 + $1.questionCount } + folder.bank.count,
+                ] as [String: Any]
+            }
+            let sets = practice.joined()
+            // Nothing she answered is in the page itself, so her standing is the same before and after.
+            let review = study.reviewCount(plan.page.courseID)
+            let same = { (count: Int) in ["before": count, "after": count] }
+            return [
+                "examPageId": plan.page.id, "courseId": plan.page.courseID, "name": plan.page.name, "folders": folders,
+                "folderCount": plan.folders.count, "setCount": folders.reduce(0) { $0 + ($1["setCount"] as? Int ?? 0) },
+                "questionCount": sets.reduce(0) { $0 + $1.questionCount }, "examQuestionCount": plan.folders.reduce(0) { $0 + $1.bank.count },
+                "answeredCount": sets.reduce(0) { $0 + $1.answeredCount }, "pastExamCount": pastExams,
+                "progress": [
+                    "answeredCount": same(0), "fullyRightCount": same(0), "reviewCount": same(review),
+                    "points": same(0), "maxPoints": same(0), "wrongCount": same(0),
+                ],
+                "message": Self.pageMessage(name: plan.page.name, folders: plan.folders.map(\.name), pastExamCount: pastExams),
+                "refusal": Self.json(plan.refusal), "confirm": plan.confirm, "undoDays": Self.undoDays,
+            ]
+        }
+    }
+
+    private func deletePage(_ id: String, confirm: String?) -> Reply {
+        let plan: PagePlan
+        switch pagePlan(id) {
+        case .success(let found): plan = found
+        case .failure(let refusal): return refusal.reply
+        }
+        if let refusal = plan.refusal { return Self.failure(409, "request_refused", refusal) }
+        if confirm != nil || !plan.folders.isEmpty {
+            let count = plan.folders.count
+            let unconfirmed = "\(plan.page.name) still has \(Wording.count(count, "folder")). Deleting it puts \(count == 1 ? "that folder" : "them") under Folders, so look at what changes and confirm it first."
+            if let refusal = Self.confirmed(confirm, plan.confirm, name: plan.page.name, unconfirmed: unconfirmed) { return refusal.reply }
+        }
+        guard let (page, folders) = study.take(page: id) else { return Self.failure(404, "request_refused", "That exam is not in the app.") }
+        deleted.withLock { $0.append(Deleted(kind: .examPage(page, folders: folders), courseID: page.courseID, at: now())) }
+        return (204, [:])
+    }
+
+    private func undoPage(_ id: String) -> Reply {
+        let found = deleted.withLock { list -> (Int, FakeStudy.CourseExam, [(id: String, sortOrder: Int)], Date)? in
+            for (index, entry) in list.enumerated() {
+                if case .examPage(let page, let folders) = entry.kind, page.id == id { return (index, page, folders, entry.undoUntil) }
+            }
+            return nil
+        }
+        guard let (index, page, folders, undoUntil) = found else {
+            return study.page(id).map { Self.failure(409, "request_refused", "\($0.page.name) is not deleted.") }
+                ?? Self.failure(404, "request_refused", "That exam is not in the app.")
+        }
+        if let refusal = pageUndoRefusal(page, undoUntil: undoUntil) { return Self.failure(409, refusal.code, refusal.message) }
+        if let clash = study.putBack(page: page, folders: folders) { return Self.failure(409, "request_refused", clash) }
+        deleted.withLock { _ = $0.remove(at: index) }
+        return (200, study.pageJSON(id) ?? [:])
+    }
+
+    /// Why Undo cannot bring the page back now: too late, or another page has its name.
+    private func pageUndoRefusal(_ page: FakeStudy.CourseExam, undoUntil: Date) -> (code: String, message: String)? {
+        if now() > undoUntil {
+            return ("undo_expired", "\(page.name) was deleted more than \(Self.undoDays) days ago, so it can't be brought back.")
+        }
+        return study.pageNameClash(page).map { ("request_refused", $0) }
+    }
+
+    private func deletedPage(_ id: String) -> FakeStudy.CourseExam? {
+        deleted.withLock { list in
+            list.lazy.compactMap { entry -> FakeStudy.CourseExam? in
+                if case .examPage(let page, _) = entry.kind, page.id == id { return page }
+                return nil
+            }.first
+        }
+    }
+
     // MARK: Past exams
 
     private static let inProgress = "This exam is still going. Finish or leave it, then delete it."
@@ -406,12 +511,20 @@ nonisolated final class FakeDeletions: Sendable {
         let list = deleted.withLock { list in
             list.filter { $0.courseID == courseID && current <= $0.undoUntil }.sorted { $0.at > $1.at }
         }
+        var examPages: [[String: Any]] = []
         var folders: [[String: Any]] = []
         var sets: [[String: Any]] = []
         var exams: [[String: Any]] = []
         for entry in list {
             let window: [String: Any] = ["deletedAt": QBankJSON.formatDate(entry.at), "undoUntil": QBankJSON.formatDate(entry.undoUntil)]
             switch entry.kind {
+            case .examPage(let page, let remembered):
+                let back = study.foldersBack(remembered)
+                examPages.append([
+                    "id": page.id, "name": page.name, "folders": back.map { ["id": $0.id, "name": $0.name] },
+                    "pastExamCount": study.pastExams(onPage: page.id, folderIDs: back.map(\.id)),
+                    "undoRefusal": Self.json(pageUndoRefusal(page, undoUntil: entry.undoUntil)?.message),
+                ].merging(window) { _, new in new })
             case .folder(let folder, let held):
                 let clash = study.folders(courseID).first { $0.examPageID == folder.examPageID && $0.name.lowercased() == folder.name.lowercased() }
                 let label = folder.examPageID.flatMap { page in
@@ -437,7 +550,7 @@ nonisolated final class FakeDeletions: Sendable {
                 exams.append(listed.merging(window) { _, new in new })
             }
         }
-        return (200, ["undoDays": Self.undoDays, "folders": folders, "sets": sets, "exams": exams])
+        return (200, ["undoDays": Self.undoDays, "examPages": examPages, "folders": folders, "sets": sets, "exams": exams])
     }
 
     // MARK: Shared
@@ -496,7 +609,7 @@ nonisolated final class FakeDeletions: Sendable {
         return String(format: "%016llx", hash)
     }
 
-    // MARK: Words, as the server's `setMessage`, `folderMessage` and `examMessage`
+    // MARK: Words, as the server's `setMessage`, `folderMessage`, `pageMessage` and `examMessage`
 
     static func setMessage(
         title: String, folder: String, isExam: Bool, questionCount: Int, versionCount: Int, answeredCount: Int, reviewCount: Int, lastBank: Bool
@@ -540,6 +653,20 @@ nonisolated final class FakeDeletions: Sendable {
             }
         }
         if let page { sentences.append("It comes off \(page).") }
+        if pastExamCount > 0 {
+            sentences.append("Your \(Wording.count(pastExamCount, "past exam")) over it \(pastExamCount == 1 ? "stays" : "stay").")
+        }
+        sentences.append("You can undo this for \(undoDays) days.")
+        return sentences.joined(separator: " ")
+    }
+
+    static func pageMessage(name: String, folders: [String], pastExamCount: Int) -> String {
+        var sentences = ["Delete \(name)?"]
+        switch folders.count {
+        case 0: sentences.append("It has no folders.")
+        case 1: sentences.append("Its folder \(folders[0]) stays, with its sets and your progress, under Folders.")
+        default: sentences.append("Its \(folders.count) folders stay, with their sets and your progress, under Folders: \(FakeStudy.listText(folders)).")
+        }
         if pastExamCount > 0 {
             sentences.append("Your \(Wording.count(pastExamCount, "past exam")) over it \(pastExamCount == 1 ? "stays" : "stay").")
         }

@@ -5,7 +5,7 @@ import FoundationNetworking
 import Testing
 @testable import QBankKit
 
-/// Deleting a course or study topic, a set, a folder with its sets, and a past exam, Undo, and
+/// Deleting a course or study topic, an exam page, a set, a folder with its sets, and a past exam, Undo, and
 /// Recently deleted, against recordings of the server's real routes: each call sends what the
 /// recorded request sent, and each recorded response decodes into the models.
 @Suite("Contract: deleting and Undo")
@@ -24,6 +24,13 @@ struct DeletionContractTests {
     static let nurs220 = "c0000000-0000-4000-8000-000000000801"
     static let pharmacology = "c0000000-0000-4000-8000-000000000802"
     static let semester2 = "a0000000-0000-4000-8000-000000000802"
+    static let nurs101 = "c0000000-0000-4000-8000-000000000901"
+    static let pageExam1 = "ce000000-0000-4000-8000-000000000901"
+    static let pageExam2 = "ce000000-0000-4000-8000-000000000902"
+    static let newExam2 = "ce000000-0000-4000-8000-000000000903"
+    static let pageWeek3 = "f0000000-0000-4000-8000-000000000902"
+    static let pageWeek4 = "f0000000-0000-4000-8000-000000000903"
+    static let pageWeek5 = "f0000000-0000-4000-8000-000000000904"
 
     // MARK: A set
 
@@ -199,6 +206,146 @@ struct DeletionContractTests {
         let error = await #expect(throws: QBankError.self) { try await client.undoDeletePracticeSet(id: set) }
         try expectRequest(transport.requests.first, matches: fixture)
         try MakeQuestionsContractTests.expect(error, is: fixture, code: code)
+    }
+
+    // MARK: An exam page
+
+    @Test func anExamPagesPreviewSaysItsFoldersStayAndItsStandingIsTheSame() async throws {
+        let fixture = try Fixture.load("course-exam-delete-preview")
+        let transport = try FixtureTransport([fixture])
+        let (client, _) = TestClient.make(transport)
+        let preview = try await client.courseExamDeletion(id: Self.pageExam2)
+        try expectRequest(transport.requests.first, matches: fixture)
+        #expect(preview.examPageID == Self.pageExam2)
+        #expect(preview.courseID == Self.nurs101)
+        #expect(preview.name == "Exam 2")
+        #expect(preview.folders.map(\.id) == [Self.pageWeek3, Self.pageWeek4])
+        #expect(preview.folders.map(\.name) == ["Week 3", "Week 4"])
+        #expect(preview.folders.map(\.setCount) == [1, 2])
+        #expect([preview.folderCount, preview.setCount, preview.questionCount, preview.examQuestionCount] == [2, 3, 5, 2] as [Int])
+        #expect([preview.answeredCount, preview.pastExamCount] == [1, 1] as [Int])
+        #expect(preview.progress.answeredCount == CountChange(before: 1, after: 1))
+        #expect(preview.message == "Delete Exam 2? Its 2 folders stay, with their sets and your progress, under Folders: Week 3 and Week 4. Your 1 past exam over it stays. You can undo this for 30 days.")
+        #expect(preview.refusal == nil)
+        #expect(preview.confirm == "0a8ebda3b1da4351")
+        #expect(preview.undoDays == 30)
+    }
+
+    /// A folder went on the page after she was warned: nothing is deleted, and a new preview names it.
+    @Test func anExamPageThatChangedSinceTheWarningIsRefusedAndPreviewedAgain() async throws {
+        let names = ["course-exam-delete-changed", "course-exam-delete-preview-changed", "course-exam-delete"]
+        let transport = try FixtureTransport(names[0], names[1], names[2])
+        let (client, _) = TestClient.make(transport)
+        let error = await #expect(throws: QBankError.self) {
+            try await client.deleteCourseExam(id: Self.pageExam2, confirm: "0a8ebda3b1da4351")
+        }
+        try MakeQuestionsContractTests.expect(error, is: Fixture.load("course-exam-delete-changed"), code: .deletionChanged)
+        let again = try await client.courseExamDeletion(id: Self.pageExam2)
+        #expect(again.folders.map(\.name) == ["Week 3", "Week 4", "Week 5"])
+        #expect(again.confirm != "0a8ebda3b1da4351")
+        try await client.deleteCourseExam(id: Self.pageExam2, confirm: again.confirm)
+        for (request, fixture) in try zip(transport.requests, names.map(Fixture.load)) {
+            try expectRequest(request, matches: fixture)
+        }
+    }
+
+    /// The app always sends the preview's `confirm`; without one, a page with folders is refused.
+    @Test func anExamPageWithFoldersIsNotDeletedWithoutConfirm() throws {
+        let fixture = try Fixture.load("course-exam-delete-unconfirmed")
+        let response = try #require(HTTPURLResponse(url: TestClient.baseURL, statusCode: fixture.response.status, httpVersion: "HTTP/1.1", headerFields: nil))
+        let error = QBankClient.failure(status: fixture.response.status, data: try fixture.responseData, response: response)
+        try MakeQuestionsContractTests.expect(error, is: fixture, code: .confirmationRequired)
+    }
+
+    /// One of its folders has the name of a folder in the Folders list, where it would show: the
+    /// preview says so, and the delete is refused with the same sentence.
+    @Test func anExamPageWhoseFolderNameIsInTheFoldersListIsRefused() async throws {
+        let preview = try Fixture.load("course-exam-delete-preview-name-taken")
+        let refused = try Fixture.load("course-exam-delete-name-taken")
+        let transport = try FixtureTransport([preview, refused])
+        let (client, _) = TestClient.make(transport)
+        let shown = try await client.courseExamDeletion(id: Self.newExam2)
+        #expect(shown.message == "Delete Exam 2? Its folder First Pass stays, with its sets and your progress, under Folders. You can undo this for 30 days.")
+        #expect(shown.refusal == "NURS 101 already has a folder named First Pass in its Folders list. Rename one of them before deleting Exam 2.")
+        let error = await #expect(throws: QBankError.self) {
+            try await client.deleteCourseExam(id: Self.newExam2, confirm: shown.confirm)
+        }
+        try expectRequest(transport.requests.first, matches: preview)
+        try expectRequest(transport.requests.last, matches: refused)
+        try MakeQuestionsContractTests.expect(error, is: refused, code: .requestRefused)
+    }
+
+    /// Meanwhile its folders show on no page, at the end of the Folders list, with their sets.
+    @Test func aDeletedExamPagesFoldersStayInTheCourseOnNoPage() throws {
+        let course = try Fixture.load("course-after-exam-page-delete").decodeBody(CourseDetail.self)
+        #expect(course.exams.map(\.id) == [Self.pageExam1])
+        #expect(course.folders.map(\.name) == ["Week 1", "First Pass", "Week 3", "Week 4", "Week 5"])
+        #expect(course.folders.map(\.examPageID) == [Self.pageExam1, nil, nil, nil, nil])
+        let week4 = try #require(course.folders.first { $0.id == Self.pageWeek4 })
+        #expect(week4.sets.map(\.title) == ["Kidneys A"])
+        #expect(week4.examSets.map(\.title) == ["Kidneys A exam"])
+        #expect(course.answeredCount == 1)
+    }
+
+    @Test func recentlyDeletedListsAnExamPageWithTheFoldersUndoPutsBack() async throws {
+        let fixture = try Fixture.load("course-deleted-exam-page")
+        let transport = try FixtureTransport([fixture])
+        let (client, _) = TestClient.make(transport)
+        let deleted = try await client.recentlyDeleted(courseID: Self.nurs101)
+        try expectRequest(transport.requests.first, matches: fixture)
+        #expect(!deleted.isEmpty)
+        #expect(deleted.folders.isEmpty && deleted.sets.isEmpty && deleted.exams.isEmpty)
+        let page = try #require(deleted.examPages.first)
+        #expect(page.id == Self.pageExam2)
+        #expect(page.name == "Exam 2")
+        #expect(page.folders.map(\.id) == [Self.pageWeek3, Self.pageWeek4, Self.pageWeek5])
+        #expect(page.folders.map(\.name) == ["Week 3", "Week 4", "Week 5"])
+        #expect(page.pastExamCount == 1)
+        #expect(page.undoRefusal == nil)
+        #expect(abs(page.undoUntil.timeIntervalSince(page.deletedAt) - 30 * 86_400) < 0.001)
+        let taken = try Fixture.load("course-deleted-exam-page-name-taken").decodeBody(RecentlyDeleted.self)
+        #expect(taken.examPages.first?.undoRefusal == "This course already has an exam named Exam 2. Rename one of them, then bring this one back.")
+    }
+
+    /// Recently deleted from a server before exam pages could be deleted has no `examPages`.
+    @Test func recentlyDeletedFromBeforeExamPagesListsNone() throws {
+        let deleted = try Fixture.load("course-deleted").decodeBody(RecentlyDeleted.self)
+        #expect(deleted.examPages.isEmpty)
+        #expect(!deleted.folders.isEmpty)
+    }
+
+    @Test func undoBringsTheExamPageBackWithItsFolders() async throws {
+        let fixture = try Fixture.load("course-exam-undo-delete")
+        let transport = try FixtureTransport([fixture])
+        let (client, _) = TestClient.make(transport)
+        let page = try await client.undoDeleteCourseExam(id: Self.pageExam2)
+        try expectRequest(transport.requests.first, matches: fixture)
+        #expect(page.id == Self.pageExam2)
+        #expect(page.name == "Exam 2")
+        #expect(page.sortOrder == 2)
+        #expect(page.folderIDs == [Self.pageWeek3, Self.pageWeek4, Self.pageWeek5])
+    }
+
+    @Test(arguments: [
+        ("course-exam-undo-delete-name-taken", ServerError.Code.requestRefused, pageExam2),
+        ("course-exam-undo-expired", ServerError.Code.undoExpired, pageExam1),
+    ])
+    func undoOfAnExamPageIsRefusedInHerWords(name: String, code: ServerError.Code, id: String) async throws {
+        let fixture = try Fixture.load(name)
+        let transport = try FixtureTransport([fixture])
+        let (client, _) = TestClient.make(transport)
+        let error = await #expect(throws: QBankError.self) { _ = try await client.undoDeleteCourseExam(id: id) }
+        try expectRequest(transport.requests.first, matches: fixture)
+        try MakeQuestionsContractTests.expect(error, is: fixture, code: code)
+    }
+
+    @Test func aDeletedExamPageIsNotFound() async throws {
+        let fixture = try Fixture.load("course-exam-delete-gone")
+        let transport = try FixtureTransport([fixture])
+        let (client, _) = TestClient.make(transport)
+        let error = await #expect(throws: QBankError.self) { _ = try await client.courseExamDeletion(id: Self.pageExam2) }
+        try expectRequest(transport.requests.first, matches: fixture)
+        #expect(error == .server(ServerError(status: 404, code: .requestRefused, message: "That exam page was deleted.")))
     }
 
     // MARK: Recently deleted

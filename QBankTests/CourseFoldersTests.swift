@@ -389,6 +389,15 @@ struct CourseFoldersTests {
         return EditExamPageModel(app: app, course: try course(pages: pages), pageID: page)
     }
 
+    /// An existing page ends with Delete for her; a new page, and the owner's read-only view, have none.
+    @Test func onlyHerExistingPageOffersDelete() throws {
+        let pages: [StudyBodies.Page] = [("x1", "Exam 1", ["f2"])]
+        #expect(try editor(StubServer(), pages: pages, page: "x1").offersDelete)
+        #expect(try editor(StubServer(), pages: pages, page: nil).offersDelete == false)
+        let (owner, _) = TestApp.make(StubServer(), account: .admin)
+        #expect(EditExamPageModel(app: owner, course: try course(pages: pages), pageID: "x1").offersDelete == false)
+    }
+
     @Test func theEditorGreysFoldersOnOtherPages() throws {
         let model = try editor(StubServer(), pages: [("x1", "Exam 1", ["f2"]), ("x2", "Exam 2", ["f1"])], page: "x1")
         #expect(model.name == "Exam 1")
@@ -447,12 +456,5 @@ struct CourseFoldersTests {
         model.toggle(try #require(model.chips.first { $0.folder.id == "f3" }))
         #expect(await model.save() == .saved("x1"))
         #expect(String(decoding: server.requests.first?.httpBody ?? Data(), as: UTF8.self) == #"{"folderIds":["f2","f1","f3"],"name":"Exam 1"}"#)
-    }
-
-    @Test func removingAPageSendsItsDelete() async throws {
-        let server = StubServer(["DELETE /api/course-exams/x1": StubServer.Reply(status: 204, body: "")])
-        let model = try editor(server, pages: [("x1", "Exam 1", ["f1"])], page: "x1")
-        #expect(await model.remove() == .removed)
-        #expect(server.calls == ["DELETE /api/course-exams/x1"])
     }
 }

@@ -1,0 +1,18 @@
+{
+  "recordedFrom": "4de36443ffecd8065d104b79bc6d3690e9adf04f",
+  "request": {
+    "method": "DELETE",
+    "path": "/api/course-exams/ce000000-0000-4000-8000-000000000902",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 409,
+    "headers": {},
+    "body": {
+      "error": "confirmation_required",
+      "message": "Exam 2 still has 2 folders. Deleting it puts them under Folders, so look at what changes and confirm it first."
+    }
+  }
+}

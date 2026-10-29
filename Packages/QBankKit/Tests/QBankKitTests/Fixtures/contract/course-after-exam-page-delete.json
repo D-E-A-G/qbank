@@ -1,0 +1,326 @@
+{
+  "recordedFrom": "4de36443ffecd8065d104b79bc6d3690e9adf04f",
+  "request": {
+    "method": "GET",
+    "path": "/api/courses/c0000000-0000-4000-8000-000000000901",
+    "query": {},
+    "authorization": "Bearer synthetic-session-token",
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {},
+    "body": {
+      "id": "c0000000-0000-4000-8000-000000000901",
+      "kind": "course",
+      "code": "NURS 101",
+      "title": "Foundations",
+      "archivedAt": null,
+      "semester": {
+        "id": "a0000000-0000-4000-8000-000000000901",
+        "number": 1,
+        "name": "Semester 1"
+      },
+      "questionCount": 12,
+      "examQuestionCount": 11,
+      "examTimeLimitSeconds": 990,
+      "weekCount": 5,
+      "folderCount": 5,
+      "termCount": 0,
+      "reviewCount": 0,
+      "answeredCount": 1,
+      "fullyRightCount": 1,
+      "points": 1,
+      "maxPoints": 1,
+      "weeks": [
+        {
+          "label": "Week 1",
+          "sets": [
+            {
+              "id": "5e700000-0000-4000-8000-000000000901",
+              "title": "Heart A",
+              "description": "Invented set.",
+              "questionCount": 3,
+              "importedAt": "2026-10-29T02:59:27.180Z",
+              "activeSince": "2026-10-29T02:59:27.180Z",
+              "status": "imported",
+              "canRestore": false,
+              "answeredCount": 0,
+              "fullyRightCount": 0,
+              "lastAnsweredAt": null,
+              "questionIds": [
+                "9e000000-0000-4000-8000-000000000901",
+                "9e000000-0000-4000-8000-000000000902",
+                "9e000000-0000-4000-8000-000000000903"
+              ],
+              "importedByAgent": null
+            }
+          ],
+          "examBankCount": 0
+        },
+        {
+          "label": "Week 3",
+          "sets": [
+            {
+              "id": "5e700000-0000-4000-8000-000000000902",
+              "title": "Lungs A",
+              "description": "Invented set.",
+              "questionCount": 2,
+              "importedAt": "2026-10-29T02:59:27.191Z",
+              "activeSince": "2026-10-29T02:59:27.191Z",
+              "status": "imported",
+              "canRestore": false,
+              "answeredCount": 1,
+              "fullyRightCount": 1,
+              "lastAnsweredAt": "2026-10-29T02:59:27.258Z",
+              "questionIds": [
+                "9e000000-0000-4000-8000-000000000904",
+                "9e000000-0000-4000-8000-000000000905"
+              ],
+              "importedByAgent": null
+            }
+          ],
+          "examBankCount": 0
+        },
+        {
+          "label": "Week 4",
+          "sets": [
+            {
+              "id": "5e700000-0000-4000-8000-000000000903",
+              "title": "Kidneys A",
+              "description": "Invented set.",
+              "questionCount": 3,
+              "importedAt": "2026-10-29T02:59:27.199Z",
+              "activeSince": "2026-10-29T02:59:27.199Z",
+              "status": "imported",
+              "canRestore": false,
+              "answeredCount": 0,
+              "fullyRightCount": 0,
+              "lastAnsweredAt": null,
+              "questionIds": [
+                "9e000000-0000-4000-8000-000000000906",
+                "9e000000-0000-4000-8000-000000000907",
+                "9e000000-0000-4000-8000-000000000908"
+              ],
+              "importedByAgent": null
+            }
+          ],
+          "examBankCount": 2
+        },
+        {
+          "label": "Week 5",
+          "sets": [
+            {
+              "id": "5e700000-0000-4000-8000-000000000905",
+              "title": "Skin A",
+              "description": "Invented set.",
+              "questionCount": 2,
+              "importedAt": "2026-10-29T02:59:27.213Z",
+              "activeSince": "2026-10-29T02:59:27.213Z",
+              "status": "imported",
+              "canRestore": false,
+              "answeredCount": 0,
+              "fullyRightCount": 0,
+              "lastAnsweredAt": null,
+              "questionIds": [
+                "9e000000-0000-4000-8000-000000000909",
+                "9e000000-0000-4000-8000-000000000910"
+              ],
+              "importedByAgent": null
+            }
+          ],
+          "examBankCount": 0
+        },
+        {
+          "label": "First Pass",
+          "sets": [
+            {
+              "id": "5e700000-0000-4000-8000-000000000906",
+              "title": "Mixed A",
+              "description": "Invented set.",
+              "questionCount": 2,
+              "importedAt": "2026-10-29T02:59:27.219Z",
+              "activeSince": "2026-10-29T02:59:27.219Z",
+              "status": "imported",
+              "canRestore": false,
+              "answeredCount": 0,
+              "fullyRightCount": 0,
+              "lastAnsweredAt": null,
+              "questionIds": [
+                "9e000000-0000-4000-8000-000000000911",
+                "9e000000-0000-4000-8000-000000000912"
+              ],
+              "importedByAgent": null
+            }
+          ],
+          "examBankCount": 0
+        }
+      ],
+      "folders": [
+        {
+          "id": "f0000000-0000-4000-8000-000000000901",
+          "name": "Week 1",
+          "examPageId": "ce000000-0000-4000-8000-000000000901",
+          "sortOrder": 1,
+          "sets": [
+            {
+              "id": "5e700000-0000-4000-8000-000000000901",
+              "title": "Heart A",
+              "description": "Invented set.",
+              "questionCount": 3,
+              "importedAt": "2026-10-29T02:59:27.180Z",
+              "activeSince": "2026-10-29T02:59:27.180Z",
+              "status": "imported",
+              "canRestore": false,
+              "answeredCount": 0,
+              "fullyRightCount": 0,
+              "lastAnsweredAt": null,
+              "questionIds": [
+                "9e000000-0000-4000-8000-000000000901",
+                "9e000000-0000-4000-8000-000000000902",
+                "9e000000-0000-4000-8000-000000000903"
+              ],
+              "importedByAgent": null
+            }
+          ],
+          "examBankCount": 0,
+          "examSets": []
+        },
+        {
+          "id": "f0000000-0000-4000-8000-000000000905",
+          "name": "First Pass",
+          "examPageId": null,
+          "sortOrder": 5,
+          "sets": [
+            {
+              "id": "5e700000-0000-4000-8000-000000000906",
+              "title": "Mixed A",
+              "description": "Invented set.",
+              "questionCount": 2,
+              "importedAt": "2026-10-29T02:59:27.219Z",
+              "activeSince": "2026-10-29T02:59:27.219Z",
+              "status": "imported",
+              "canRestore": false,
+              "answeredCount": 0,
+              "fullyRightCount": 0,
+              "lastAnsweredAt": null,
+              "questionIds": [
+                "9e000000-0000-4000-8000-000000000911",
+                "9e000000-0000-4000-8000-000000000912"
+              ],
+              "importedByAgent": null
+            }
+          ],
+          "examBankCount": 0,
+          "examSets": []
+        },
+        {
+          "id": "f0000000-0000-4000-8000-000000000902",
+          "name": "Week 3",
+          "examPageId": null,
+          "sortOrder": 1,
+          "sets": [
+            {
+              "id": "5e700000-0000-4000-8000-000000000902",
+              "title": "Lungs A",
+              "description": "Invented set.",
+              "questionCount": 2,
+              "importedAt": "2026-10-29T02:59:27.191Z",
+              "activeSince": "2026-10-29T02:59:27.191Z",
+              "status": "imported",
+              "canRestore": false,
+              "answeredCount": 1,
+              "fullyRightCount": 1,
+              "lastAnsweredAt": "2026-10-29T02:59:27.258Z",
+              "questionIds": [
+                "9e000000-0000-4000-8000-000000000904",
+                "9e000000-0000-4000-8000-000000000905"
+              ],
+              "importedByAgent": null
+            }
+          ],
+          "examBankCount": 0,
+          "examSets": []
+        },
+        {
+          "id": "f0000000-0000-4000-8000-000000000903",
+          "name": "Week 4",
+          "examPageId": null,
+          "sortOrder": 2,
+          "sets": [
+            {
+              "id": "5e700000-0000-4000-8000-000000000903",
+              "title": "Kidneys A",
+              "description": "Invented set.",
+              "questionCount": 3,
+              "importedAt": "2026-10-29T02:59:27.199Z",
+              "activeSince": "2026-10-29T02:59:27.199Z",
+              "status": "imported",
+              "canRestore": false,
+              "answeredCount": 0,
+              "fullyRightCount": 0,
+              "lastAnsweredAt": null,
+              "questionIds": [
+                "9e000000-0000-4000-8000-000000000906",
+                "9e000000-0000-4000-8000-000000000907",
+                "9e000000-0000-4000-8000-000000000908"
+              ],
+              "importedByAgent": null
+            }
+          ],
+          "examBankCount": 2,
+          "examSets": [
+            {
+              "id": "5e700000-0000-4000-8000-000000000904",
+              "title": "Kidneys A exam",
+              "questionCount": 2,
+              "importedByAgent": null
+            }
+          ]
+        },
+        {
+          "id": "f0000000-0000-4000-8000-000000000904",
+          "name": "Week 5",
+          "examPageId": null,
+          "sortOrder": 3,
+          "sets": [
+            {
+              "id": "5e700000-0000-4000-8000-000000000905",
+              "title": "Skin A",
+              "description": "Invented set.",
+              "questionCount": 2,
+              "importedAt": "2026-10-29T02:59:27.213Z",
+              "activeSince": "2026-10-29T02:59:27.213Z",
+              "status": "imported",
+              "canRestore": false,
+              "answeredCount": 0,
+              "fullyRightCount": 0,
+              "lastAnsweredAt": null,
+              "questionIds": [
+                "9e000000-0000-4000-8000-000000000909",
+                "9e000000-0000-4000-8000-000000000910"
+              ],
+              "importedByAgent": null
+            }
+          ],
+          "examBankCount": 0,
+          "examSets": []
+        }
+      ],
+      "exams": [
+        {
+          "id": "ce000000-0000-4000-8000-000000000901",
+          "name": "Exam 1",
+          "sortOrder": 1,
+          "weekLabels": [
+            "Week 1"
+          ],
+          "folderIds": [
+            "f0000000-0000-4000-8000-000000000901"
+          ],
+          "linkUrl": null
+        }
+      ]
+    }
+  }
+}

@@ -286,6 +286,21 @@ nonisolated struct KindWords: Equatable {
     /// What an empty page asks for: "Add the folders this exam covers."
     let addFolders: String
 
+    /// The editor's last button: "Delete this exam page".
+    var deletePage: String {
+        "Delete this \(page)"
+    }
+
+    /// An open page deleted elsewhere, such as on the web.
+    var pageGone: String {
+        "This \(page) is not in the \(container) anymore. If it was deleted, Recently deleted in the \(container) can bring it back."
+    }
+
+    /// The course page's Recently deleted row: what it can bring back.
+    var recentlyDeleted: String {
+        "Bring back \(pages.lowercased()), folders, sets and exams for 30 days"
+    }
+
     static let course = KindWords(
         container: "course", page: "exam page", pageTitle: "Exam page", pages: "Exam pages", numbered: "Exam",
         addFolders: "Add the folders this exam covers."

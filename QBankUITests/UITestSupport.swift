@@ -190,12 +190,16 @@ extension XCTestCase {
     }
 
     /// Steps back from the screen titled `title`, and waits until it has gone, so the next tap
-    /// lands on the screen underneath and not on one still sliding in.
+    /// lands on the screen underneath and not on one still sliding in. A tap made while the screen
+    /// is still settling can go unanswered, so it taps again while the screen stays.
     @MainActor
     func goBack(_ app: XCUIApplication, from title: String) {
         let bar = app.navigationBars[title]
-        bar.buttons.firstMatch.tap()
-        XCTAssertTrue(bar.disappears(timeout: 5), "still on \(title)")
+        for _ in 0..<3 {
+            bar.buttons.firstMatch.tap()
+            if bar.disappears(timeout: 5) { return }
+        }
+        XCTFail("still on \(title)")
     }
 
     /// Fills the sign-in form and presses Sign in. A nil email keeps what is in the field.
@@ -203,13 +207,29 @@ extension XCTestCase {
     func signIn(_ app: XCUIApplication, email: String?, password: String) {
         if let email {
             let field = app.textFields["signIn.email"]
-            field.tap()
+            focus(field, in: app)
             field.typeText(email)
         }
         let field = app.secureTextFields["signIn.password"]
-        field.tap()
+        focus(field, in: app)
         field.typeText(password)
         app.buttons["signIn.submit"].tap()
+    }
+
+    /// Taps a field until it has the keyboard. iOS can offer to save the password a second time
+    /// once the first offer is gone, and that late offer takes the keyboard from the field.
+    @MainActor
+    func focus(_ field: XCUIElement, in app: XCUIApplication) {
+        for _ in 0..<3 {
+            field.tap()
+            if field.value(forKey: "hasKeyboardFocus") as? Bool == true { return }
+            let notNow = app.buttons["Not Now"]
+            if notNow.appears(timeout: 2) {
+                tapWhenStill(notNow)
+                _ = notNow.disappears(timeout: 3)
+            }
+        }
+        XCTFail("\(field) never got the keyboard")
     }
 
     /// iOS offers to save the password after a sign-in; the tests decline, as she may. On GitHub's

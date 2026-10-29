@@ -76,7 +76,7 @@ struct CourseView: View {
             switch page {
             case .examPage(let id): ExamPageView(app: app, model: model, id: id)
             case .folder(let id): FolderView(app: app, model: model, id: id)
-            case .recentlyDeleted: RecentlyDeletedView(app: app, courseID: model.id)
+            case .recentlyDeleted: RecentlyDeletedView(app: app, courseID: model.id, words: model.words)
             }
         }
         .sheet(item: $sheet, onDismiss: {
@@ -275,7 +275,7 @@ struct CourseView: View {
     private var recentlyDeleted: some View {
         QBankListGroup {
             NavigationLink(value: CoursePage.recentlyDeleted) {
-                QBankListRow("Recently deleted", detail: "Bring back sets, folders and exams for 30 days", systemImage: "trash", showsChevron: true)
+                QBankListRow("Recently deleted", detail: model.words.recentlyDeleted, systemImage: "trash", showsChevron: true)
             }
             .buttonStyle(.qbankRow)
             .disabled(order != nil)

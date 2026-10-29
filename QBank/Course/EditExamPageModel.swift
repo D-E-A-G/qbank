@@ -5,7 +5,7 @@ import QBankKit
 /// The exam page editor: the page's name and the course's folders as chips. A folder is on one
 /// exam page at most, so a folder another page holds is greyed and names that page. A topic's study
 /// page also takes its primer link. Done saves through the server, which has the last word: a
-/// refusal is shown in its words.
+/// refusal is shown in its words. An existing page ends with Delete, which asks first.
 @Observable
 final class EditExamPageModel {
     /// How the editor closed.
@@ -13,7 +13,8 @@ final class EditExamPageModel {
         case cancelled
         /// The page was made or changed; its id.
         case saved(String)
-        case removed
+        /// She asked to delete the page: its warning opens once the editor is down.
+        case delete
     }
 
     /// A folder as a chip.
@@ -70,6 +71,11 @@ final class EditExamPageModel {
 
     var isNew: Bool {
         pageID == nil
+    }
+
+    /// Only she deletes her exam pages; the owner's view has no Delete.
+    var offersDelete: Bool {
+        !isNew && app.account?.role == .student
     }
 
     var hasChanges: Bool {
@@ -135,21 +141,6 @@ final class EditExamPageModel {
         guard hasLink else { return .unchanged }
         let address = link.trimmingCharacters(in: .whitespacesAndNewlines)
         return address.isEmpty ? .none : .url(address)
-    }
-
-    /// Removes the page. Its folders go back to the course's Folders list; no set moves.
-    func remove() async -> Outcome? {
-        guard let pageID, !isSaving else { return nil }
-        isSaving = true
-        defer { isSaving = false }
-        problem = nil
-        do {
-            try await app.client.deleteCourseExam(id: pageID)
-            return .removed
-        } catch {
-            report(error)
-            return nil
-        }
     }
 
     private func report(_ error: QBankError) {

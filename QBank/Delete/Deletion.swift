@@ -3,11 +3,14 @@ import Observation
 import QBankKit
 
 /// Something she can delete: a set (a practice set, or an exam set of a folder's exam bank), a
-/// folder with every set in it, one of her past exams, or a course or study topic with everything in
-/// it, called by its name (a course's code, a topic's title).
+/// folder with every set in it, an exam page (or a topic's study page) alone, one of her past exams,
+/// or a course or study topic with everything in it, called by its name (a course's code, a topic's
+/// title).
 enum DeleteTarget: Hashable {
     case set(id: String, title: String)
     case folder(id: String, name: String)
+    /// Its folders stay in the course, on no page, with their sets, until Undo puts them back on it.
+    case examPage(id: String, name: String)
     case exam(id: String)
     case course(id: String, name: String)
 
@@ -16,6 +19,7 @@ enum DeleteTarget: Hashable {
         switch self {
         case .set(let id, _): try await client.undoDeletePracticeSet(id: id)
         case .folder(let id, _): try await client.undoDeleteFolder(id: id)
+        case .examPage(let id, _): _ = try await client.undoDeleteCourseExam(id: id)
         case .exam(let id): try await client.undoDeleteExam(id: id)
         case .course(let id, _): try await client.undoDeleteCourse(id: id)
         }
@@ -39,35 +43,35 @@ nonisolated enum DeleteWording {
         return rest.isEmpty ? nil : (title, rest)
     }
 
-    /// The confirmation's title before the warning arrives: "Delete Week 1?", "Delete this exam?",
-    /// "Delete NURS 220?".
+    /// The confirmation's title before the warning arrives: "Delete Week 1?", "Delete Exam 2?",
+    /// "Delete this exam?", "Delete NURS 220?".
     static func question(_ target: DeleteTarget) -> String {
         switch target {
         case .set(_, let title): "Delete \(title)?"
-        case .folder(_, let name), .course(_, let name): "Delete \(name)?"
+        case .folder(_, let name), .examPage(_, let name), .course(_, let name): "Delete \(name)?"
         case .exam: "Delete this exam?"
         }
     }
 
     /// The Undo bar's line once it is deleted: "Heart B deleted.", "Week 1 and its 3 sets deleted.",
-    /// "Exam deleted.", "NURS 220 deleted."
+    /// "Exam 2 deleted." (its folders stayed), "Exam deleted.", "NURS 220 deleted."
     static func deleted(_ target: DeleteTarget, setCount: Int = 0) -> String {
         switch target {
         case .set(_, let title): "\(title) deleted."
         case .folder(_, let name): "\(name)\(withSets(setCount)) deleted."
         case .exam: "Exam deleted."
-        case .course(_, let name): "\(name) deleted."
+        case .examPage(_, let name), .course(_, let name): "\(name) deleted."
         }
     }
 
     /// The Undo bar's line once Undo brought it back: "Heart B is back.", "Week 1 and its 3 sets
-    /// are back.", "NURS 220 is back."
+    /// are back.", "Exam 2 is back.", "NURS 220 is back."
     static func back(_ target: DeleteTarget, setCount: Int = 0) -> String {
         switch target {
         case .set(_, let title): "\(title) is back."
         case .folder(_, let name): setCount == 0 ? "\(name) is back." : "\(name)\(withSets(setCount)) are back."
         case .exam: "The exam is back."
-        case .course(_, let name): "\(name) is back."
+        case .examPage(_, let name), .course(_, let name): "\(name) is back."
         }
     }
 
@@ -164,6 +168,8 @@ final class DeleteModel {
             let folder = try await app.client.folderDeletion(id: id)
             setCount = folder.setCount
             preview = folder
+        case .examPage(let id, _):
+            preview = try await app.client.courseExamDeletion(id: id)
         case .exam(let id):
             preview = try await app.client.examDeletion(id: id)
         case .course(let id, _):
@@ -184,6 +190,7 @@ final class DeleteModel {
         switch target {
         case .set(let id, _): try await app.client.deletePracticeSet(id: id, confirm: confirm)
         case .folder(let id, _): try await app.client.deleteFolder(id: id, confirm: confirm)
+        case .examPage(let id, _): try await app.client.deleteCourseExam(id: id, confirm: confirm)
         case .exam(let id): try await app.client.deleteExam(id: id, confirm: confirm)
         case .course(let id, _): try await app.client.deleteCourse(id: id, confirm: confirm)
         }
