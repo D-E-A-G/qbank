@@ -398,22 +398,6 @@ final class QBankUITests: XCTestCase {
         field.typeText(text)
     }
 
-    /// Taps a field until it has the keyboard. iOS can offer to save the password a second time
-    /// once the first offer is gone, and that late offer takes the keyboard from the field.
-    @MainActor
-    private func focus(_ field: XCUIElement, in app: XCUIApplication) {
-        for _ in 0..<3 {
-            field.tap()
-            if field.value(forKey: "hasKeyboardFocus") as? Bool == true { return }
-            let notNow = app.buttons["Not Now"]
-            if notNow.appears(timeout: 2) {
-                tapWhenStill(notNow)
-                _ = notNow.disappears(timeout: 3)
-            }
-        }
-        XCTFail("\(field) never got the keyboard")
-    }
-
     /// Focuses a new-password field. iOS offers a strong password there, in a sheet over the
     /// keyboard; the tests close it and type their own, as she may.
     @MainActor

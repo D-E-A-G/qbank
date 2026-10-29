@@ -173,7 +173,7 @@ final class PracticeUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Weeks 1-3"].appears(timeout: 5))
         let set = app.buttons["course.set.\(Self.set)"]
         XCTAssertTrue(set.appears(timeout: 5))
-        XCTAssertTrue(set.label.contains("1 of 8 answered"), set.label)
+        waitForLabel(set, containing: "1 of 8 answered")
     }
 
     // MARK: Helpers
