@@ -122,9 +122,9 @@ final class ConnectAgentModel {
     }
 
     /// After an approval the agent picks its key up on its next poll, and only then is it listed:
-    /// reads the list again until a key that was not there shows, or the polls run out (all of them when
-    /// there was no earlier list to compare against). The screen
-    /// runs it while `watching` is set.
+    /// reads the list again until a key that was not there shows, or the polls run out (all of them
+    /// when there was no earlier list to compare against). The screen runs it while `watching` is
+    /// set.
     func watchForPickup() async {
         guard let known = watching else { return }
         for _ in 0..<Self.pickupPolls {
