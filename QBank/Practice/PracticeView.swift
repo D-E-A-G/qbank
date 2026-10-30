@@ -185,7 +185,9 @@ private struct QuestionPage: View {
                 layout: attempt.layout,
                 draft: attempt.draft,
                 revealed: revealed,
-                isLocked: revealed || model.isChecking
+                isLocked: revealed || model.isChecking,
+                struck: attempt.struck,
+                onStrike: { model.toggleStrike($0) }
             ) { draft in
                 model.update(draft)
             }

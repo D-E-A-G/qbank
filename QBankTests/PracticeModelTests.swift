@@ -153,6 +153,37 @@ struct PracticeModelTests {
         #expect(model.attempt?.draft == .sata([2, 0]), "a checked answer cannot change")
     }
 
+    @Test func struckChoicesStayOnThePhoneAndEndWithTheAnswer() async throws {
+        let server = StubServer([
+            "GET /api/practice-sets/set1": .ok(Self.practiceSet()),
+            "POST /api/attempts": StubServer.Reply(status: 201, body: Self.saved(id: "attempt-1", question: "q-sata", status: "correct", points: 2, max: 2)),
+        ])
+        let (model, _) = Self.model(server)
+        await model.load()
+        model.update(.sata([0, 1]))
+        model.toggleStrike(1)
+        #expect(model.attempt?.struck == [1])
+        #expect(model.attempt?.draft == .sata([0]), "striking her pick unpicks it")
+        model.update(.sata([0, 1]))
+        #expect(model.attempt?.draft == .sata([0]), "a struck choice cannot be picked")
+        model.toggleStrike(1)
+        #expect(model.attempt?.struck == [], "striking again restores it")
+        model.update(.sata([0, 1]))
+        #expect(model.attempt?.draft == .sata([0, 1]), "a restored choice can be picked again")
+        model.update(.sata([0, 2]))
+        model.toggleStrike(1)
+        await model.check()
+
+        let sent = try #require(server.requests.last?.httpBody)
+        let body = try #require(try JSONSerialization.jsonObject(with: sent) as? [String: Any])
+        #expect((body["response"] as? [String: Any])?["picks"] as? [Int] == [0, 2])
+        #expect(!String(decoding: sent, as: UTF8.self).lowercased().contains("stru"), "strikes are never sent")
+        model.toggleStrike(2)
+        #expect(model.attempt?.struck == [1], "a checked answer's strikes cannot change")
+        model.next()
+        #expect(model.attempt?.struck == [], "every question starts with nothing struck")
+    }
+
     @Test func anAnswerWithoutSignalIsScoredOnThePhoneAndWaits() async throws {
         let server = StubServer([
             "GET /api/practice-sets/set1": .ok(Self.practiceSet()),

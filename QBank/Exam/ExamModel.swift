@@ -12,6 +12,8 @@ final class ExamModel {
         let layout: Layout
         var draft: AnswerDraft
         var guessed = false
+        /// Original indexes of the choices she has struck out, for this sitting only.
+        var struck: Set<Int> = []
         /// Made once per opening, so a retried send is never counted twice.
         let clientAttemptID: String
         var submitted: Bool
@@ -217,9 +219,18 @@ final class ExamModel {
 
     // MARK: Answering
 
+    /// Replaces her open answer. A struck choice cannot be picked until she restores it.
     func update(_ draft: AnswerDraft) {
         guard !isBusy, items.indices.contains(index), !items[index].submitted else { return }
+        guard items[index].struck.isDisjoint(with: draft.picked) else { return }
         items[index].draft = draft
+    }
+
+    /// Strikes out a choice she has ruled out, or restores a struck one. Strikes stay with the
+    /// question while she moves between questions, end with the exam, and are never sent.
+    func toggleStrike(_ option: Int) {
+        guard !isBusy, items.indices.contains(index), !items[index].submitted else { return }
+        items[index].draft = items[index].draft.striking(option, in: &items[index].struck)
     }
 
     func setGuessed(_ guessed: Bool) {

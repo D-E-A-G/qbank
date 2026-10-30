@@ -166,7 +166,9 @@ private struct ExamQuestionPage: View {
                 layout: item.layout,
                 draft: item.draft,
                 revealed: false,
-                isLocked: model.isBusy
+                isLocked: model.isBusy,
+                struck: item.struck,
+                onStrike: { model.toggleStrike($0) }
             ) { draft in
                 model.update(draft)
             }
