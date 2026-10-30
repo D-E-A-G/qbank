@@ -11,6 +11,10 @@ struct AnswerArea: View {
     let revealed: Bool
     /// True after Check answer and while it is sending: nothing can change.
     let isLocked: Bool
+    /// Original indexes of the choices she has struck out.
+    var struck: Set<Int> = []
+    /// Strikes out a choice or restores a struck one. Nil where choices cannot be struck, as on a result.
+    var onStrike: ((Int) -> Void)?
     let onChange: (AnswerDraft) -> Void
 
     var body: some View {
@@ -22,7 +26,10 @@ struct AnswerArea: View {
                 picked: draft.picked,
                 isMulti: question.type == .sata,
                 revealed: revealed,
-                isLocked: isLocked
+                isLocked: isLocked,
+                // Once checked, every choice shows its verdict as it would without strikes.
+                struck: revealed ? [] : struck,
+                strike: revealed ? nil : onStrike
             ) { onChange(draft.picking($0)) }
         case .highlight(let segments):
             HighlightList(segments: segments, picked: draft.picked, revealed: revealed, isLocked: isLocked) {
@@ -73,7 +80,9 @@ struct AnswerArea: View {
 
 // MARK: Single, priority, select all
 
-/// One full-width row per option, round marks for one answer and square ones for select-all.
+/// One full-width row per option, lettered A, B, C in the order she sees them, in round marks
+/// for one answer and square ones for select-all, as the web letters them. While she answers, each row has a control to strike out a choice she has ruled out, and the
+/// same control restores it; a long press offers the same.
 private struct OptionList: View {
     let options: [QuestionOption]
     let order: [Int]
@@ -81,24 +90,26 @@ private struct OptionList: View {
     let isMulti: Bool
     let revealed: Bool
     let isLocked: Bool
+    let struck: Set<Int>
+    let strike: ((Int) -> Void)?
     let pick: (Int) -> Void
 
     var body: some View {
         VStack(spacing: 10) {
-            ForEach(order, id: \.self) { original in
+            ForEach(Array(order.enumerated()), id: \.element) { position, original in
                 let option = options[original]
                 let selected = picked.contains(original)
+                let isStruck = struck.contains(original)
                 let state = revealed ? RevealState(selected: selected, correct: option.isCorrect) : nil
                 Button {
-                    pick(original)
+                    // A struck choice cannot be picked until she restores it.
+                    if !isStruck { pick(original) }
                 } label: {
                     HStack(alignment: .firstTextBaseline, spacing: QBankSpacing.space4) {
-                        ChoiceMark(shape: isMulti ? .square : .circle, selected: selected, state: state)
+                        ChoiceMark(shape: isMulti ? .square : .circle, letter: Self.letter(position), selected: selected, state: state, isStruck: isStruck)
                             .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 6 }
                         VStack(alignment: .leading, spacing: QBankSpacing.space2) {
-                            Text(option.text)
-                                .qbankFont(.body)
-                                .foregroundStyle(.qbank(.text1))
+                            StruckText(text: option.text, isStruck: isStruck)
                             if let tag = state?.tag {
                                 ChoiceTag(text: tag, state: state)
                             }
@@ -110,44 +121,137 @@ private struct OptionList: View {
                     }
                     .multilineTextAlignment(.leading)
                     .padding(.vertical, QBankSpacing.space4)
-                    .padding(.horizontal, 14)
+                    .padding(.leading, 14)
+                    // Room for the strike control, which sits over the row's trailing edge.
+                    .padding(.trailing, strike == nil ? 14 : StrikeButton.reserved)
                     .frame(minHeight: QBankSpacing.rowMin)
                     .choiceBox(selected: selected, state: state)
+                    .animation(QBankMotion.select, value: isStruck)
                 }
                 .buttonStyle(ChoicePressStyle())
                 .allowsHitTesting(!isLocked)
                 .accessibilityAddTraits(selected ? .isSelected : [])
+                .accessibilityValue(isStruck ? "Struck out" : "")
                 .accessibilityIdentifier("practice.option.\(original)")
+                .contextMenu {
+                    if let strike, !isLocked {
+                        StrikeMenuItem(isStruck: isStruck) { strike(original) }
+                    }
+                }
+                .overlay(alignment: .trailing) {
+                    if let strike {
+                        StrikeButton(option: original, letter: Self.letter(position), isStruck: isStruck) { strike(original) }
+                            .padding(.trailing, QBankSpacing.space2)
+                            .allowsHitTesting(!isLocked)
+                    }
+                }
             }
+        }
+        .sensoryFeedback(.selection, trigger: struck)
+    }
+
+    /// "A", "B", ...: a choice's letter in the order she sees the choices.
+    static func letter(_ position: Int) -> String {
+        String(UnicodeScalar(UInt8(65 + position % 26)))
+    }
+}
+
+/// A choice's text, crossed out and dimmed while she has it struck out.
+private struct StruckText: View {
+    let text: String
+    let isStruck: Bool
+    @Environment(\.self) private var environment
+
+    var body: some View {
+        Text(text)
+            .qbankFont(.body)
+            .strikethrough(isStruck, color: Color(QBankColor(.text3).resolve(in: environment)))
+            .foregroundStyle(.qbank(isStruck ? .text3 : .text1))
+    }
+}
+
+/// The control at the end of a choice that strikes it out, and restores it once struck: "Strike
+/// out B", "Restore B".
+private struct StrikeButton: View {
+    /// The room it takes at the row's trailing edge, inset included.
+    static let reserved: CGFloat = 52
+
+    /// The choice's original index.
+    let option: Int
+    let letter: String
+    let isStruck: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: isStruck ? "arrow.counterclockwise" : "strikethrough")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(.qbank(isStruck ? .tint : .text3))
+                .frame(width: QBankSpacing.rowMin, height: QBankSpacing.rowMin)
+                .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(isStruck ? "Restore \(letter)" : "Strike out \(letter)")
+        .accessibilityIdentifier("practice.strike.\(option)")
+    }
+}
+
+/// "Strike out" or "Restore" in a choice's long-press menu.
+private struct StrikeMenuItem: View {
+    let isStruck: Bool
+    let action: () -> Void
+
+    var body: some View {
+        if isStruck {
+            Button("Restore", systemImage: "arrow.counterclockwise", action: action)
+        } else {
+            Button("Strike out", systemImage: "strikethrough", action: action)
         }
     }
 }
 
-/// The round or square mark at the start of a choice: empty, ticked, and after checking, the
-/// tick turns right or wrong and a missed answer gets a dashed outline.
+/// The round or square mark at the start of a choice, with its letter: empty, filled with the
+/// tint when picked, and after checking, the pick turns right or wrong and a missed answer gets a
+/// dashed outline. A struck choice's letter is crossed out and its outline fades.
 private struct ChoiceMark: View {
     enum Shape { case circle, square }
 
     let shape: Shape
+    let letter: String
     let selected: Bool
     let state: RevealState?
+    let isStruck: Bool
+    @Environment(\.self) private var environment
 
     var body: some View {
         ZStack {
             if let fill {
                 base.fill(.qbank(fill))
-                Image(systemName: state == .wrong ? "xmark" : "checkmark")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(.qbank(.textOnTint))
+                if let state {
+                    Image(systemName: state == .wrong ? "xmark" : "checkmark")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(.qbank(.textOnTint))
+                } else {
+                    letterText(.textOnTint)
+                }
             } else if state == .missed {
                 base.stroke(.qbank(.correct), style: StrokeStyle(lineWidth: QBankBorder.emphasis, dash: [3, 2.5]))
+                letterText(.correct)
             } else {
                 base.fill(.qbank(.surface))
-                base.stroke(.qbank(.separatorStrong), lineWidth: QBankBorder.emphasis)
+                base.stroke(.qbank(isStruck ? .separator : .separatorStrong), lineWidth: QBankBorder.emphasis)
+                letterText(isStruck ? .text3 : .text2)
             }
         }
-        .frame(width: 22, height: 22)
+        .frame(width: 24, height: 24)
         .accessibilityHidden(true)
+    }
+
+    private func letterText(_ color: QBankColorToken) -> some View {
+        Text(letter)
+            .font(.system(size: 13, weight: .semibold, design: .monospaced))
+            .strikethrough(isStruck, color: Color(QBankColor(color).resolve(in: environment)))
+            .foregroundStyle(.qbank(color))
     }
 
     private var base: AnyShape {

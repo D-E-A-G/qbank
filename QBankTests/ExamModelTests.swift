@@ -112,6 +112,40 @@ struct ExamModelTests {
         #expect(model.exam?.result?.fullyRight == 1)
     }
 
+    @Test func struckChoicesStayWithTheQuestionWhileSheMovesAndAreNeverSent() async throws {
+        let server = StubServer([
+            "GET /api/exams/e1": .ok(StudyBodies.exam()),
+            "POST /api/attempts": StubServer.Reply(status: 201, body: StudyBodies.saved(question: "e1-q0", attempt: "attempt-1")),
+        ])
+        let model = Self.model(server)
+        await model.load()
+        model.update(.single(2))
+        model.toggleStrike(2)
+        model.toggleStrike(1)
+        #expect(model.item?.struck == [1, 2])
+        #expect(model.item?.draft == .single(nil), "striking her pick unpicks it")
+        model.update(.single(1))
+        #expect(model.item?.draft == .single(nil), "a struck choice cannot be picked")
+        #expect(!model.canSubmit)
+        await model.skip()
+        #expect(model.item?.struck == [], "the next question starts with nothing struck")
+        await model.skip()
+        await model.skip()
+        #expect(model.index == 0)
+        #expect(model.item?.struck == [1, 2], "her strikes are still there when she comes back")
+        model.toggleStrike(2)
+        #expect(model.item?.struck == [1], "striking again restores it")
+        model.update(.single(2))
+        await model.submit()
+
+        let sent = try #require(server.requests.last?.httpBody)
+        #expect((try sentBody(server)["response"] as? [String: Any])?["choice"] as? Int == 2)
+        #expect(!String(decoding: sent, as: UTF8.self).lowercased().contains("stru"), "strikes are never sent")
+        #expect(model.index == 1)
+        model.toggleStrike(0)
+        #expect(model.items[0].struck == [1], "a submitted answer's strikes cannot change")
+    }
+
     @Test func anAnswerTheServerAlreadyHasCountsAsSent() async throws {
         let server = StubServer([
             "GET /api/exams/e1": .ok(StudyBodies.exam()),

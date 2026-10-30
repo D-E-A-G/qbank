@@ -88,6 +88,35 @@ nonisolated enum AnswerDraft: Equatable, Sendable {
         }
     }
 
+    /// Whether she can strike out choices she has ruled out: the formats whose answer is a list
+    /// of choices.
+    var canStrike: Bool {
+        switch self {
+        case .single, .priority, .sata: true
+        default: false
+        }
+    }
+
+    /// Her answer with option `index` no longer picked, as when she strikes it out.
+    func unpicking(_ index: Int) -> AnswerDraft {
+        switch self {
+        case .single(let choice) where choice == index: .single(nil)
+        case .priority(let choice) where choice == index: .priority(nil)
+        case .sata(let picks): .sata(picks.filter { $0 != index })
+        default: self
+        }
+    }
+
+    /// Strikes out option `index`, or restores it when it is struck already, in `struck`. A struck
+    /// option she had picked is unpicked. Only her own aid while she answers: strikes are never
+    /// sent, saved, or scored.
+    func striking(_ index: Int, in struck: inout Set<Int>) -> AnswerDraft {
+        guard canStrike else { return self }
+        if struck.remove(index) != nil { return self }
+        struck.insert(index)
+        return unpicking(index)
+    }
+
     /// Swaps the item at `position` with its neighbour above (-1) or below (+1).
     func moving(at position: Int, by step: Int) -> AnswerDraft {
         guard case .order(var positions) = self else { return self }

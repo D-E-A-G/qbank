@@ -54,6 +54,33 @@ struct AnswerDraftTests {
         #expect(AnswerDraft.single(nil).picked == [])
     }
 
+    @Test func strikingAChoiceUnpicksItAndStrikingAgainRestoresIt() {
+        var struck: Set<Int> = []
+        #expect(AnswerDraft.single(1).striking(1, in: &struck) == .single(nil), "her pick is unpicked")
+        #expect(struck == [1])
+        #expect(AnswerDraft.single(nil).striking(1, in: &struck) == .single(nil), "restoring does not pick it again")
+        #expect(struck == [])
+        #expect(AnswerDraft.priority(0).striking(2, in: &struck) == .priority(0), "another choice stays picked")
+        #expect(struck == [2])
+        struck = []
+        #expect(AnswerDraft.sata([0, 2, 3]).striking(2, in: &struck) == .sata([0, 3]))
+        #expect(struck == [2])
+        #expect(AnswerDraft.sata([0]).striking(2, in: &struck) == .sata([0]))
+        #expect(struck == [])
+    }
+
+    @Test func onlyChoiceListsCanBeStruck() {
+        #expect(AnswerDraft.single(nil).canStrike)
+        #expect(AnswerDraft.priority(nil).canStrike)
+        #expect(AnswerDraft.sata([]).canStrike)
+        for draft in [AnswerDraft.highlight([1]), .order([0, 1]), .match([nil]), .matrix([nil]), .cloze([nil]), .unsupported] {
+            var struck: Set<Int> = []
+            #expect(!draft.canStrike)
+            #expect(draft.striking(1, in: &struck) == draft)
+            #expect(struck.isEmpty, "\(draft)")
+        }
+    }
+
     @Test func movingSwapsNeighboursAndDragsAcross() {
         let draft = AnswerDraft.order([0, 1, 2, 3])
         #expect(draft.moving(at: 1, by: -1) == .order([1, 0, 2, 3]))

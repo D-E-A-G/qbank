@@ -16,6 +16,8 @@ final class PracticeModel {
         let layout: Layout
         var draft: AnswerDraft
         var guessed = false
+        /// Original indexes of the choices she has struck out, for this run only.
+        var struck: Set<Int> = []
         /// Made once per opening, so a retried send is never counted twice.
         let clientAttemptID: String
         /// Her score once she has checked: the server's, or the phone's while the answer waits to be sent.
@@ -191,10 +193,19 @@ final class PracticeModel {
 
     // MARK: Answering
 
-    /// Replaces her answer to the current question while it is still open.
+    /// Replaces her answer to the current question while it is still open. A struck choice
+    /// cannot be picked until she restores it.
     func update(_ draft: AnswerDraft) {
         guard attempts.indices.contains(index), attempts[index].score == nil, !isChecking else { return }
+        guard attempts[index].struck.isDisjoint(with: draft.picked) else { return }
         attempts[index].draft = draft
+    }
+
+    /// Strikes out a choice of the current question she has ruled out, or restores a struck one,
+    /// while it is still open. Strikes stay with the question until the run ends and are never sent.
+    func toggleStrike(_ option: Int) {
+        guard attempts.indices.contains(index), attempts[index].score == nil, !isChecking else { return }
+        attempts[index].draft = attempts[index].draft.striking(option, in: &attempts[index].struck)
     }
 
     func setGuessed(_ guessed: Bool) {
