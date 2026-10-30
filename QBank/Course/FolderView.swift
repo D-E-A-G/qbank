@@ -105,7 +105,7 @@ struct FolderView: View {
 
     private func content(_ folder: Folder) -> some View {
         VStack(alignment: .leading, spacing: QBankSpacing.space4) {
-            Text(FolderWording.folderNote(folder, page: model.page(of: folder), words: model.words))
+            Text(FolderWording.folderNote(folder, page: model.page(of: folder)))
                 .qbankFont(.subheadline)
                 .foregroundStyle(.qbank(.text2))
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -127,9 +127,9 @@ struct FolderView: View {
                 Button {
                     sheet = .page
                 } label: {
-                    Label(model.page(of: folder)?.name ?? model.words.pageTitle, systemImage: "square.stack.3d.up")
+                    Label(model.page(of: folder)?.name ?? "Page", systemImage: "square.stack.3d.up")
                 }
-                .accessibilityLabel("Exam page: \(model.page(of: folder)?.name ?? "none")")
+                .accessibilityLabel("Page: \(model.page(of: folder)?.name ?? "none")")
                 .accessibilityIdentifier("folder.page")
                 Button {
                     sheet = .importHere

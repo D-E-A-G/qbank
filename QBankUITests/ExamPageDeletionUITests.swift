@@ -18,7 +18,7 @@ final class ExamPageDeletionUITests: XCTestCase {
         openEditor(app, "Exam 1")
         let delete = app.buttons["editPage.delete"]
         reveal(delete, in: app)
-        XCTAssertEqual(delete.label, "Delete this exam page")
+        XCTAssertEqual(delete.label, "Delete this page")
         attachLooks(app, "exam page editor, Delete")
 
         tapWhenStill(delete)
@@ -54,7 +54,7 @@ final class ExamPageDeletionUITests: XCTestCase {
         open(app.buttons["course.recentlyDeleted"], titled: "Recently deleted", in: app)
         let bringBack = app.buttons["deleted.bringBack.Exam 1"]
         XCTAssertTrue(bringBack.appears(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Exam pages"].exists)
+        XCTAssertTrue(app.staticTexts["Pages"].exists)
         XCTAssertTrue(app.staticTexts["Week 1, Week 2"].exists, "the folders Bring back puts back on it")
         attachLooks(app, "recently deleted, an exam page")
 
@@ -108,9 +108,11 @@ final class ExamPageDeletionUITests: XCTestCase {
 
         app.buttons["course.add"].tap()
         chooseFromMenu(app.buttons["course.add.page"])
-        XCTAssertTrue(app.navigationBars["New exam page"].appears(timeout: 5))
+        XCTAssertTrue(app.navigationBars["New page"].appears(timeout: 5))
         let name = app.textFields["editPage.name"]
-        XCTAssertEqual(name.value as? String, "Exam 2", "its name is free for a new page")
+        XCTAssertEqual(name.value as? String, "Page 2")
+        name.clearText()
+        name.typeText("Exam 2")
         app.buttons["editPage.save"].tap()
         XCTAssertTrue(app.navigationBars["Exam 2"].appears(timeout: 10))
         goBack(app, from: "Exam 2")

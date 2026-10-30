@@ -2,18 +2,15 @@ import QBankDesign
 import QBankKit
 import SwiftUI
 
-/// A course's Recently deleted: the exam pages, folders, sets and past exams she deleted in the last
-/// 30 days, newest first, each with Bring back. A folder brings back the sets that went with it. An
-/// exam page went alone: its folders are in the course meanwhile, and Bring back puts them back on it.
+/// A course's Recently deleted: the pages, folders, sets and past exams she deleted in the last 30
+/// days, newest first, each with Bring back. A folder brings back the sets that went with it. A page
+/// went alone: its folders are in the course meanwhile, and Bring back puts them back on it.
 struct RecentlyDeletedView: View {
     @State private var model: RecentlyDeletedModel
     let app: AppModel
-    /// The words of a course's exam pages or a topic's study pages.
-    let words: KindWords
 
-    init(app: AppModel, courseID: String, words: KindWords) {
+    init(app: AppModel, courseID: String) {
         self.app = app
-        self.words = words
         _model = State(initialValue: RecentlyDeletedModel(app: app, courseID: courseID))
     }
 
@@ -56,7 +53,7 @@ struct RecentlyDeletedView: View {
                     .accessibilityIdentifier("deleted.empty")
             } else {
                 if !deleted.examPages.isEmpty {
-                    QBankListGroup(header: words.pages) {
+                    QBankListGroup(header: "Pages") {
                         ForEach(deleted.examPages) { page in
                             row(
                                 .examPage(id: page.id, name: page.name),

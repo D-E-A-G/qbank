@@ -242,8 +242,8 @@ public struct CourseDetail: Codable, Sendable, Equatable, Identifiable {
     }
 }
 
-/// An exam page of a course, such as "Exam 1", and the folders on it; in a topic, a study page.
-/// A folder is on one exam page of its course at most.
+/// A page of a course or topic, such as "Exam 1" or "Page 3", and the folders on it. A folder is on
+/// one page of its course at most.
 public struct CourseExam: Codable, Sendable, Equatable, Identifiable {
     public let id: String
     public let name: String
@@ -256,18 +256,29 @@ public struct CourseExam: Codable, Sendable, Equatable, Identifiable {
     /// Its primer: the web address where she wrote the page up, which the page opens, or nil.
     /// Nil from a server before primer links.
     public let linkURL: String?
+    /// What the page is for, or nil for no badge. Nil from a server before badges, and for a badge
+    /// this version does not know.
+    public let badge: PageBadge?
+    /// True when the server sent `badge`, null included, so its update takes one. A server before
+    /// badges sends none and would drop a badge it was given.
+    public let takesBadge: Bool
 
-    public init(id: String, name: String, sortOrder: Int, weekLabels: [String], folderIDs: [String] = [], linkURL: String? = nil) {
+    public init(
+        id: String, name: String, sortOrder: Int, weekLabels: [String], folderIDs: [String] = [], linkURL: String? = nil,
+        badge: PageBadge? = nil, takesBadge: Bool = true
+    ) {
         self.id = id
         self.name = name
         self.sortOrder = sortOrder
         self.weekLabels = weekLabels
         self.folderIDs = folderIDs
         self.linkURL = linkURL
+        self.badge = badge
+        self.takesBadge = takesBadge
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, name, sortOrder, weekLabels
+        case id, name, sortOrder, weekLabels, badge
         case folderIDs = "folderIds"
         case linkURL = "linkUrl"
     }
@@ -280,7 +291,29 @@ public struct CourseExam: Codable, Sendable, Equatable, Identifiable {
         weekLabels = try container.decode([String].self, forKey: .weekLabels)
         folderIDs = try container.decodeIfPresent([String].self, forKey: .folderIDs) ?? []
         linkURL = try container.decodeIfPresent(String.self, forKey: .linkURL)
+        badge = try container.decodeIfPresent(String.self, forKey: .badge).flatMap(PageBadge.init(rawValue:))
+        takesBadge = container.contains(.badge)
     }
+
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encode(sortOrder, forKey: .sortOrder)
+        try container.encode(weekLabels, forKey: .weekLabels)
+        try container.encode(folderIDs, forKey: .folderIDs)
+        try container.encodeIfPresent(linkURL, forKey: .linkURL)
+        // A saved copy keeps whether the server takes a badge: null when it has none.
+        if takesBadge { try container.encode(badge, forKey: .badge) }
+    }
+}
+
+/// The one badge a page can carry, which says what it is for. A new page has none; she sets it in
+/// the page's editor.
+public enum PageBadge: String, Codable, Sendable, CaseIterable {
+    case exam
+    case concept
+    case study
 }
 
 /// What saving an exam page does to its primer link.
@@ -298,9 +331,12 @@ struct CourseExamRequest: Encodable {
     let name: String
     let folderIds: [String]
     let link: PrimerLink
+    /// The badge to set, nil for none; left out when nil, so the page keeps its badge. Only PUT
+    /// sends one: a new page has no badge.
+    var badge: PageBadge??
 
     private enum CodingKeys: String, CodingKey {
-        case name, folderIds, linkUrl
+        case name, folderIds, linkUrl, badge
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -315,6 +351,15 @@ struct CourseExamRequest: Encodable {
             try container.encodeNil(forKey: .linkUrl)
         case .url(let url):
             try container.encode(url, forKey: .linkUrl)
+        }
+        switch badge {
+        case nil:
+            break
+        case .some(nil):
+            // Null takes the badge off.
+            try container.encodeNil(forKey: .badge)
+        case .some(let badge?):
+            try container.encode(badge, forKey: .badge)
         }
     }
 }

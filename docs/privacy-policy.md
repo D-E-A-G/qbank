@@ -80,7 +80,7 @@ While the app is tested through Apple's TestFlight, Apple may share with the own
 
 ## How long data is kept
 
-- **On the server:** your account, study content, answers, and progress are kept until the account is deleted. Expired sessions stop working; their records are removed with the account. Photos and files sent to make questions are deleted once the server has read them; the text of your material stays in the record of that set until the account is deleted. Deleting a course or study topic, an exam or study page, a set, a folder, or a past exam in the app hides it everywhere, and Undo can bring it back as it was for 30 days; the server keeps it, with your answers to it, until the account is deleted, and nothing is ever deleted unless you confirm it.
+- **On the server:** your account, study content, answers, and progress are kept until the account is deleted. Expired sessions stop working; their records are removed with the account. Photos and files sent to make questions are deleted once the server has read them; the text of your material stays in the record of that set until the account is deleted. Deleting a course or study topic, a page, a set, a folder, or a past exam in the app hides it everywhere, and Undo can bring it back as it was for 30 days; the server keeps it, with your answers to it, until the account is deleted, and nothing is ever deleted unless you confirm it.
 - **In backups:** up to about 30 days after deletion from the live server.
 - **On your iPhone or iPad:** until you sign out, delete your account, or delete the app.
 

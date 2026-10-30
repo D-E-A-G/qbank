@@ -438,7 +438,7 @@ struct DebugLaunchScenarioTests {
         let course = CourseRef(id: FakeQBankServer.mentalHealthID, code: "NURS 310", title: "Mental Health")
         let setup = ExamSetupModel(app: app, route: ExamSetupRoute(course: course))
         await setup.load()
-        #expect(setup.groups.map(\.title) == ["Exam 1", "Exam 2", "On no exam page"])
+        #expect(setup.groups.map(\.title) == ["Exam 1", "Exam 2", "On no page"])
         #expect(setup.folders.map(\.name) == ["Week 1", "Week 2", "Week 3", "Weeks 1-3"])
         #expect(setup.setup?.exams.count == 3)
         #expect(setup.setup?.exams.map(\.courseExamID) == [FakeStudy.exam1, nil, FakeStudy.exam1])
@@ -456,6 +456,24 @@ struct DebugLaunchScenarioTests {
         }
         #expect(wrongOnly.serverCode == .noWrongQuestions)
         #expect(Wording.problem(wrongOnly) == "Week 3 has no wrong questions. Untick it, or turn off Wrong questions only.")
+    }
+
+    /// Her course's pages from before badges say Exam; a new page has none; the page update sets
+    /// one, null clears it, and left out it stays, as the server does.
+    @Test func fakeServerKeepsPageBadges() async throws {
+        let app = try #require(Self.launch("signed-in"))
+        let id = FakeQBankServer.mentalHealthID
+        let course = try await app.client.course(id: id)
+        #expect(course.exams.map(\.badge) == [.exam, .exam])
+        let created = try await app.client.createCourseExam(courseID: id, name: "Page 3", folderIDs: [])
+        #expect(created.badge == nil)
+        let set = try await app.client.updateCourseExam(id: created.id, name: "Page 3", folderIDs: [], badge: .concept)
+        #expect(set.badge == .concept)
+        let kept = try await app.client.updateCourseExam(id: created.id, name: "Page 3", folderIDs: [])
+        #expect(kept.badge == .concept)
+        let cleared = try await app.client.updateCourseExam(id: created.id, name: "Page 3", folderIDs: [], badge: .some(nil))
+        #expect(cleared.badge == nil)
+        #expect(try await app.client.course(id: id).exams.map(\.badge) == [.exam, .exam, nil])
     }
 
     @Test func fakeServerKeepsExamPageRules() async throws {

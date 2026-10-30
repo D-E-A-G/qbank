@@ -169,7 +169,7 @@ struct ExamSetupModelTests {
         }
         let model = model(server(pages: [("x1", "Exam 1", ["f2", "f1"])], pools: pools))
         await model.load()
-        #expect(model.groups.map(\.title) == ["Exam 1", "On no exam page"])
+        #expect(model.groups.map(\.title) == ["Exam 1", "On no page"])
         #expect(model.groups.map { $0.folders.map(\.name) } == [["Week 2", "Week 1"], ["Week 3"]])
     }
 
@@ -187,7 +187,7 @@ struct ExamSetupModelTests {
         await model.load()
         model.toggle(model.folders[0])
         model.toggle(model.folders[1])
-        #expect(model.summarySplit == "10 from First Pass (Exam 1) · 10 from First Pass (no exam page) · Fewer than 40, so it’s all of them at 1.5 minutes each.")
+        #expect(model.summarySplit == "10 from First Pass (Exam 1) · 10 from First Pass (no page) · Fewer than 40, so it’s all of them at 1.5 minutes each.")
     }
 
     @Test func tickedFoldersMakeThePlanAndItsSummary() async throws {

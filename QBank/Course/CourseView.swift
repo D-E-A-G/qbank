@@ -3,9 +3,9 @@ import QBankKit
 import SwiftUI
 
 /// A course: score line, the Exam, Review and Terms tiles, then two lists, as the iPhone Files app
-/// lists things: her exam pages, and the folders on no exam page. Each exam page and each folder
-/// opens as its own screen, sharing this screen's model. A study topic is the same screen, called
-/// by its name, with study pages for exam pages; `Wording.words(_:)` picks what differs.
+/// lists things: her pages, each with its badge, and the folders on no page. Each page and each
+/// folder opens as its own screen, sharing this screen's model. A study topic is the same screen,
+/// called by its name; `Wording.words(_:)` picks what differs.
 ///
 /// The + at the top adds into the course: a question file, questions made from her material, a
 /// folder, or an exam page.
@@ -76,7 +76,7 @@ struct CourseView: View {
             switch page {
             case .examPage(let id): ExamPageView(app: app, model: model, id: id)
             case .folder(let id): FolderView(app: app, model: model, id: id)
-            case .recentlyDeleted: RecentlyDeletedView(app: app, courseID: model.id, words: model.words)
+            case .recentlyDeleted: RecentlyDeletedView(app: app, courseID: model.id)
             }
         }
         .sheet(item: $sheet, onDismiss: {
@@ -111,7 +111,7 @@ struct CourseView: View {
     }
 
     /// The + at the top: "Add to NURS 310", then Import a question file, Make questions when the
-    /// server allows it, New folder, and New exam page or, in a topic, New study page.
+    /// server allows it, New folder, and New page.
     private func addMenu(_ course: CourseDetail) -> some View {
         Menu {
             Section("Add to \(Wording.name(course))") {
@@ -137,7 +137,7 @@ struct CourseView: View {
                     sheet = .newFolder
                 }
                 .accessibilityIdentifier("course.add.folder")
-                Button("New \(model.words.page)", systemImage: "square.stack.3d.up") {
+                Button("New page", systemImage: "square.stack.3d.up") {
                     sheet = .newPage
                 }
                 .accessibilityIdentifier("course.add.page")
@@ -167,7 +167,7 @@ struct CourseView: View {
                     EmptyCard(message: "This \(model.words.container) has no question sets yet.")
                         .padding(.top, QBankSpacing.space3)
                 } else {
-                    examPages(layout)
+                    pages(layout)
                         .padding(.top, QBankSpacing.space3)
                     if !layout.looseFolders.isEmpty {
                         folders(layout)
@@ -218,14 +218,13 @@ struct CourseView: View {
         .buttonStyle(QBankCardButtonStyle(padding: QBankSpacing.space4))
     }
 
-    private func examPages(_ layout: CourseLayout) -> some View {
+    private func pages(_ layout: CourseLayout) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            let words = model.words
-            SectionHead(title: words.pages)
+            SectionHead(title: "Pages")
             if layout.pages.isEmpty {
                 EmptyCard(message: model.isStudent
-                    ? "No \(words.pages.lowercased()) yet. Tap + to make \(model.nextPageName)."
-                    : "No \(words.pages.lowercased()) yet.", systemImage: "square.stack.3d.up")
+                    ? "No pages yet. Tap + to make \(model.nextPageName)."
+                    : "No pages yet.", systemImage: "square.stack.3d.up")
                     .accessibilityIdentifier("course.noPages")
             } else {
                 QBankListGroup {
@@ -257,7 +256,7 @@ struct CourseView: View {
                 editOrder(layout.looseFolders)
             }
             FolderList(folders: layout.looseFolders, order: $order)
-            Text(order == nil ? "Folders on no \(model.words.page). Open one to see its sets." : "Drag a folder by its grip, or use the arrows, to put them in your order.")
+            Text(order == nil ? "Folders on no page. Open one to see its sets." : "Drag a folder by its grip, or use the arrows, to put them in your order.")
                 .qbankFont(.footnote)
                 .foregroundStyle(.qbank(.text3))
                 .padding(.horizontal, QBankSpacing.space5)
@@ -275,7 +274,7 @@ struct CourseView: View {
     private var recentlyDeleted: some View {
         QBankListGroup {
             NavigationLink(value: CoursePage.recentlyDeleted) {
-                QBankListRow("Recently deleted", detail: model.words.recentlyDeleted, systemImage: "trash", showsChevron: true)
+                QBankListRow("Recently deleted", detail: "Bring back pages, folders, sets and exams for 30 days", systemImage: "trash", showsChevron: true)
             }
             .buttonStyle(.qbankRow)
             .disabled(order != nil)

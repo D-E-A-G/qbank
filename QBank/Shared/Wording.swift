@@ -56,10 +56,9 @@ nonisolated enum Wording {
     // MARK: Courses and study topics
 
     /// Every word a study topic says differently from a course, from the kind the server sends, as
-    /// the web's `kindWords` says them (`apps/web/src/course/pages.ts`). Her courses keep the words
-    /// she knows; a topic calls its exam pages study pages. Everything inside works the same, the
-    /// timed exam included, so nothing else differs. A kind this version does not know reads as a
-    /// course.
+    /// the web's `kindWords` says them (`apps/web/src/course/pages.ts`). Both have pages; what a
+    /// page is for is its badge. Everything inside works the same, the timed exam included, so
+    /// nothing else differs. A kind this version does not know reads as a course.
     static func words(_ kind: CourseKind) -> KindWords {
         kind == .topic ? .topic : .course
     }
@@ -86,14 +85,22 @@ nonisolated enum Wording {
         kind(code: code) == .topic ? title : code
     }
 
-    /// The next free page name: "Exam 3" in a course with two exam pages, or "Page 3" in a topic
-    /// with two study pages, skipping a name already used, in any case.
-    static func nextPageName(after names: [String], kind: CourseKind) -> String {
-        let word = words(kind).numbered
+    /// The next free page name in a course or topic: "Page 3" with two pages, skipping a name
+    /// already used, in any case. Her pages keep the names they have, such as "Exam 1".
+    static func nextPageName(after names: [String]) -> String {
         let taken = Set(names.map { $0.trimmingCharacters(in: .whitespaces).lowercased() })
         var number = names.count + 1
-        while taken.contains("\(word.lowercased()) \(number)") { number += 1 }
-        return "\(word) \(number)"
+        while taken.contains("page \(number)") { number += 1 }
+        return "Page \(number)"
+    }
+
+    /// A page's badge as its tag and its choice in the editor: "Exam", "Concept", "Study".
+    static func badge(_ badge: PageBadge) -> String {
+        switch badge {
+        case .exam: "Exam"
+        case .concept: "Concept"
+        case .study: "Study"
+        }
     }
 
     /// The course line on Home and under the Course title: "86 questions · 3 folders".
@@ -249,40 +256,14 @@ nonisolated enum Wording {
 nonisolated struct KindWords: Equatable {
     /// "course" or "topic", inside a sentence: "This topic has no question sets yet."
     let container: String
-    /// "exam page" or "study page", inside a sentence.
-    let page: String
-    /// "Exam page" or "Study page", at the start of a line or as a title.
-    let pageTitle: String
-    /// Its list of them: "Exam pages" or "Study pages".
-    let pages: String
-    /// What New names them, with a number: "Exam" (Exam 1) or "Page" (Page 1).
-    let numbered: String
-    /// What an empty page asks for: "Add the folders this exam covers."
-    let addFolders: String
-
-    /// The editor's last button: "Delete this exam page".
-    var deletePage: String {
-        "Delete this \(page)"
-    }
 
     /// An open page deleted elsewhere, such as on the web.
     var pageGone: String {
-        "This \(page) is not in the \(container) anymore. If it was deleted, Recently deleted in the \(container) can bring it back."
+        "This page is not in the \(container) anymore. If it was deleted, Recently deleted in the \(container) can bring it back."
     }
 
-    /// The course page's Recently deleted row: what it can bring back.
-    var recentlyDeleted: String {
-        "Bring back \(pages.lowercased()), folders, sets and exams for 30 days"
-    }
-
-    static let course = KindWords(
-        container: "course", page: "exam page", pageTitle: "Exam page", pages: "Exam pages", numbered: "Exam",
-        addFolders: "Add the folders this exam covers."
-    )
-    static let topic = KindWords(
-        container: "topic", page: "study page", pageTitle: "Study page", pages: "Study pages", numbered: "Page",
-        addFolders: "Add the folders this page covers."
-    )
+    static let course = KindWords(container: "course")
+    static let topic = KindWords(container: "topic")
 }
 
 /// A course or topic as the screens name it: its kind, code and name.

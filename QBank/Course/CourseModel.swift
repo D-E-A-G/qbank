@@ -2,9 +2,8 @@ import Foundation
 import Observation
 import QBankKit
 
-/// One course or study topic: its score line, the Exam, Review and Terms tiles, its exam pages (a
-/// topic's study pages) and its folders. The course page, an exam page and a folder share one
-/// model, so an edit on one shows on all.
+/// One course or study topic: its score line, the Exam, Review and Terms tiles, its pages and its
+/// folders. The course page, one of its pages and a folder share one model, so an edit on one shows on all.
 /// Without a connection it shows the copy saved on the phone, with her waiting answers counted in.
 @Observable
 final class CourseModel {
@@ -75,7 +74,7 @@ final class CourseModel {
         course.map { CourseRef(id: $0.id, code: $0.code, title: $0.title, kind: $0.kind) }
     }
 
-    /// The words its screens say: a topic's say topic and study page. A course's until it loads.
+    /// The words its screens say: a topic's say topic. A course's until it loads.
     var words: KindWords {
         Wording.words(course?.kind ?? .course)
     }
@@ -162,9 +161,9 @@ final class CourseModel {
 
     // MARK: Editing her folders
 
-    /// The next free page name: Exam 1, Exam 2, ... in a course, Page 1, Page 2, ... in a topic.
+    /// The next free page name: Page 1, Page 2, ...
     var nextPageName: String {
-        Wording.nextPageName(after: course?.exams.map(\.name) ?? [], kind: course?.kind ?? .course)
+        Wording.nextPageName(after: course?.exams.map(\.name) ?? [])
     }
 
     /// Makes an empty folder, under Folders, or with `page` on that exam page, at the end of its

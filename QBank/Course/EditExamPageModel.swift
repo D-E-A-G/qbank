@@ -2,10 +2,10 @@ import Foundation
 import Observation
 import QBankKit
 
-/// The exam page editor: the page's name and the course's folders as chips. A folder is on one
-/// exam page at most, so a folder another page holds is greyed and names that page. A topic's study
-/// page also takes its primer link. Done saves through the server, which has the last word: a
-/// refusal is shown in its words. An existing page ends with Delete, which asks first.
+/// The page editor: the page's name and the course's folders as chips. A folder is on one page at
+/// most, so a folder another page holds is greyed and names that page. A topic's page also takes its
+/// primer link, and a page that exists its badge. Done saves through the server, which has the last
+/// word: a refusal is shown in its words. An existing page ends with Delete, which asks first.
 @Observable
 final class EditExamPageModel {
     /// How the editor closed.
@@ -27,15 +27,17 @@ final class EditExamPageModel {
     }
 
     let courseID: String
-    /// The words of a course's exam page or a topic's study page.
+    /// The words of a course's screens, or a topic's.
     let words: KindWords
-    /// Only a topic's study page has a primer link.
+    /// Only a topic's page has a primer link.
     let hasLink: Bool
     /// The page on the server, or nil for a new one.
     let pageID: String?
     var name: String
     /// The primer link as she types it, empty for none.
     var link: String
+    /// What the page is for as she picks it, or nil for no badge.
+    var badge: PageBadge?
     /// Its folders as she picks them, in her order: the ones it had, then the ones she adds.
     private(set) var picked: [String]
     /// Every folder a chip can stand for: this page's, then those on no page, then other pages'.
@@ -46,6 +48,8 @@ final class EditExamPageModel {
     private let savedName: String
     private let savedFolders: [String]
     private let savedLink: String
+    private let savedBadge: PageBadge?
+    private let takesBadge: Bool
     private let app: AppModel
 
     init(app: AppModel, course: CourseDetail, pageID: String?) {
@@ -61,10 +65,13 @@ final class EditExamPageModel {
         chips = own.map { Chip(folder: $0, heldBy: nil) }
             + layout.looseFolders.map { Chip(folder: $0, heldBy: nil) }
             + others.flatMap { other in other.folders.map { Chip(folder: $0, heldBy: other.exam.name) } }
-        savedName = page?.name ?? Wording.nextPageName(after: course.exams.map(\.name), kind: course.kind)
+        savedName = page?.name ?? Wording.nextPageName(after: course.exams.map(\.name))
         name = savedName
         savedLink = page?.linkURL ?? ""
         link = savedLink
+        savedBadge = page?.badge
+        takesBadge = page?.takesBadge ?? false
+        badge = savedBadge
         savedFolders = own.map(\.id)
         picked = savedFolders
     }
@@ -73,13 +80,18 @@ final class EditExamPageModel {
         pageID == nil
     }
 
-    /// Only she deletes her exam pages; the owner's view has no Delete.
+    /// A new page has no badge: she sets one once the page exists, on a server that takes one.
+    var offersBadge: Bool {
+        takesBadge
+    }
+
+    /// Only she deletes her pages; the owner's view has no Delete.
     var offersDelete: Bool {
         !isNew && app.account?.role == .student
     }
 
     var hasChanges: Bool {
-        isNew || name != savedName || folderIDs != savedFolders || link != savedLink
+        isNew || name != savedName || folderIDs != savedFolders || link != savedLink || badge != savedBadge
     }
 
     /// The page's folders as saved: the ones it kept in her order, then the ones she added, in the
@@ -114,16 +126,16 @@ final class EditExamPageModel {
         guard !isSaving else { return nil }
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else {
-            problem = "\(words.numbered) name is required."
+            problem = "Page name is required."
             return nil
         }
-        if pageID != nil, name == savedName, folderIDs == savedFolders, link == savedLink { return .cancelled }
+        if pageID != nil, name == savedName, folderIDs == savedFolders, link == savedLink, badge == savedBadge { return .cancelled }
         isSaving = true
         defer { isSaving = false }
         problem = nil
         do {
             if let pageID {
-                _ = try await app.client.updateCourseExam(id: pageID, name: name, folderIDs: folderIDs, link: primerLink)
+                _ = try await app.client.updateCourseExam(id: pageID, name: name, folderIDs: folderIDs, link: primerLink, badge: badgeChange)
                 return .saved(pageID)
             }
             let created = try await app.client.createCourseExam(courseID: courseID, name: name, folderIDs: folderIDs, link: primerLink)
@@ -141,6 +153,12 @@ final class EditExamPageModel {
         guard hasLink else { return .unchanged }
         let address = link.trimmingCharacters(in: .whitespacesAndNewlines)
         return address.isEmpty ? .none : .url(address)
+    }
+
+    /// What saving does to the badge: left out when she did not change it, so a server from before
+    /// badges takes the page as it always did; otherwise the one she picked, or none.
+    var badgeChange: PageBadge?? {
+        badge == savedBadge ? nil : .some(badge)
     }
 
     private func report(_ error: QBankError) {

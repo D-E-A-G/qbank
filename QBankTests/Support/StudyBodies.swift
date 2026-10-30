@@ -20,11 +20,13 @@ enum StudyBodies {
         return #"{"id":"\#(id)","title":"Invented \#(id)","description":"","questionCount":\#(questions),"importedAt":"2026-10-01T00:00:00.000Z","activeSince":"2026-10-01T00:00:00.000Z","status":"imported","canRestore":false,"answeredCount":\#(answered),"fullyRightCount":\#(right),"lastAnsweredAt":\#(last),"questionIds":[\#(ids)]}"#
     }
 
-    static func courseExam(_ id: String, _ name: String, order: Int, weeks: [String], folders: [String]? = nil, link: String? = nil) -> String {
+    static func courseExam(_ id: String, _ name: String, order: Int, weeks: [String], folders: [String]? = nil, link: String? = nil, badge: String?? = nil) -> String {
         let list = { (items: [String]) in items.map { "\"\($0)\"" }.joined(separator: ",") }
         let folderField = folders.map { #","folderIds":[\#(list($0))]"# } ?? ""
         let linkField = link.map { #","linkUrl":"\#($0)""# } ?? ""
-        return #"{"id":"\#(id)","name":"\#(name)","sortOrder":\#(order),"weekLabels":[\#(list(weeks))]\#(folderField)\#(linkField)}"#
+        // Left out as a server before badges does; .some(nil) is null, no badge.
+        let badgeField = badge.map { $0.map { #","badge":"\#($0)""# } ?? #","badge":null"# } ?? ""
+        return #"{"id":"\#(id)","name":"\#(name)","sortOrder":\#(order),"weekLabels":[\#(list(weeks))]\#(folderField)\#(linkField)\#(badgeField)}"#
     }
 
     /// A study topic, as `GET /api/courses/{id}` answers for one: no semester, no code, a study
@@ -49,8 +51,9 @@ enum StudyBodies {
 
     /// A course of `threeFolders`, with `pages` holding some of them, in their order on each page.
     /// Its folders come in the course's order, as the server sends them: each page's folders,
-    /// pages in order, then the folders on no exam page.
-    static func course(id: String = "c1", pages: [Page] = []) -> String {
+    /// pages in order, then the folders on no page. `badges` gives some pages a badge, or nil for
+    /// none, by page id; the others have no badge field, as from a server before badges.
+    static func course(id: String = "c1", pages: [Page] = [], badges: [String: String?] = [:]) -> String {
         let pageOf = { (folder: String) in pages.first { $0.folders.contains(folder) } }
         let loose = threeFolders.filter { pageOf($0.id) == nil }.map(\.id)
         let ordered = (pages.flatMap(\.folders) + loose).compactMap { id in threeFolders.first { $0.id == id } }
@@ -60,7 +63,10 @@ enum StudyBodies {
             return StudyBodies.folder(folder.id, folder.name, page: page?.id, order: order, sets: folder.sets, bank: folder.bank)
         }
         let exams = pages.enumerated().map { index, page in
-            courseExam(page.id, page.name, order: index + 1, weeks: page.folders.compactMap { id in threeFolders.first { $0.id == id }?.name }, folders: page.folders)
+            courseExam(
+                page.id, page.name, order: index + 1, weeks: page.folders.compactMap { id in threeFolders.first { $0.id == id }?.name },
+                folders: page.folders, badge: badges[page.id]
+            )
         }
         let weeks = threeFolders.map { week($0.name, sets: $0.sets, bank: $0.bank) }
         return #"{"id":"\#(id)","code":"NURS 101","title":"Invented Basics","archivedAt":null,"semester":{"id":"s1","number":1,"name":"Semester 1"},"questionCount":32,"examQuestionCount":40,"weekCount":3,"termCount":4,"reviewCount":2,"answeredCount":12,"fullyRightCount":9,"points":9,"maxPoints":12,"weeks":[\#(weeks.joined(separator: ","))],"exams":[\#(exams.joined(separator: ","))],"folders":[\#(folders.joined(separator: ","))]}"#

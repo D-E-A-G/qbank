@@ -7,7 +7,7 @@ import UniformTypeIdentifiers
 struct SectionHead: View {
     let title: String
     var action: String?
-    /// What VoiceOver reads for the action, which sits apart from the header: "New exam page".
+    /// What VoiceOver reads for the action, which sits apart from the header: "New page".
     var label: String?
     var identifier = ""
     var isEnabled = true
@@ -55,13 +55,16 @@ struct ProgressState: View {
     }
 }
 
-/// An exam page on the course page: its name, its folders and questions, how far she is, and a
-/// chevron to open it.
+/// A page on the course page: its name with its badge, its folders and questions, how far she is,
+/// and a chevron to open it.
 struct ExamPageRow: View {
     let page: ExamPage
 
     var body: some View {
-        QBankListRow(page.exam.name, detail: FolderWording.pageRow(page), systemImage: "square.stack.3d.up", showsChevron: true) {
+        QBankListRow(
+            page.exam.name, tag: page.exam.badge.map(Wording.badge), detail: FolderWording.pageRow(page),
+            systemImage: "square.stack.3d.up", showsChevron: true
+        ) {
             ProgressState(progress: page.progress)
         }
     }
