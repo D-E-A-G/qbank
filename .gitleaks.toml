@@ -1,10 +1,4 @@
-# gitleaks settings for this repository: gitleaks' own rules, minus values in
-# the tests that look like keys but are not secrets. The CI job "Secrets"
+# gitleaks settings for this repository: gitleaks' own rules. The CI job "Secrets"
 # (.github/workflows/ci.yml) runs test/leak-check.sh with these settings.
 [extend]
 useDefault = true
-
-[[allowlists]]
-description = "Not secrets"
-regexes = [
-]
