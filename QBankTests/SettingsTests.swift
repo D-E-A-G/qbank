@@ -201,9 +201,7 @@ struct DeleteAccountModelTests {
             look: LookStore(defaults: defaults),
             lock: AppLock(defaults: defaults, owner: DebugDeviceOwner(.faceID)),
             storage: storage,
-            connection: Connection(isOnline: false),
-            passkeys: DebugPasskeyAuthenticator(.none),
-            passkeyOffer: PasskeyOffer(defaults: defaults)
+            connection: Connection(isOnline: false)
         )
         try await AppModelTests.waitingAnswer(app)
         let model = DeleteAccountModel(app: app)

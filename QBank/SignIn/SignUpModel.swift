@@ -3,8 +3,7 @@ import Observation
 import QBankKit
 
 /// The sign-up screen: a user account for an email the owner added to the sign-up list, the same
-/// as on the web. The new account is signed in at once, and offered a passkey as after a password
-/// sign-in.
+/// as on the web. The new account is signed in at once.
 @Observable
 final class SignUpModel {
     var email = ""

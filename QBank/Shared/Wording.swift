@@ -243,32 +243,6 @@ nonisolated enum Wording {
             return nil
         }
     }
-
-    /// How a passkey checks it is her on this device: "Face ID", "Touch ID", or "your passcode".
-    @MainActor
-    static func passkeyCheck(_ method: UnlockMethod?) -> String {
-        switch method {
-        case .passcode: "your passcode"
-        case let method?: method.name
-        case nil: "Face ID"
-        }
-    }
-
-    /// What went wrong with a passkey, in words for her, as the web words it. Nil when she closed
-    /// the passkey sheet.
-    @MainActor
-    static func passkeyProblem(_ error: any Error) -> String? {
-        switch error {
-        case let error as QBankError:
-            problem(error)
-        case PasskeyFailure.cancelled:
-            nil
-        case PasskeyFailure.alreadySaved:
-            "This \(Device.model) already has a passkey for your account."
-        default:
-            "That passkey was not accepted."
-        }
-    }
 }
 
 /// The words a course and a study topic say differently; `Wording.words(_:)` picks them by kind.

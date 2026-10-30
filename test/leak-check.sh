@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Fails when a change adds a secret. It runs gitleaks twice: over the lines the
 # change's commits add, and over every tracked file as they stand at HEAD, with
-# gitleaks' own rules and this repository's exceptions (.gitleaks.toml).
+# gitleaks' own rules (.gitleaks.toml).
 #
 # CI runs it on every pull request and every push to main (the "Secrets" job
 # in .github/workflows/ci.yml). From the repository root:

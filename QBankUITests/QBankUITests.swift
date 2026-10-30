@@ -16,6 +16,7 @@ final class QBankUITests: XCTestCase {
     func testSignInLandsOnHerLastCourseAndSignsOut() throws {
         let app = launch("signed-out")
         XCTAssertTrue(app.staticTexts["signIn.title"].appears(timeout: 10))
+        expectNoPasskeys(app)
         attach(app, "1a-1 sign in")
 
         signIn(app, email: Self.email, password: "not-the-password")
@@ -26,8 +27,8 @@ final class QBankUITests: XCTestCase {
 
         signIn(app, email: nil, password: Self.password)
         dismissSavePassword(app)
-        declinePasskeyOffer(app)
         XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 10), "lands on the course she used last")
+        expectNoPasskeys(app)
         XCTAssertTrue(app.buttons["course.page.Exam 1"].appears(timeout: 5))
         let summary = app.descendants(matching: .any)["course.summary"]
         XCTAssertTrue(summary.label.hasPrefix("Mental Health · 86 questions · 4 folders"), summary.label)
@@ -48,6 +49,8 @@ final class QBankUITests: XCTestCase {
 
         app.tabBars.buttons["Settings"].tap()
         XCTAssertTrue(app.staticTexts[Self.email].appears(timeout: 5))
+        XCTAssertTrue(app.buttons["settings.changePassword"].exists)
+        expectNoPasskeys(app)
         attach(app, "1d settings (sign out)")
 
         app.buttons["settings.signOut"].tap()
@@ -76,12 +79,12 @@ final class QBankUITests: XCTestCase {
         newPassword.typeText("-and-longer")
         app.buttons["choosePassword.save"].tap()
         dismissSavePassword(app)
-        declinePasskeyOffer(app)
         XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 10))
+        expectNoPasskeys(app)
     }
 
     /// Sign up from the sign-in screen with the email the owner added: a refused email says why,
-    /// "I have an account" goes back, and the new account lands signed in with the passkey offer.
+    /// "I have an account" goes back, and the new account lands signed in.
     @MainActor
     func testSignUpMakesAUserAccountForTheListedEmail() throws {
         let app = launch("signed-out")
@@ -119,9 +122,8 @@ final class QBankUITests: XCTestCase {
         password.typeText("-and-longer")
         app.buttons["signUp.submit"].tap()
         dismissSavePassword(app)
-        XCTAssertTrue(app.staticTexts["Save a passkey for this iPhone?"].appears(timeout: 10))
-        declinePasskeyOffer(app)
         XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 10))
+        expectNoPasskeys(app)
 
         app.tabBars.buttons["Settings"].tap()
         XCTAssertTrue(app.staticTexts["new.user@example.com"].appears(timeout: 5), "signed in as the new account")
@@ -214,8 +216,6 @@ final class QBankUITests: XCTestCase {
         attach(app, "color, signed out in dusk")
         signIn(app, email: Self.email, password: Self.password)
         dismissSavePassword(app)
-        attachLooks(app, "color, passkey offer in slate")
-        declinePasskeyOffer(app)
         XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 10))
         attachLooks(app, "color, course in slate")
         app.tabBars.buttons["Settings"].tap()

@@ -119,7 +119,7 @@ final class ConnectAgentUITests: XCTestCase {
         XCTAssertFalse(own.label.contains("Imported by"), own.label)
     }
 
-    /// Signed in, Settings > Connect an agent, from its row under Passkeys. `attaching` names
+    /// Signed in, Settings > Connect an agent, from its row under Change password. `attaching` names
     /// screenshots of Settings with the row.
     @MainActor
     private func openConnectAgent(attaching name: String? = nil) -> XCUIApplication {

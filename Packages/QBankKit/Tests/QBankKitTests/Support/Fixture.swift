@@ -14,8 +14,6 @@ struct Fixture: Decodable {
         let path: String
         let query: [String: String]
         let authorization: String?
-        /// The passkey challenge cookie the app sent back, the only cookie it ever sends.
-        let cookie: String?
         let body: JSONValue?
     }
 
@@ -145,8 +143,7 @@ enum TestClient {
     }
 }
 
-/// Checks that the client sent what the recorded request sent: method, path, query, bearer token,
-/// cookie, and JSON body.
+/// Checks that the client sent what the recorded request sent: method, path, query, bearer token, and JSON body.
 func expectRequest(_ request: URLRequest?, matches fixture: Fixture, sourceLocation: SourceLocation = #_sourceLocation) throws {
     let request = try #require(request, "No request was sent", sourceLocation: sourceLocation)
     let url = try #require(request.url, sourceLocation: sourceLocation)
@@ -156,7 +153,6 @@ func expectRequest(_ request: URLRequest?, matches fixture: Fixture, sourceLocat
     let query = Dictionary(uniqueKeysWithValues: (components.queryItems ?? []).map { ($0.name, $0.value ?? "") })
     #expect(query == fixture.request.query, sourceLocation: sourceLocation)
     #expect(request.value(forHTTPHeaderField: "Authorization") == fixture.request.authorization, sourceLocation: sourceLocation)
-    #expect(request.value(forHTTPHeaderField: "Cookie") == fixture.request.cookie, sourceLocation: sourceLocation)
     if let expected = fixture.request.body {
         let body = try #require(request.httpBody, "No body was sent", sourceLocation: sourceLocation)
         #expect(try JSONDecoder().decode(JSONValue.self, from: body) == expected, sourceLocation: sourceLocation)

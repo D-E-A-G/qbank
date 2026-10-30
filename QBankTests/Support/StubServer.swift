@@ -100,7 +100,6 @@ enum TestApp {
     ///     same storage finds what this one left, as a relaunch does.
     ///   - connection: The phone's network path, online unless a test turns it off.
     ///   - lock: The Face ID lock, off on a device with Face ID unless a test gives another.
-    ///   - passkeys: The device's passkeys, none for QBank unless a test gives another.
     ///   - defaults: Where the phone keeps its settings, empty and the test's own unless it gives one.
     static func make(
         _ server: StubServer,
@@ -108,7 +107,6 @@ enum TestApp {
         storage: PhoneStorage = .memory(),
         connection: Connection = Connection(),
         lock: AppLock? = nil,
-        passkeys: PasskeyAuthenticator = DebugPasskeyAuthenticator(.none),
         defaults: UserDefaults = TestApp.freshDefaults()
     ) -> (AppModel, InMemorySessionStore) {
         let store = InMemorySessionStore(account.map { StoredSession(token: token, expiresAt: nil, account: $0) })
@@ -122,9 +120,7 @@ enum TestApp {
             look: LookStore(defaults: defaults),
             lock: lock ?? AppLock(defaults: defaults, owner: DebugDeviceOwner(.faceID)),
             storage: storage,
-            connection: connection,
-            passkeys: passkeys,
-            passkeyOffer: PasskeyOffer(defaults: defaults)
+            connection: connection
         )
         return (app, store)
     }
@@ -194,27 +190,6 @@ enum Bodies {
     /// A `semesters` or `catalog` body, as Home reads it.
     static func decodeCatalog(_ body: String) throws -> Catalog {
         try QBankJSON.decoder.decode(Catalog.self, from: Data(body.utf8))
-    }
-
-    /// The challenge cookie a passkey options answer sets.
-    static let passkeyCookie = ["Set-Cookie": "__Secure-better-auth.better-auth-passkey=synthetic-ticket.c2lnbmVk%3D; Max-Age=300; Path=/; HttpOnly; Secure; SameSite=Lax"]
-
-    static func passkeySignInOptions() -> String {
-        #"{"rpId":"qbank.dimitrygallego.com","challenge":"c3ludGhldGljLWNoYWxsZW5nZQ","timeout":60000,"userVerification":"preferred"}"#
-    }
-
-    /// `excluding` names the account's passkeys by credential id, as text.
-    static func passkeyRegistrationOptions(excluding: [String] = []) -> String {
-        let excluded = excluding.map { #"{"id":"\#(Base64URL.encode(Data($0.utf8)))","type":"public-key"}"# }.joined(separator: ",")
-        return #"{"challenge":"c3ludGhldGljLWNoYWxsZW5nZQ","rp":{"name":"Qbank","id":"qbank.dimitrygallego.com"},"user":{"id":"c3ludGhldGljLXVzZXI","name":"student@example.com","displayName":"student@example.com"},"excludeCredentials":[\#(excluded)],"authenticatorSelection":{"residentKey":"preferred","userVerification":"preferred"}}"#
-    }
-
-    static func passkey(id: String = "p1", name: String? = "iPhone") -> String {
-        #"{"id":"\#(id)","name":\#(name.map { "\"\($0)\"" } ?? "null"),"createdAt":"2026-10-16T12:00:00.000Z","deviceType":"multiDevice"}"#
-    }
-
-    static func passkeys(_ passkeys: [String]) -> String {
-        #"{"passkeys":[\#(passkeys.joined(separator: ","))]}"#
     }
 
     /// An agent waiting under a code, with the server's words for each scope it asks for.

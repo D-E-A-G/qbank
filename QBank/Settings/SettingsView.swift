@@ -7,20 +7,18 @@ enum SettingsRoute: Hashable {
     case changePassword
     case connectAgent
     case deleteAccount
-    case passkeys
     case semester(String)
     case savedForOffline
 }
 
 /// The Settings tab, as the web's Settings for a user account: her account, which she can delete
-/// here, with her passkeys and her agent keys, her semesters by name and dates, and Look and Color,
+/// here, with her agent keys, her semesters by name and dates, and Look and Color,
 /// then what is saved on this phone.
 /// Home's + adds a semester, a course or a topic, and holding one on Home renames, moves or
 /// archives it. Export stays on the web.
 struct SettingsView: View {
     let app: AppModel
     @State private var catalog: CatalogModel
-    @State private var passkeys: PasskeysModel
     @State private var path = NavigationPath()
     @State private var isSigningOut = false
     @State private var asksToSignOut = false
@@ -29,7 +27,6 @@ struct SettingsView: View {
     init(app: AppModel) {
         self.app = app
         _catalog = State(initialValue: CatalogModel(app: app))
-        _passkeys = State(initialValue: PasskeysModel(app: app))
     }
 
     var body: some View {
@@ -58,7 +55,6 @@ struct SettingsView: View {
             .screenColumnTitle()
             .refreshable {
                 await catalog.load()
-                await passkeys.load()
             }
             .navigationDestination(for: SettingsRoute.self) { route in
                 switch route {
@@ -68,8 +64,6 @@ struct SettingsView: View {
                     ConnectAgentView(app: app)
                 case .deleteAccount:
                     DeleteAccountView(app: app)
-                case .passkeys:
-                    PasskeysView(model: passkeys, lock: app.lock)
                 case .semester(let id):
                     SemesterView(catalog: catalog, id: id)
                 case .savedForOffline:
@@ -80,9 +74,6 @@ struct SettingsView: View {
         .task {
             guard catalog.isEditable else { return }
             await catalog.load()
-        }
-        .task {
-            await passkeys.load()
         }
         .task(id: app.offline?.savedRevision) {
             savedCourses = await app.offline?.savedCourses()
@@ -109,11 +100,6 @@ struct SettingsView: View {
             }
             .buttonStyle(.qbankRow)
             .accessibilityIdentifier("settings.changePassword")
-            NavigationLink(value: SettingsRoute.passkeys) {
-                QBankListRow("Passkeys", value: passkeys.count, showsChevron: true)
-            }
-            .buttonStyle(.qbankRow)
-            .accessibilityIdentifier("settings.passkeys")
             NavigationLink(value: SettingsRoute.connectAgent) {
                 QBankListRow("Connect an agent", detail: AgentWording.settingsDetail, showsChevron: true)
             }

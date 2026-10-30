@@ -227,8 +227,8 @@ extension ButtonStyle where Self == QBankRowButtonStyle {
                         .buttonStyle(.qbank(.secondary, size: .small))
                 }
             }
-            QBankListGroup(header: "Account", footer: "Passkeys use Face ID or Touch ID.") {
-                QBankListRow("Passkeys", value: "2", systemImage: "key", showsChevron: true)
+            QBankListGroup(header: "Account", footer: "Signing out keeps your courses on QBank.") {
+                QBankListRow("Change password", systemImage: "key", showsChevron: true)
                 QBankListRow("Sign out", systemImage: "rectangle.portrait.and.arrow.right", isDestructive: true)
             }
         }

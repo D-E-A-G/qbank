@@ -343,7 +343,6 @@ final class AddHereUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["signIn.title"].appears(timeout: 10))
         signIn(app, email: "student@example.com", password: "synthetic-pass-1")
         dismissSavePassword(app)
-        declinePasskeyOffer(app)
         XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 10), "the course she used last, on fresh screens")
         XCTAssertTrue(tabButton(app, "Home").isSelected)
         XCTAssertTrue(app.buttons["course.add"].exists)

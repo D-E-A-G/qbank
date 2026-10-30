@@ -6,7 +6,7 @@ import Testing
 struct SignUpModelTests {
     private static let refused = "This email can't sign up here. If you already have an account, sign in. Otherwise, ask the owner to add your email."
 
-    @Test func signUpStoresTheSessionOpensTheAppAndOffersAPasskey() async throws {
+    @Test func signUpStoresTheSessionAndOpensTheApp() async throws {
         let server = StubServer(["POST /api/sign-up": .ok(Bodies.signedIn())])
         let (app, store) = TestApp.make(server)
         let model = SignUpModel(app: app)
@@ -16,7 +16,6 @@ struct SignUpModelTests {
         #expect(app.route == .signedIn(.student()))
         #expect(try store.load()?.token == "synthetic-new-token")
         #expect(model.problem == nil)
-        #expect(app.passkeyOffer.isOpen, "a new account is offered a passkey, as after a password sign-in")
         let request = try #require(server.requests.first)
         #expect(request.value(forHTTPHeaderField: "Authorization") == nil)
         #expect(String(decoding: try #require(request.httpBody), as: UTF8.self) == #"{"email":"student@example.com","password":"synthetic-pass-1"}"#)
