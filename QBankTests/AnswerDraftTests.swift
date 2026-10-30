@@ -61,6 +61,8 @@ struct AnswerDraftTests {
         #expect(AnswerDraft.single(nil).striking(1, in: &struck) == .single(nil), "restoring does not pick it again")
         #expect(struck == [])
         #expect(AnswerDraft.priority(0).striking(2, in: &struck) == .priority(0), "another choice stays picked")
+        #expect(struck == [2])
+        struck = []
         #expect(AnswerDraft.sata([0, 2, 3]).striking(2, in: &struck) == .sata([0, 3]))
         #expect(struck == [2])
         #expect(AnswerDraft.sata([0]).striking(2, in: &struck) == .sata([0]))

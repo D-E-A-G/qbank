@@ -99,8 +99,10 @@ final class StrikeOutUITests: XCTestCase {
         for next in ["2 of 4", "3 of 4", "4 of 4", "1 of 4"] {
             app.buttons["exam.skip"].tap()
             expectCount(app, next)
-            if next != "1 of 4" {
-                XCTAssertNotEqual(app.buttons["practice.option.1"].value as? String, "Struck out", next)
+            // Every other question starts with nothing struck; one with no choice list has no option rows.
+            let other = app.buttons["practice.option.1"]
+            if next != "1 of 4", other.exists {
+                XCTAssertNotEqual(other.value as? String, "Struck out", next)
             }
         }
         expectStruck(option, strike)
