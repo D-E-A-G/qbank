@@ -51,13 +51,11 @@ jobs:
       # it, and deletes it on every exit path. Never target a simulator here
       # directly. After a failure xcodebuild would gather simulator diagnostics,
       # which can wait without end; the result bundle is uploaded instead.
-      # The iPhone runs every UI test, one after another: on GitHub's macos-26
-      # the 51 tests take about 28 minutes after a build of 5 to 7, past
-      # sim.sh's default 30. This step gets 45, still short enough to stop a
-      # hung test well before the job's own timeout.
+      # The iPhone runs every UI test one after another. sim.sh's 60-minute
+      # default leaves headroom for the full suite while still stopping hangs.
       - name: Build and run unit and UI tests
         run: |
-          ./test/sim.sh --timeout 2700 --device "iPhone 17 Pro" --device "iPhone 17" -- \
+          ./test/sim.sh --device "iPhone 17 Pro" --device "iPhone 17" -- \
             xcodebuild test \
               -project "$PROJECT_PATH" \
               -scheme "$SCHEME" \
