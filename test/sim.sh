@@ -15,13 +15,13 @@
 # device of the first name's family, iPhone or iPad). It is booted
 # headlessly, and shut down and deleted on every exit path. Devices left
 # behind by an earlier run that was killed are reaped first.
-# COMMAND is stopped after --timeout seconds (default 1800).
+# COMMAND is stopped after --timeout seconds (default 3600).
 #
 # Compatible with the bash 3.2 that ships with macOS.
 set -euo pipefail
 
 PREFIX="qbank-run"
-timeout_seconds=1800
+timeout_seconds=3600
 preferred=()
 
 usage() {
