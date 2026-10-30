@@ -214,8 +214,8 @@ fi
 # An iPad app that shares the screen must support every orientation.
 require_grep 'INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";' "$PBXPROJ" "the iPad supports every orientation"
 require_grep 'INFOPLIST_KEY_NSFaceIDUsageDescription = "[^"]+";' "$PBXPROJ" "the app says why it asks for Face ID"
-# Passkeys need the web domain's webcredentials, and that is the app's one
-# entitlement. Associated Domains needs the paid team (a free Personal Team
+# Password AutoFill needs the web domain's webcredentials to offer its saved
+# password, and that is the app's one entitlement. Associated Domains needs the paid team (a free Personal Team
 # cannot sign it), and every capability needs its App ID step in
 # docs/release.md, so no other one comes in unnoticed.
 ENTITLEMENTS=QBank/QBank.entitlements
@@ -535,7 +535,7 @@ ruby_check "$UPLOAD never prints a vault value" "$UPLOAD" "$SCRIPT_RUBY"'
 forbid_grep '(^|[;&|[:space:]])set[[:space:]]+-[[:alnum:]]*x|xtrace' "$UPLOAD" "$UPLOAD never turns on xtrace"
 require_grep 'CODE_SIGN_STYLE=Automatic' "$UPLOAD" "$UPLOAD archives with automatic signing"
 require_grep '-allowProvisioningUpdates' "$UPLOAD" "$UPLOAD lets the Xcode account provision the archive"
-require_grep '^ASSOCIATED_DOMAIN="webcredentials:qbank\.dimitrygallego\.com"$' "$UPLOAD" "$UPLOAD checks the IPA is signed for passkeys"
+require_grep '^ASSOCIATED_DOMAIN="webcredentials:qbank\.dimitrygallego\.com"$' "$UPLOAD" "$UPLOAD checks the IPA is signed for Password AutoFill"
 forbid_grep '-authenticationKey(Path|ID|IssuerID)' "$UPLOAD" "$UPLOAD signs through the Xcode account, never an API key"
 require_grep 'DEVELOPMENT_TEAM="\$team_id"' "$UPLOAD" "$UPLOAD takes the team id from --team-id or APPLE_TEAM_ID"
 require_grep 'die "no Apple team ID' "$UPLOAD" "$UPLOAD fails when the team id is missing"

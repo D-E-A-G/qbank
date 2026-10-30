@@ -27,7 +27,7 @@ set -euo pipefail
 
 SCHEME="QBank"
 BUNDLE_ID="com.dimitrygallego.qbank"
-# The app's one entitlement, for passkeys: the web domain's webcredentials.
+# The app's one entitlement, for Password AutoFill: the web domain's webcredentials.
 ASSOCIATED_DOMAIN="webcredentials:qbank.dimitrygallego.com"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 SELF="$SCRIPT_DIR/$(basename "${BASH_SOURCE[0]}")"
@@ -171,7 +171,7 @@ check_export() {
     die "the provisioning profile is not an App Store profile"
   fi
 
-  # Passkeys work only in an app signed with the web domain's webcredentials, under a
+  # Password AutoFill offers the web domain's password only in an app signed with its webcredentials, under a
   # profile whose App ID has Associated Domains (automatic signing adds it; see docs/release.md).
   /usr/libexec/PlistBuddy -c 'Print :Entitlements:com.apple.developer.associated-domains' "$profile" >/dev/null 2>&1 ||
     die "the provisioning profile does not allow Associated Domains; see docs/release.md"
@@ -179,7 +179,7 @@ check_export() {
   codesign -d --entitlements - --xml "$app" >"$entitlements" 2>/dev/null ||
     die "could not read the entitlements of $SCHEME.app"
   [ "$(/usr/libexec/PlistBuddy -c 'Print :com.apple.developer.associated-domains:0' "$entitlements" 2>/dev/null)" = "$ASSOCIATED_DOMAIN" ] ||
-    die "$SCHEME.app is not signed with $ASSOCIATED_DOMAIN, so passkeys would not work"
+    die "$SCHEME.app is not signed with $ASSOCIATED_DOMAIN, so Password AutoFill would not offer the web domain's password"
 
   codesign --verify --deep --strict "$app" || die "$SCHEME.app fails codesign --verify"
   signature="$(codesign -d --verbose=2 "$app" 2>&1)" || die "could not read the signature of $SCHEME.app"

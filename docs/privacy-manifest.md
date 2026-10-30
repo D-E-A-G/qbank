@@ -5,7 +5,7 @@ Two Apple declarations say what data QBank handles. They must agree with each ot
 - the **privacy manifest**, `PrivacyInfo.xcprivacy`, a file inside the app target that ships in every build;
 - the **App Privacy answers** (the "nutrition labels") the owner fills in once in App Store Connect, under the app's App Privacy page.
 
-This file is the source for both. It describes the app at TestFlight parity (phases 1a to 1e of the plan), with the Face ID lock, Import, and passkeys (phase 3) and Make questions (phase Q). Any change that sends a new kind of data to the server, adds a third-party SDK, or uses a new required-reason API updates this file, the manifest, and the policy in the same pull request.
+This file is the source for both. It describes the app at TestFlight parity (phases 1a to 1e of the plan), with the Face ID lock and Import (phase 3) and Make questions (phase Q). Any change that sends a new kind of data to the server, adds a third-party SDK, or uses a new required-reason API updates this file, the manifest, and the policy in the same pull request.
 
 ## Why these answers
 
@@ -30,7 +30,6 @@ Answer these in App Store Connect exactly this way: "Yes, we collect data from t
 | Data | Why not declared |
 |---|---|
 | Password | Apple's list of data types has no password type. The app sends it only to sign in, and the server keeps a one-way hash. |
-| Passkey | Apple's list has no credential type either. A passkey's private key never leaves the device; saving one sends the server its public key and credential id, with the name the app gives it (the device, "iPhone" or "iPad"), and the server keeps them, with when it was saved and what the device reported about it, only to sign her in. Signing in sends a signature over a one-time challenge. |
 | Agent key | Apple's list has no credential type. Connect an agent sends the server only the short code her own agent shows her and her answer; the agent picks its key up from the server itself, so no key reaches the app. The server keeps each key's name, what it may do, and when it was made, last used and revoked, only to let her agent in and to list her keys. |
 | Name | The account name is set by the owner on the server, not collected by the app. Declare **Name** if a later version lets you type or change it in the app. |
 | IP address and user agent of a session | The server's sign-in library records them with each session; QBank reads them for nothing. Apple says to declare an IP address by how it is used (location, device ID, diagnostics), and QBank uses it for none of these. Cleaner still: a server task turns that recording off (see [release.md](release.md)), and this row then goes away. |
@@ -44,7 +43,7 @@ Answer these in App Store Connect exactly this way: "Yes, we collect data from t
 | Phase | Change |
 |---|---|
 | 3 Face ID lock | shipped: nothing is collected. iOS checks Face ID, Touch ID or the passcode and tells the app only whether it matched; the on-off setting stays on the device. |
-| 3 Passkeys | shipped: nothing new is collected that Apple's labels count (see Passkey above). The answer to the offer to save one stays on the device, in `UserDefaults`. |
+| 3 Passkeys | removed on 2026-10-29: the app no longer saves passkeys or signs in with them, so it sends no passkey data. Nothing Apple's labels count changes. |
 | 3 Import | shipped: an imported question file becomes that account's own study content, private to the account, not shared course content. It is Other User Content, already declared above. No new data type. |
 | Q Make questions (the accounts the server allows) | shipped: **Photos or Videos** and **Other User Content** (notes, files) declared above; the policy names Anthropic. |
 | Q Exam twins (the same accounts) | shipped: nothing new is collected. The app sends the course, the ticked folders and the pool, the exam picks under Other User Content; the server sends those practice questions, the account's own study content, to Anthropic, which the policy says. |
@@ -149,7 +148,7 @@ Apple rejects an upload that calls one of these API groups without a declared re
 
 | API group | Expected in QBank | Reason code | Why |
 |---|---|---|---|
-| User defaults (`UserDefaults`, `@AppStorage`) | yes: the look setting, the Face ID lock, the answer to the passkey offer | `CA92.1` | read and written only by the app itself |
+| User defaults (`UserDefaults`, `@AppStorage`) | yes: the look setting, the Face ID lock | `CA92.1` | read and written only by the app itself |
 | File timestamp (`creationDate`, `modificationDate`, `stat`) | only if the offline store reads file dates | `C617.1` | files inside the app's own container |
 | System boot time (`systemUptime`, `mach_absolute_time`) | only if a timer measures elapsed time this way | `35F9.1` | time between events inside the app; never sent off the phone |
 | Disk space (`volumeAvailableCapacity...`) | only if the offline store checks free space before saving | `E174.1` | to avoid writing when the phone is full |
@@ -157,7 +156,7 @@ Apple rejects an upload that calls one of these API groups without a declared re
 
 The exam timer is ruled by the server's clock (`serverNow`), so it should not need the boot-time group.
 
-A search of the app and of `Packages/QBankKit` and `Packages/QBankDesign` finds `UserDefaults` only, in the look setting, the Face ID lock, and the passkey offer. The manifest declares that group with `CA92.1` and no other required-reason group.
+A search of the app and of `Packages/QBankKit` and `Packages/QBankDesign` finds `UserDefaults` only, in the look setting and the Face ID lock. The manifest declares that group with `CA92.1` and no other required-reason group.
 
 ## Related build settings
 

@@ -32,7 +32,7 @@ extension View {
 }
 
 /// The sheet `confirmSheet` shows. Shown by itself, it can also stay open while its action runs,
-/// with a problem line when the action fails, as the offer to save a passkey does.
+/// with a problem line when the action fails, as a delete does.
 struct ConfirmSheet: View {
     let title: String
     let message: String

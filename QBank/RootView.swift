@@ -64,35 +64,5 @@ struct SignedInView: View {
             }
         }
         .environment(tabs)
-        .sheet(isPresented: offerIsOpen) {
-            let offer = app.passkeyOffer
-            ConfirmSheet(
-                title: "Save a passkey for this \(Device.model)?",
-                message: "Next time, sign in with \(Wording.passkeyCheck(app.lock.method)) instead of your password. You can remove it in Settings.",
-                confirm: "Save a passkey",
-                isDestructive: false,
-                cancel: "Not now",
-                identifier: "passkeyOffer",
-                isBusy: offer.isSaving,
-                problem: offer.problem
-            ) { save in
-                if save {
-                    Task { await offer.save(with: app) }
-                } else {
-                    offer.decline()
-                }
-            }
-        }
-    }
-
-    /// Open while the offer after a password sign-in waits for her. Swiping it away is Not now.
-    private var offerIsOpen: Binding<Bool> {
-        Binding {
-            app.passkeyOffer.isOpen
-        } set: { isOpen in
-            if !isOpen {
-                app.passkeyOffer.decline()
-            }
-        }
     }
 }

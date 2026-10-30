@@ -1,13 +1,5 @@
 import Foundation
 
-/// A passkey saved on her account, as Settings lists it. No key material.
-public struct Passkey: Codable, Sendable, Equatable, Identifiable {
-    public let id: String
-    public let name: String?
-    public let createdAt: Date?
-    public let deviceType: String
-}
-
 // Request and response bodies the client sends or unwraps; screens never see these.
 
 struct PasswordSignInRequest: Encodable {
@@ -96,10 +88,6 @@ struct ClearReviewResponse: Decodable {
 
 struct TermsResponse: Decodable {
     let terms: [Term]
-}
-
-struct PasskeysResponse: Decodable {
-    let passkeys: [Passkey]
 }
 
 struct StatusResponse: Decodable {

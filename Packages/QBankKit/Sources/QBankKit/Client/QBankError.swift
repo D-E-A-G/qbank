@@ -92,9 +92,6 @@ public struct ServerError: Error, Sendable, Equatable {
         public static let agentKeyNotAllowed: Code = "agent_key_not_allowed"
         /// Deleting the account, refused for the admin.
         public static let adminCannotDeleteAccount: Code = "admin_cannot_delete_account"
-        // Passkeys: an answer the server does not accept, and options it could not make.
-        public static let invalidPasskey: Code = "invalid_passkey"
-        public static let passkeyFailed: Code = "passkey_failed"
         // Connect an agent: no agent waiting under that code (mistyped, answered already, or run
         // out), and no key of hers with that id.
         public static let pairingNotFound: Code = "pairing_not_found"

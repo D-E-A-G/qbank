@@ -24,10 +24,6 @@ import QBankKit
 /// - `QB_UITEST_DEVICE_OWNER`: how the device answers the Face ID lock, one of
 ///   `DebugDeviceOwner.Kind`'s raw values, such as `face-id`. Absent means the
 ///   simulator's own Face ID or passcode, for a look by hand.
-/// - `QB_UITEST_PASSKEYS`: the device's passkeys, one of
-///   `DebugPasskeyAuthenticator.Kind`'s raw values, such as `synced`. Absent
-///   means the system's passkey sheet, which cannot reach the fake server's
-///   passkeys, for a look by hand.
 ///
 /// While the app runs, a test turns the network off and on by posting the
 /// Darwin notifications `networkOfflineNotification` and
@@ -42,7 +38,6 @@ nonisolated enum DebugLaunchScenario {
     static let keepPhoneDataKey = "QB_UITEST_KEEP_PHONE_DATA"
     static let networkKey = "QB_UITEST_NETWORK"
     static let deviceOwnerKey = "QB_UITEST_DEVICE_OWNER"
-    static let passkeysKey = "QB_UITEST_PASSKEYS"
     static let defaultsSuite = "com.dimitrygallego.qbank.uitest"
     static let networkOfflineNotification = "com.dimitrygallego.qbank.uitest.network.offline"
     static let networkOnlineNotification = "com.dimitrygallego.qbank.uitest.network.online"
@@ -100,16 +95,6 @@ nonisolated enum DebugLaunchScenario {
         return kind
     }
 
-    /// The device's passkeys the environment asks for, or nil for the system's. An unknown kind
-    /// stops the app, as an unknown scenario does.
-    static func passkeysKind(in environment: [String: String]) -> DebugPasskeyAuthenticator.Kind? {
-        guard let name = environment[passkeysKey] else { return nil }
-        guard let kind = DebugPasskeyAuthenticator.Kind(rawValue: name) else {
-            fatalError("Unknown \(passkeysKey) \"\(name)\"")
-        }
-        return kind
-    }
-
     /// The scenario the environment asks for, or nil for a normal launch.
     static func scenario(in environment: [String: String]) throws(UnknownScenario) -> Scenario? {
         guard let name = environment[scenarioKey] else { return nil }
@@ -139,19 +124,18 @@ nonisolated enum DebugLaunchScenario {
         let storage = phoneData(in: phoneFolder ?? defaultPhoneFolder, keep: environment[keepPhoneDataKey] == "1")
         let isOnline = environment[networkKey] != "offline"
         let owner: DeviceOwner = deviceOwner(deviceOwnerKind(in: environment))
-        let device = ScenarioDevice(owner: owner, passkeys: passkeysKind(in: environment).map(DebugPasskeyAuthenticator.init) ?? SystemPasskeyAuthenticator())
         switch scenario {
         case .signedOut:
-            return model(server: FakeQBankServer(signedIn: false), session: nil, defaults: defaults, storage: storage, isOnline: isOnline, device: device)
+            return model(server: FakeQBankServer(signedIn: false), session: nil, defaults: defaults, storage: storage, isOnline: isOnline, owner: owner)
         case .signedIn, .examInProgress:
             return model(
                 server: FakeQBankServer(signedIn: true, examInProgress: scenario == .examInProgress), session: FakeQBankServer.storedStudentSession(),
-                defaults: defaults, storage: storage, isOnline: isOnline, device: device
+                defaults: defaults, storage: storage, isOnline: isOnline, owner: owner
             )
         case .maker, .makerNotSetUp:
             return model(
                 server: FakeQBankServer(signedIn: true, as: FakeQBankServer.maker, makerIsSetUp: scenario == .maker),
-                session: FakeQBankServer.storedMakerSession(), defaults: defaults, storage: storage, isOnline: isOnline, device: device
+                session: FakeQBankServer.storedMakerSession(), defaults: defaults, storage: storage, isOnline: isOnline, owner: owner
             )
         }
     }
@@ -189,16 +173,10 @@ nonisolated enum DebugLaunchScenario {
         return owner
     }
 
-    /// What the scenario's device answers for: its owner, for the lock, and its passkeys.
-    private struct ScenarioDevice {
-        let owner: DeviceOwner
-        let passkeys: PasskeyAuthenticator
-    }
-
     @MainActor
     private static func model(
         server: FakeQBankServer, session: StoredSession?, defaults: UserDefaults, storage: PhoneStorage, isOnline: Bool,
-        device: ScenarioDevice
+        owner: DeviceOwner
     ) -> AppModel {
         let connection = Connection(isOnline: isOnline)
         let network = DebugNetwork(server: server, connection: connection, isOnline: isOnline)
@@ -216,11 +194,9 @@ nonisolated enum DebugLaunchScenario {
                 sessionStore: InMemorySessionStore(session)
             ),
             look: lookStore,
-            lock: AppLock(defaults: defaults, owner: device.owner),
+            lock: AppLock(defaults: defaults, owner: owner),
             storage: storage,
-            connection: connection,
-            passkeys: device.passkeys,
-            passkeyOffer: PasskeyOffer(defaults: defaults)
+            connection: connection
         )
     }
 }

@@ -7,9 +7,4 @@ useDefault = true
 [[allowlists]]
 description = "Not secrets"
 regexes = [
-  # The synthetic sign-in ticket the passkey tests and their stub server use.
-  '''^synthetic-ticket\.c2lnbmVk=$''',
-  # The five-minute passkey challenge cookie in the contract fixtures, recorded
-  # from a throwaway test server with synthetic users.
-  '''^aVMdf5cfdXPWBHmpZwCuuU-6oLqyXord\.wEtfjhNgznupCj03deRFK3rC7mRtkCIfIFj0ZHXLWY0=$''',
 ]
