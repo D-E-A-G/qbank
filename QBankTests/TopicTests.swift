@@ -300,7 +300,7 @@ struct TopicTests {
         let page = EditExamPageModel(app: app, course: course, pageID: "p1")
         #expect(!page.hasLink)
         #expect(page.primerLink == .unchanged)
-        #expect(EditExamPageModel(app: app, course: course, pageID: nil).name == "Exam 2")
+        #expect(EditExamPageModel(app: app, course: course, pageID: nil).name == "Page 2")
     }
 
     @Test func aNewStudyPageSendsItsLink() async throws {
@@ -315,10 +315,10 @@ struct TopicTests {
         #expect(body["linkUrl"] as? String == "https://notes.example.com/queues")
     }
 
-    @Test func aTopicsFoldersAndExamsSayStudyPage() async throws {
+    @Test func aTopicsFoldersAndExamsSayPage() async throws {
         let topic = try QBankJSON.decoder.decode(CourseDetail.self, from: Data(StudyBodies.topicDetail().utf8))
         let loose = try #require(topic.folders.first { $0.examPageID == nil })
-        #expect(FolderWording.folderNote(loose, page: nil, words: Wording.words(.topic)) == "On no study page · 1 set · 1 question")
+        #expect(FolderWording.folderNote(loose, page: nil) == "On no page · 1 set · 1 question")
 
         let server = StubServer([
             "GET /api/courses/t1": .ok(StudyBodies.topicDetail()),
@@ -329,6 +329,6 @@ struct TopicTests {
         let model = ExamSetupModel(app: app, route: route)
         await model.load()
         #expect(model.words == Wording.words(.topic))
-        #expect(model.groups.map(\.title) == ["Page 1", "On no study page"])
+        #expect(model.groups.map(\.title) == ["Page 1", "On no page"])
     }
 }

@@ -2,9 +2,9 @@ import QBankDesign
 import QBankKit
 import SwiftUI
 
-/// The exam page editor, as a sheet: Cancel, New exam page or Edit Exam 2, Done; the page's name,
-/// the course's folders as chips, and how many questions its folders hold. A topic's study page
-/// also has its primer link. A page that exists ends with Delete, which closes the editor and asks
+/// The page editor, as a sheet: Cancel, New page or Edit Exam 2, Done; the page's name, the course's
+/// folders as chips, and how many questions its folders hold. A topic's page also has its primer
+/// link, and a page that exists its Badge. A page that exists ends with Delete, which closes the editor and asks
 /// in the server's words; the page alone goes, and its folders stay.
 struct EditExamPageView: View {
     @State private var model: EditExamPageModel
@@ -21,7 +21,7 @@ struct EditExamPageView: View {
 
     var body: some View {
         EditSheet(
-            title: model.isNew ? "New \(model.words.page)" : "Edit \(model.name.isEmpty ? model.words.page : model.name)",
+            title: model.isNew ? "New page" : "Edit \(model.name.isEmpty ? "page" : model.name)",
             confirm: "Done",
             identifier: "editPage",
             isSaving: model.isSaving,
@@ -33,6 +33,11 @@ struct EditExamPageView: View {
             }
             card
             SheetHint(text: "Tap the folders on this page. A folder on another page is greyed and says which.")
+            if model.offersBadge {
+                BadgeField(badge: $model.badge)
+                    .padding(.top, QBankSpacing.space2)
+                    .disabled(model.isSaving)
+            }
             if model.hasLink {
                 LabeledField(label: "Primer link", hint: "Where you wrote this page up. The page opens it; leave it empty for none.") {
                     TextField("Primer link", text: $model.link, prompt: Text(verbatim: "https://").foregroundStyle(.qbank(.text4)))
@@ -48,7 +53,7 @@ struct EditExamPageView: View {
                 .disabled(model.isSaving)
             }
             if model.offersDelete {
-                Button(model.words.deletePage, systemImage: "trash", role: .destructive) {
+                Button("Delete this page", systemImage: "trash", role: .destructive) {
                     close(.delete)
                 }
                 .buttonStyle(.qbank(.destructive, size: .large, fullWidth: true))
@@ -62,7 +67,7 @@ struct EditExamPageView: View {
     private var card: some View {
         let shape = RoundedRectangle(cornerRadius: QBankRadius.md, style: .continuous)
         return VStack(alignment: .leading, spacing: QBankSpacing.space3) {
-            TextField("\(model.words.pageTitle) name", text: $model.name)
+            TextField("Page name", text: $model.name)
                 .qbankFont(.body)
                 .foregroundStyle(.qbank(.text1))
                 .textInputAutocapitalization(.words)
@@ -71,7 +76,7 @@ struct EditExamPageView: View {
                 .padding(.horizontal, QBankSpacing.space4)
                 .frame(minHeight: QBankButtonStyle.Size.medium.minHeight)
                 .background(.qbank(.surfaceSunken), in: .rect(cornerRadius: QBankRadius.sm, style: .continuous))
-                .accessibilityLabel("\(model.words.pageTitle) name")
+                .accessibilityLabel("Page name")
                 .accessibilityIdentifier("editPage.name")
             if model.chips.isEmpty {
                 Text("This \(model.words.container) has no folders yet.")
@@ -110,6 +115,31 @@ struct EditExamPageView: View {
     private func close(_ outcome: EditExamPageModel.Outcome) {
         finished(outcome)
         dismiss()
+    }
+}
+
+/// Badge: what the page is for, Exam, Concept or Study, or None, with its one hint line.
+private struct BadgeField: View {
+    @Binding var badge: PageBadge?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Badge")
+                .qbankFont(.subheadline, weight: .semibold)
+                .foregroundStyle(.qbank(.text2))
+                .padding(.horizontal, QBankSpacing.space1)
+                .accessibilityHidden(true)
+            QBankSegmentedControl(
+                "Badge",
+                selection: $badge,
+                options: PageBadge.allCases.map { .init($0, Wording.badge($0)) } + [.init(nil, "None")]
+            )
+            .accessibilityIdentifier("editPage.badge")
+            Text("Says what the page is for")
+                .qbankFont(.subheadline)
+                .foregroundStyle(.qbank(.text3))
+                .padding(.horizontal, QBankSpacing.space1)
+        }
     }
 }
 

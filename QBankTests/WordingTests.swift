@@ -113,21 +113,22 @@ struct WordingTests {
 
     // MARK: Courses and study topics
 
-    /// A course says what it always said; a topic says topic and study page. Nothing else differs.
-    @Test func aCourseKeepsItsWordsAndATopicSaysStudyPages() {
-        #expect(Wording.words(.course) == KindWords(container: "course", page: "exam page", pageTitle: "Exam page", pages: "Exam pages", numbered: "Exam", addFolders: "Add the folders this exam covers."))
-        #expect(Wording.words(.topic) == KindWords(container: "topic", page: "study page", pageTitle: "Study page", pages: "Study pages", numbered: "Page", addFolders: "Add the folders this page covers."))
+    /// A course and a topic both have pages; only what each is called differs.
+    @Test func aCourseAndATopicDifferOnlyInWhatTheyAreCalled() {
+        #expect(Wording.words(.course) == KindWords(container: "course"))
+        #expect(Wording.words(.topic) == KindWords(container: "topic"))
         #expect(Wording.words(CourseKind(rawValue: "shelf")) == Wording.words(.course), "a kind this version does not know reads as a course")
     }
 
-    /// Deleting a page says page in the course's or topic's words, as the web does.
-    @Test func deletingAPageSaysExamPageInACourseAndStudyPageInATopic() {
-        #expect(KindWords.course.deletePage == "Delete this exam page")
-        #expect(KindWords.topic.deletePage == "Delete this study page")
-        #expect(KindWords.course.pageGone == "This exam page is not in the course anymore. If it was deleted, Recently deleted in the course can bring it back.")
-        #expect(KindWords.topic.pageGone == "This study page is not in the topic anymore. If it was deleted, Recently deleted in the topic can bring it back.")
-        #expect(KindWords.course.recentlyDeleted == "Bring back exam pages, folders, sets and exams for 30 days")
-        #expect(KindWords.topic.recentlyDeleted == "Bring back study pages, folders, sets and exams for 30 days")
+    /// A page deleted elsewhere says page, in the course's or topic's words, as the web does.
+    @Test func aPageDeletedElsewhereSaysPage() {
+        #expect(KindWords.course.pageGone == "This page is not in the course anymore. If it was deleted, Recently deleted in the course can bring it back.")
+        #expect(KindWords.topic.pageGone == "This page is not in the topic anymore. If it was deleted, Recently deleted in the topic can bring it back.")
+    }
+
+    /// A badge says what the page is for, in one word.
+    @Test func eachBadgeHasItsWord() {
+        #expect(PageBadge.allCases.map(Wording.badge) == ["Exam", "Concept", "Study"])
     }
 
     /// An exam page's warning title, Undo bar lines and Recently deleted line.
@@ -161,12 +162,11 @@ struct WordingTests {
         #expect(Wording.name(code: "", title: "Invented Systems Design") == "Invented Systems Design")
     }
 
-    @Test func newMakesExamOneInACourseAndPageOneInATopic() {
-        #expect(Wording.nextPageName(after: [], kind: .course) == "Exam 1")
-        #expect(Wording.nextPageName(after: [], kind: .topic) == "Page 1")
-        #expect(Wording.nextPageName(after: ["Page 1"], kind: .topic) == "Page 2")
-        #expect(Wording.nextPageName(after: ["Caching", " page 2 "], kind: .topic) == "Page 3")
-        #expect(Wording.nextPageName(after: ["Page 1"], kind: .course) == "Exam 2", "a course counts exams, whatever its pages are called")
+    @Test func newMakesTheNextFreePageInACourseOrTopic() {
+        #expect(Wording.nextPageName(after: []) == "Page 1")
+        #expect(Wording.nextPageName(after: ["Page 1"]) == "Page 2")
+        #expect(Wording.nextPageName(after: ["Exam 1", "Exam 2"]) == "Page 3", "her pages keep their names and count")
+        #expect(Wording.nextPageName(after: ["Caching", " page 2 "]) == "Page 3")
     }
 
     @Test func aTopicsLineUnderItsTitleLeavesOutItsName() throws {

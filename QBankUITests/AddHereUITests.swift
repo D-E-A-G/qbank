@@ -161,8 +161,8 @@ final class AddHereUITests: XCTestCase {
         let app = launch("signed-in")
         openHome(app)
         open(app.buttons["home.course.NURS 220"], titled: "NURS 220", in: app)
-        XCTAssertTrue(app.staticTexts["No exam pages yet. Tap + to make Exam 1."].appears(timeout: 5))
-        XCTAssertFalse(app.buttons["course.newPage"].exists, "no New on Exam pages")
+        XCTAssertTrue(app.staticTexts["No pages yet. Tap + to make Page 1."].appears(timeout: 5))
+        XCTAssertFalse(app.buttons["course.newPage"].exists, "no New on Pages")
         attachLooks(app, "A-2 course")
 
         let plus = app.buttons["course.add"]
@@ -171,7 +171,7 @@ final class AddHereUITests: XCTestCase {
         XCTAssertTrue(app.buttons["course.add.import"].label.hasPrefix("Import a question file"), app.buttons["course.add.import"].label)
         XCTAssertFalse(app.buttons["course.add.make"].exists, "the server does not let this account make questions")
         XCTAssertEqual(app.buttons["course.add.folder"].label, "New folder")
-        XCTAssertEqual(app.buttons["course.add.page"].label, "New exam page")
+        XCTAssertEqual(app.buttons["course.add.page"].label, "New page")
         attachLooks(app, "M-2 course, the + menu")
 
         // New folder: it is listed under Folders.
@@ -204,14 +204,14 @@ final class AddHereUITests: XCTestCase {
         XCTAssertTrue(app.buttons["course.set.Invented Sleep and Rest"].appears(timeout: 5))
         goBack(app, from: "Week 4")
 
-        // New exam page is the page editor; the page opens.
+        // New page is the page editor; the page opens.
         XCTAssertTrue(app.navigationBars["NURS 220"].appears(timeout: 5))
         plus.tap()
         chooseFromMenu(app.buttons["course.add.page"])
-        XCTAssertTrue(app.navigationBars["New exam page"].appears(timeout: 5))
+        XCTAssertTrue(app.navigationBars["New page"].appears(timeout: 5))
         app.buttons["editPage.chip.free.Week 4"].tap()
         app.buttons["editPage.save"].tap()
-        XCTAssertTrue(app.navigationBars["Exam 1"].appears(timeout: 10))
+        XCTAssertTrue(app.navigationBars["Page 1"].appears(timeout: 10))
     }
 
     @MainActor
@@ -298,10 +298,10 @@ final class AddHereUITests: XCTestCase {
         open(app.buttons["home.course.NURS 220"], titled: "NURS 220", in: app)
         app.buttons["course.add"].tap()
         chooseFromMenu(app.buttons["course.add.page"])
-        XCTAssertTrue(app.navigationBars["New exam page"].appears(timeout: 5))
+        XCTAssertTrue(app.navigationBars["New page"].appears(timeout: 5))
         app.buttons["editPage.save"].tap()
-        XCTAssertTrue(app.navigationBars["Exam 1"].appears(timeout: 10))
-        XCTAssertTrue(app.staticTexts["No folders on this page yet. Add the folders this exam covers."].exists)
+        XCTAssertTrue(app.navigationBars["Page 1"].appears(timeout: 10))
+        XCTAssertTrue(app.staticTexts["No folders on this page yet. Add the folders this page covers."].exists)
 
         app.buttons["page.add"].tap()
         chooseFromMenu(app.buttons["page.add.import"])
@@ -316,7 +316,7 @@ final class AddHereUITests: XCTestCase {
         XCTAssertTrue(app.buttons["import.commit"].appears(timeout: 5))
         tapVisible(app.buttons["import.commit"], in: app)
         XCTAssertTrue(app.staticTexts["import.done.title"].appears(timeout: 5))
-        XCTAssertEqual(app.staticTexts["import.done.copy"].label, "“Invented Sleep and Rest” · 3 questions in NURS 220, Week 5. It is on Exam 1.")
+        XCTAssertEqual(app.staticTexts["import.done.copy"].label, "“Invented Sleep and Rest” · 3 questions in NURS 220, Week 5. It is on Page 1.")
         app.buttons["import.done.open"].tap()
         XCTAssertTrue(app.navigationBars["Week 5"].appears(timeout: 10))
         goBack(app, from: "Week 5")

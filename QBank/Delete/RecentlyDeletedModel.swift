@@ -2,7 +2,7 @@ import Foundation
 import Observation
 import QBankKit
 
-/// A course's Recently deleted: the exam pages, folders and sets she deleted and her past exams she
+/// A course's Recently deleted: the pages, folders and sets she deleted and her past exams she
 /// deleted, in the last 30 days, newest first, each with Bring back until its days run out.
 @Observable
 final class RecentlyDeletedModel {

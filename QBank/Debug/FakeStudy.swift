@@ -23,7 +23,7 @@ nonisolated final class FakeStudy: Sendable {
         var bank: [String]
     }
 
-    /// An exam page, or a topic's study page.
+    /// A page of a course or topic.
     struct CourseExam {
         let id: String
         let courseID: String
@@ -31,6 +31,8 @@ nonisolated final class FakeStudy: Sendable {
         let sortOrder: Int
         /// Its primer link, a web address, or nil.
         var linkURL: String?
+        /// What it is for, "exam", "concept" or "study", or nil for no badge.
+        var badge: String?
     }
 
     struct Answer {
@@ -147,8 +149,9 @@ nonisolated final class FakeStudy: Sendable {
                 Folder(id: "f0000000-0000-4000-8000-000000002203", courseID: fundamentals, name: "Week 3", examPageID: nil, sortOrder: 3, sets: ["mobility-v1"], bank: []),
             ],
             courseExams: [
-                CourseExam(id: Self.exam1, courseID: mentalHealth, name: "Exam 1", sortOrder: 1),
-                CourseExam(id: Self.exam2, courseID: mentalHealth, name: "Exam 2", sortOrder: 2),
+                // Her course's pages from before badges, which the server badged Exam.
+                CourseExam(id: Self.exam1, courseID: mentalHealth, name: "Exam 1", sortOrder: 1, badge: "exam"),
+                CourseExam(id: Self.exam2, courseID: mentalHealth, name: "Exam 2", sortOrder: 2, badge: "exam"),
             ],
             review: [
                 FakeQBankServer.mentalHealthID: [
@@ -295,6 +298,7 @@ nonisolated final class FakeStudy: Sendable {
         return [
             "id": page.id, "name": page.name, "sortOrder": page.sortOrder,
             "weekLabels": folders.map(\.name), "folderIds": folders.map(\.id), "linkUrl": json(page.linkURL),
+            "badge": json(page.badge),
         ]
     }
 
@@ -1029,6 +1033,14 @@ nonisolated final class FakeStudy: Sendable {
                 link = .some(trimmed)
             default: link = .some(nil)
             }
+            // Null takes the badge off; left out, a page keeps it, and a new page has none.
+            let badge: String??
+            switch body["badge"] {
+            case nil: badge = .none
+            case let value as String where ["exam", "concept", "study"].contains(value): badge = .some(value)
+            case is NSNull: badge = .some(nil)
+            default: return Self.failure(400, "invalid_request", "That badge is not one QBank knows.")
+            }
             let sent = body["folderIds"] as? [String]
             var target: [Folder] = []
             for folderID in sent ?? [] where !target.contains(where: { $0.id == folderID }) {
@@ -1064,13 +1076,14 @@ nonisolated final class FakeStudy: Sendable {
             if let id, let index = state.courseExams.firstIndex(where: { $0.id == id }) {
                 state.courseExams[index].name = name
                 if let link { state.courseExams[index].linkURL = link }
+                if let badge { state.courseExams[index].badge = badge }
                 page = state.courseExams[index]
             } else {
                 state.courseExamCount += 1
                 page = CourseExam(
                     id: String(format: "c0e00000-0000-4000-8000-%012d", 100 + state.courseExamCount), courseID: courseID, name: name,
                     sortOrder: (state.courseExams.filter { $0.courseID == courseID }.map(\.sortOrder).max() ?? 0) + 1,
-                    linkURL: link ?? nil
+                    linkURL: link ?? nil, badge: badge ?? nil
                 )
                 state.courseExams.append(page)
             }

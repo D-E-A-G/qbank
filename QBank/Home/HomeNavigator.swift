@@ -91,7 +91,7 @@ nonisolated struct CourseRef: Hashable, CourseNaming {
     let id: String
     let code: String
     let title: String
-    /// Picks the words of the screens it leads to: a topic's say topic and study page.
+    /// Picks the words of the screens it leads to: a topic's say topic.
     var kind: CourseKind = .course
 }
 

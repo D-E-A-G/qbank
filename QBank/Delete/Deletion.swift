@@ -3,7 +3,7 @@ import Observation
 import QBankKit
 
 /// Something she can delete: a set (a practice set, or an exam set of a folder's exam bank), a
-/// folder with every set in it, an exam page (or a topic's study page) alone, one of her past exams,
+/// folder with every set in it, a page alone, one of her past exams,
 /// or a course or study topic with everything in it, called by its name (a course's code, a topic's
 /// title).
 enum DeleteTarget: Hashable {

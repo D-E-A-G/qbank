@@ -67,12 +67,14 @@ public struct QBankSectionHeader: View {
 }
 
 /// One row of a ``QBankListGroup``: an optional icon, a title with an optional
-/// detail line, a trailing value or custom accessory, and an optional chevron.
+/// small tag beside it and an optional detail line, a trailing value or custom
+/// accessory, and an optional chevron.
 /// For a tappable row, wrap it in a `Button` with `.buttonStyle(.qbankRow)`.
 /// VoiceOver reads a row as one element; pass `accessibilityChildren: .contain`
 /// when the accessory holds its own control, such as a Restore button.
 public struct QBankListRow<Accessory: View>: View {
     private let title: String
+    private let tag: String?
     private let detail: String?
     private let value: String?
     private let systemImage: String?
@@ -85,6 +87,7 @@ public struct QBankListRow<Accessory: View>: View {
 
     public init(
         _ title: String,
+        tag: String? = nil,
         detail: String? = nil,
         value: String? = nil,
         systemImage: String? = nil,
@@ -95,6 +98,7 @@ public struct QBankListRow<Accessory: View>: View {
         @ViewBuilder accessory: () -> Accessory
     ) {
         self.title = title
+        self.tag = tag
         self.detail = detail
         self.value = value
         self.systemImage = systemImage
@@ -121,9 +125,15 @@ public struct QBankListRow<Accessory: View>: View {
             }
             content {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .qbankFont(.body)
-                        .foregroundStyle(.qbank(isDestructive ? .wrong : .text1))
+                    HStack(alignment: .firstTextBaseline, spacing: QBankSpacing.space2) {
+                        Text(title)
+                            .qbankFont(.body)
+                            .foregroundStyle(.qbank(isDestructive ? .wrong : .text1))
+                        if let tag {
+                            QBankTintedLabel(tag, tone: .neutral, size: .small)
+                                .fixedSize()
+                        }
+                    }
                     if let detail {
                         QBankDetailText(detail)
                             .qbankFont(.footnote)
@@ -158,6 +168,7 @@ public struct QBankListRow<Accessory: View>: View {
 extension QBankListRow where Accessory == EmptyView {
     public init(
         _ title: String,
+        tag: String? = nil,
         detail: String? = nil,
         value: String? = nil,
         systemImage: String? = nil,
@@ -168,6 +179,7 @@ extension QBankListRow where Accessory == EmptyView {
     ) {
         self.init(
             title,
+            tag: tag,
             detail: detail,
             value: value,
             systemImage: systemImage,

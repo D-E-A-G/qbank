@@ -112,8 +112,8 @@ final class StudyUITests: XCTestCase {
         XCTAssertTrue(week1.label.contains("17 questions · exam bank"), week1.label)
         XCTAssertTrue(week2.label.contains("26 questions"), week2.label)
         XCTAssertTrue(app.staticTexts["Tick at least one folder."].exists)
-        XCTAssertTrue(app.staticTexts["Exam 1"].exists, "the folders by exam page")
-        XCTAssertTrue(app.staticTexts["On no exam page"].exists)
+        XCTAssertTrue(app.staticTexts["Exam 1"].exists, "the folders by page")
+        XCTAssertTrue(app.staticTexts["On no page"].exists)
         XCTAssertFalse(app.buttons["exam.start"].isEnabled)
         attach(app, "1c-3 exam setup")
 
@@ -244,8 +244,8 @@ final class StudyUITests: XCTestCase {
         XCTAssertTrue(exam2.label.contains("Not started"), exam2.label)
         let loose = app.buttons["folder.Weeks 1-3"]
         XCTAssertTrue(loose.label.contains("1 set · 8 questions"), loose.label)
-        XCTAssertFalse(app.buttons["folder.Week 1"].exists, "a folder on an exam page is listed only there")
-        XCTAssertTrue(app.staticTexts["Folders on no exam page. Open one to see its sets."].exists)
+        XCTAssertFalse(app.buttons["folder.Week 1"].exists, "a folder on a page is listed only there")
+        XCTAssertTrue(app.staticTexts["Folders on no page. Open one to see its sets."].exists)
         attach(app, "C course page")
 
         // An exam page: Start exam, its folders, and the exams she took over them.
@@ -318,13 +318,13 @@ final class StudyUITests: XCTestCase {
         let app = launch("signed-in")
         XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 10))
         openFolder(app, "Weeks 1-3")
-        XCTAssertEqual(app.staticTexts["folder.note"].label, "On no exam page · 1 set · 8 questions")
+        XCTAssertEqual(app.staticTexts["folder.note"].label, "On no page · 1 set · 8 questions")
 
         // Rename: only the name changes.
         app.buttons["folder.rename"].tap()
         let name = app.textFields["renameFolder.name"]
         XCTAssertTrue(name.appears(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Only the name changes. Its sets, their progress, its exam page and your past exams stay with it."].exists)
+        XCTAssertTrue(app.staticTexts["Only the name changes. Its sets, their progress, its page and your past exams stay with it."].exists)
         name.clearAndType("Mixed review")
         attach(app, "C rename folder")
         app.buttons["renameFolder.save"].tap()
@@ -332,14 +332,14 @@ final class StudyUITests: XCTestCase {
 
         // Exam page: the folder goes on Exam 2, with its sets and progress.
         app.buttons["folder.page"].tap()
-        XCTAssertTrue(app.navigationBars["Exam page"].appears(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Mixed review can be on one exam page. Its sets and progress stay in the folder."].exists)
+        XCTAssertTrue(app.navigationBars["Page"].appears(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Mixed review can be on one page. Its sets and progress stay in the folder."].exists)
         XCTAssertTrue(app.buttons["examPage.none"].isSelected)
-        XCTAssertTrue(app.buttons["examPage.new"].label.contains("Exam 3"))
+        XCTAssertTrue(app.buttons["examPage.new"].label.contains("Page 3"))
         app.buttons["examPage.page.Exam 2"].tap()
         attach(app, "C exam page sheet")
         app.buttons["examPage.save"].tap()
-        XCTAssertTrue(app.navigationBars["Exam page"].disappears(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Page"].disappears(timeout: 5))
         waitForLabel(app.staticTexts["folder.note"], containing: "On Exam 2 · 1 set · 8 questions")
 
         // Select, then Move: the set goes to Week 2 with its answers.
@@ -368,7 +368,7 @@ final class StudyUITests: XCTestCase {
         goBack(app, from: "Mixed review")
         XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 5))
         waitForLabel(app.buttons["course.page.Exam 2"], containing: "2 folders · 31 questions")
-        XCTAssertFalse(app.staticTexts["Folders on no exam page. Open one to see its sets."].exists)
+        XCTAssertFalse(app.staticTexts["Folders on no page. Open one to see its sets."].exists)
 
         // A name its list already has is refused in the server's words.
         openFolder(app, "Week 2", on: "Exam 1")
@@ -428,7 +428,7 @@ final class StudyUITests: XCTestCase {
         app.navigationBars["NURS 310"].buttons["Home"].tap()
         app.buttons["home.course.NURS 220"].tap()
         XCTAssertTrue(app.navigationBars["NURS 220"].appears(timeout: 5))
-        XCTAssertTrue(app.staticTexts["No exam pages yet. Tap + to make Exam 1."].appears(timeout: 5))
+        XCTAssertTrue(app.staticTexts["No pages yet. Tap + to make Page 1."].appears(timeout: 5))
         for name in ["Week 1", "Week 2", "Week 3"] {
             XCTAssertTrue(app.buttons["folder.\(name)"].exists, name)
         }
@@ -447,33 +447,33 @@ final class StudyUITests: XCTestCase {
         XCTAssertTrue(app.buttons["folder.Week 3"].appears(timeout: 5))
         XCTAssertLessThan(app.buttons["folder.Week 3"].frame.minY, app.buttons["folder.Week 1"].frame.minY)
 
-        // The +'s New exam page: a page with two of her folders.
+        // The +'s New page: a page with two of her folders.
         app.buttons["course.add"].tap()
         chooseFromMenu(app.buttons["course.add.page"])
-        XCTAssertTrue(app.navigationBars["New exam page"].appears(timeout: 5))
-        XCTAssertEqual(app.textFields["editPage.name"].value as? String, "Exam 1")
+        XCTAssertTrue(app.navigationBars["New page"].appears(timeout: 5))
+        XCTAssertEqual(app.textFields["editPage.name"].value as? String, "Page 1")
         XCTAssertEqual(app.staticTexts["editPage.line"].label, "No folders yet")
         app.buttons["editPage.chip.free.Week 1"].tap()
         app.buttons["editPage.chip.free.Week 2"].tap()
         XCTAssertEqual(app.staticTexts["editPage.line"].label, "2 folders · 85 questions")
         attach(app, "C new exam page")
         app.buttons["editPage.save"].tap()
-        XCTAssertTrue(app.navigationBars["Exam 1"].appears(timeout: 10), "a new page opens")
+        XCTAssertTrue(app.navigationBars["Page 1"].appears(timeout: 10), "a new page opens")
         XCTAssertEqual(app.staticTexts["page.note"].label, "2 folders · 2 practice sets · 85 questions")
         XCTAssertFalse(app.descendants(matching: .any)["page.twins"].exists, "no folder on this page has exam twins")
-        XCTAssertTrue(app.staticTexts["Exams you finish over Exam 1 show up here with their scores."].exists)
+        XCTAssertTrue(app.staticTexts["Exams you finish over Page 1 show up here with their scores."].exists)
         attach(app, "C exam page, new")
 
-        goBack(app, from: "Exam 1")
-        XCTAssertTrue(app.buttons["course.page.Exam 1"].appears(timeout: 5))
+        goBack(app, from: "Page 1")
+        XCTAssertTrue(app.buttons["course.page.Page 1"].appears(timeout: 5))
         XCTAssertFalse(app.buttons["folder.Week 1"].exists)
         XCTAssertTrue(app.buttons["folder.Week 3"].exists)
 
         // Deleting the page puts its folders under Folders; no set moves.
-        app.buttons["course.page.Exam 1"].tap()
+        app.buttons["course.page.Page 1"].tap()
         app.buttons["page.edit"].tap()
         app.buttons["page.editPage"].tap()
-        XCTAssertTrue(app.navigationBars["Edit Exam 1"].appears(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Edit Page 1"].appears(timeout: 5))
         XCTAssertTrue(app.buttons["editPage.chip.free.Week 3"].exists)
         attach(app, "C edit exam page")
         tapVisible(app.buttons["editPage.delete"], in: app)
@@ -481,7 +481,7 @@ final class StudyUITests: XCTestCase {
         XCTAssertEqual(app.staticTexts["deleteSheet.message"].label, "Its 2 folders stay, with their sets and your progress, under Folders: Week 1 and Week 2. You can undo this for 30 days.")
         tapWhenStill(app.buttons["deleteSheet.confirm"])
         XCTAssertTrue(app.navigationBars["NURS 220"].appears(timeout: 10), "a deleted page closes")
-        XCTAssertTrue(app.staticTexts["No exam pages yet. Tap + to make Exam 1."].appears(timeout: 5))
+        XCTAssertTrue(app.staticTexts["No pages yet. Tap + to make Page 1."].appears(timeout: 5))
         XCTAssertTrue(app.buttons["folder.Week 1"].exists)
     }
 
@@ -491,7 +491,7 @@ final class StudyUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 10))
 
         // One folder on no exam page: nothing to order, so no Edit, and no line about a connection.
-        XCTAssertTrue(app.staticTexts["Folders on no exam page. Open one to see its sets."].appears(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Folders on no page. Open one to see its sets."].appears(timeout: 5))
         XCTAssertFalse(app.buttons["course.editFolders"].exists)
         XCTAssertFalse(app.staticTexts["course.orderNeedsConnection"].exists)
         attach(app, "C folders, one loose folder")
@@ -501,7 +501,7 @@ final class StudyUITests: XCTestCase {
         app.buttons["folder.page"].tap()
         app.buttons["examPage.none"].tap()
         app.buttons["examPage.save"].tap()
-        waitForLabel(app.staticTexts["folder.note"], containing: "On no exam page")
+        waitForLabel(app.staticTexts["folder.note"], containing: "On no page")
         goBack(app, from: "Week 3")
         goBack(app, from: "Exam 2")
         let edit = app.buttons["course.editFolders"]

@@ -66,9 +66,9 @@ nonisolated enum FolderWording {
     }
 
     /// The line under the folder's name on its own screen: "On Exam 2 · 3 sets · 36 of 45 fully
-    /// right", or "On no exam page · ...", "On no study page · ..." in a topic.
-    static func folderNote(_ folder: Folder, page: CourseExam?, words: KindWords = .course) -> String {
-        "\(page.map { "On \($0.name)" } ?? "On no \(words.page)") · \(meta(folder))"
+    /// right", or "On no page · ...".
+    static func folderNote(_ folder: Folder, page: CourseExam?) -> String {
+        "\(page.map { "On \($0.name)" } ?? "On no page") · \(meta(folder))"
     }
 
     /// An exam page's row on the course page: "5 folders · 217 questions", or "No folders yet".

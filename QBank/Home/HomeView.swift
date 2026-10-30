@@ -499,7 +499,7 @@ private struct NoCourseChosen: View {
                     .qbankFont(.title3)
                     .foregroundStyle(.qbank(.text1))
                 Text(hasCourses
-                    ? "Its exam pages, folders, Review and Terms open here."
+                    ? "Its pages, folders, Review and Terms open here."
                     : canAdd ? "Tap + to add one, or import its first question file." : "A course appears here when its first question file is imported.")
                     .qbankFont(.subheadline)
                     .foregroundStyle(.qbank(.text2))

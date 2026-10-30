@@ -17,8 +17,8 @@ struct CourseFoldersTests {
         return try QBankJSON.decoder.decode(Folder.self, from: Data(json.utf8))
     }
 
-    private func course(pages: [StudyBodies.Page] = []) throws -> CourseDetail {
-        try QBankJSON.decoder.decode(CourseDetail.self, from: Data(StudyBodies.course(pages: pages).utf8))
+    private func course(pages: [StudyBodies.Page] = [], badges: [String: String?] = [:]) throws -> CourseDetail {
+        try QBankJSON.decoder.decode(CourseDetail.self, from: Data(StudyBodies.course(pages: pages, badges: badges).utf8))
     }
 
     private func summary(_ json: String) throws -> ExamSummary {
@@ -135,7 +135,7 @@ struct CourseFoldersTests {
         let onPage = try #require(course.folders.first { $0.id == "f1" })
         #expect(FolderWording.folderNote(onPage, page: course.exams.first) == "On Exam 1 · 1 set · 8 of 10 fully right")
         let loose = try #require(course.folders.first { $0.id == "f3" })
-        #expect(FolderWording.folderNote(loose, page: nil) == "On no exam page · 1 set · 12 questions")
+        #expect(FolderWording.folderNote(loose, page: nil) == "On no page · 1 set · 12 questions")
     }
 
     // MARK: Past exams
@@ -234,7 +234,7 @@ struct CourseFoldersTests {
             "PATCH /api/folders/f1": .ok(StudyBodies.folder("f1", "Week 1", order: 3, sets: [])),
         ])
         let model = await loaded(server)
-        #expect(model.nextPageName == "Exam 2")
+        #expect(model.nextPageName == "Page 2")
         #expect(await model.put(try #require(model.folder("f3")), on: .new(name: " Exam 2 ")) == nil)
         #expect(body(server.requests.first { $0.httpMethod == "POST" }) == #"{"folderIds":["f3"],"name":"Exam 2"}"#)
         #expect(await model.put(try #require(model.folder("f1")), on: .none) == nil)
@@ -342,10 +342,9 @@ struct CourseFoldersTests {
         #expect(!model.canEdit)
     }
 
-    @Test func nextExamNameSkipsTakenOnes() {
-        #expect(Wording.nextPageName(after: [], kind: .course) == "Exam 1")
-        #expect(Wording.nextPageName(after: ["Exam 1"], kind: .course) == "Exam 2")
-        #expect(Wording.nextPageName(after: ["Final", "exam 2"], kind: .course) == "Exam 3")
+    @Test func nextPageNameSkipsTakenOnes() {
+        #expect(Wording.nextPageName(after: ["Exam 1"]) == "Page 2")
+        #expect(Wording.nextPageName(after: ["Final", "page 2"]) == "Page 3")
     }
 
     @Test func anExamPagesStartButtonTicksItsFolders() async throws {
@@ -382,11 +381,11 @@ struct CourseFoldersTests {
         #expect(model.problem == nil)
     }
 
-    // MARK: The exam page editor
+    // MARK: The page editor
 
-    private func editor(_ server: StubServer, pages: [StudyBodies.Page], page: String?) throws -> EditExamPageModel {
+    private func editor(_ server: StubServer, pages: [StudyBodies.Page], page: String?, badges: [String: String?] = [:]) throws -> EditExamPageModel {
         let (app, _) = TestApp.make(server, account: .student())
-        return EditExamPageModel(app: app, course: try course(pages: pages), pageID: page)
+        return EditExamPageModel(app: app, course: try course(pages: pages, badges: badges), pageID: page)
     }
 
     /// An existing page ends with Delete for her; a new page, and the owner's read-only view, have none.
@@ -418,11 +417,12 @@ struct CourseFoldersTests {
         ])
         let model = try editor(server, pages: [("x1", "Exam 1", ["f1"])], page: nil)
         #expect(model.isNew)
-        #expect(model.name == "Exam 2")
+        #expect(model.name == "Page 2")
         #expect(model.line == "No folders yet")
+        #expect(!model.offersBadge, "a new page asks nothing more")
         model.toggle(try #require(model.chips.first { $0.folder.id == "f3" }))
         #expect(await model.save() == .saved("x9"))
-        #expect(String(decoding: server.requests.first?.httpBody ?? Data(), as: UTF8.self) == #"{"folderIds":["f3"],"name":"Exam 2"}"#)
+        #expect(String(decoding: server.requests.first?.httpBody ?? Data(), as: UTF8.self) == #"{"folderIds":["f3"],"name":"Page 2"}"#)
     }
 
     @Test func theEditorSavesOnlyAChangeAndSaysARefusal() async throws {
@@ -434,7 +434,7 @@ struct CourseFoldersTests {
         #expect(server.requests.isEmpty)
         model.name = "  "
         #expect(await model.save() == nil)
-        #expect(model.problem == "Exam name is required.")
+        #expect(model.problem == "Page name is required.")
         model.name = "final"
         #expect(await model.save() == nil)
         #expect(model.problem == "This course already has an exam named final.")
@@ -456,5 +456,46 @@ struct CourseFoldersTests {
         model.toggle(try #require(model.chips.first { $0.folder.id == "f3" }))
         #expect(await model.save() == .saved("x1"))
         #expect(String(decoding: server.requests.first?.httpBody ?? Data(), as: UTF8.self) == #"{"folderIds":["f2","f1","f3"],"name":"Exam 1"}"#)
+    }
+
+    /// Badge: a page that exists shows its badge, and Done sends the one she picks, or null for
+    /// None, and leaves the badge out when she did not change it.
+    @Test func theEditorSetsAndClearsThePagesBadge() async throws {
+        let server = StubServer([
+            "PUT /api/course-exams/x1": .ok(StudyBodies.courseExam("x1", "Exam 1", order: 1, weeks: [], folders: ["f1"], badge: "concept")),
+        ])
+        let model = try editor(server, pages: [("x1", "Exam 1", ["f1"])], page: "x1", badges: ["x1": "exam"])
+        #expect(model.offersBadge)
+        #expect(model.badge == .exam)
+        #expect(!model.hasChanges)
+        #expect(model.badgeChange == nil)
+        model.badge = .concept
+        #expect(model.hasChanges, "a badge alone is a change")
+        #expect(await model.save() == .saved("x1"))
+        model.badge = nil
+        #expect(await model.save() == .saved("x1"))
+        model.badge = .exam
+        model.name = "Midterm"
+        #expect(await model.save() == .saved("x1"))
+        let bodies = server.requests.map { String(decoding: $0.httpBody ?? Data(), as: UTF8.self) }
+        #expect(bodies == [
+            #"{"badge":"concept","folderIds":["f1"],"name":"Exam 1"}"#,
+            #"{"badge":null,"folderIds":["f1"],"name":"Exam 1"}"#,
+            #"{"folderIds":["f1"],"name":"Midterm"}"#,
+        ])
+    }
+
+    @Test func aPageWithNoBadgeShowsNone() throws {
+        let model = try editor(StubServer(), pages: [("x1", "Page 1", ["f1"])], page: "x1", badges: ["x1": String?.none])
+        #expect(model.offersBadge)
+        #expect(model.badge == nil)
+        #expect(model.badgeChange == nil)
+    }
+
+    /// A server before badges sends no badge field and would drop one, so Badge waits for one that does.
+    @Test func aServerBeforeBadgesIsOfferedNoBadge() throws {
+        let model = try editor(StubServer(), pages: [("x1", "Exam 1", ["f1"])], page: "x1")
+        #expect(!model.offersBadge)
+        #expect(model.badgeChange == nil)
     }
 }

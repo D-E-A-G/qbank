@@ -2,12 +2,12 @@ import QBankDesign
 import QBankKit
 import SwiftUI
 
-/// An exam page: its folders and sets, Start exam over them, its folders in her order, and the
-/// exams she took over them. Edit puts the folders in order and offers the page's name and folders.
-/// The + at the top adds into the page: a question file, a new folder, or folders she has.
-/// A topic's study page is the same screen, with its primer link when it has one. Its editor ends
-/// with Delete: the page goes to Recently deleted, and its folders stay in the course, with their
-/// sets, at the end of its Folders list.
+/// A page of a course or topic: its folders and sets, Start exam over them, its folders in her
+/// order, and the exams she took over them. Edit puts the folders in order and offers the page's
+/// name, folders and badge. The + at the top adds into the page: a question file, a new folder, or
+/// folders she has. A topic's page has its primer link when it has one. Its editor ends with
+/// Delete: the page goes to Recently deleted, and its folders stay in the course, with their sets,
+/// at the end of its Folders list.
 struct ExamPageView: View {
     let app: AppModel
     let model: CourseModel
@@ -46,7 +46,7 @@ struct ExamPageView: View {
             }
         }
         .qbankScreenBackground()
-        .navigationTitle(model.layout?.page(id)?.exam.name ?? model.words.pageTitle)
+        .navigationTitle(model.layout?.page(id)?.exam.name ?? "Page")
         .screenColumnTitle()
         .plusMenu(model.isStudent && model.layout?.page(id) != nil) {
             if let page = model.layout?.page(id) {
@@ -217,7 +217,7 @@ struct ExamPageView: View {
                 .accessibilityIdentifier("page.editPage")
             }
             if page.folders.isEmpty {
-                EmptyCard(message: model.isStudent ? "No folders on this page yet. \(model.words.addFolders)" : "No folders on this page yet.", systemImage: "folder")
+                EmptyCard(message: model.isStudent ? "No folders on this page yet. Add the folders this page covers." : "No folders on this page yet.", systemImage: "folder")
             } else {
                 FolderList(folders: page.folders, order: $order)
                 if order != nil, page.folders.count > 1 {
@@ -308,7 +308,7 @@ private enum PageSheet: String, Identifiable {
     var id: String { rawValue }
 }
 
-/// A study page's primer: the page where she wrote it up, opened in the browser. Nothing of it is
+/// A topic page's primer: the page where she wrote it up, opened in the browser. Nothing of it is
 /// shown here but where it lives.
 private struct PrimerRow: View {
     let address: String

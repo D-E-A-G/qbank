@@ -10,7 +10,7 @@ import QBankKit
 final class ExamSetupModel {
     /// The folders of one exam page, or of none, as the picker groups them.
     struct Group: Identifiable, Equatable {
-        /// The exam page's name, "On no exam page", or nil when the course's pages are not known.
+        /// The page's name, "On no page", or nil when the course's pages are not known.
         let title: String?
         let folders: [ExamSetup.Folder]
 
@@ -78,7 +78,7 @@ final class ExamSetupModel {
         let byID = Dictionary(setup.folders.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         var placed = Set<String>()
         var groups: [Group] = []
-        let loose = "On no \(words.page)"
+        let loose = "On no page"
         for (title, folders) in layout.pages.map({ ($0.exam.name, $0.folders) }) + [(loose, layout.looseFolders)] {
             let pools = folders.compactMap { byID[$0.id] }
             placed.formUnion(pools.map(\.id))
@@ -100,7 +100,7 @@ final class ExamSetupModel {
     func name(_ folder: ExamSetup.Folder) -> String {
         let all = setup?.folders ?? []
         guard all.contains(where: { $0.id != folder.id && $0.name.lowercased() == folder.name.lowercased() }) else { return folder.name }
-        let page = detail?.exams.first { $0.id == folder.examPageID }?.name ?? "no \(words.page)"
+        let page = detail?.exams.first { $0.id == folder.examPageID }?.name ?? "no page"
         return "\(folder.name) (\(page))"
     }
 

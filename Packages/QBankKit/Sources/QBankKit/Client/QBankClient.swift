@@ -404,9 +404,13 @@ public struct QBankClient: Sendable {
 
     /// Renames an exam page and replaces its folders, in the order sent, with the same refusals as
     /// `createCourseExam`. A folder taken off goes to the end of the course's Folders list. The
-    /// primer link stays as it is unless `link` says otherwise.
-    public func updateCourseExam(id: String, name: String, folderIDs: [String], link: PrimerLink = .unchanged) async throws(QBankError) -> CourseExam {
-        try await send(Request(.put, "/api/course-exams/\(id)", body: CourseExamRequest(name: name, folderIds: folderIDs, link: link)))
+    /// primer link stays as it is unless `link` says otherwise, and the badge unless `badge` is
+    /// given: `.some(nil)` takes it off.
+    public func updateCourseExam(
+        id: String, name: String, folderIDs: [String], link: PrimerLink = .unchanged, badge: PageBadge?? = nil
+    ) async throws(QBankError) -> CourseExam {
+        let body = CourseExamRequest(name: name, folderIds: folderIDs, link: link, badge: badge)
+        return try await send(Request(.put, "/api/course-exams/\(id)", body: body))
     }
 
     /// What deleting an exam page changes: the page alone goes, and its folders stay, named, with

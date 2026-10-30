@@ -17,8 +17,7 @@ final class TopicsUITests: XCTestCase {
 
         // Her course reads as it always did.
         XCTAssertTrue(app.navigationBars["NURS 310"].appears(timeout: 10))
-        XCTAssertTrue(app.staticTexts["Exam pages"].appears(timeout: 5))
-        XCTAssertFalse(app.staticTexts["Study pages"].exists)
+        XCTAssertTrue(app.staticTexts["Pages"].appears(timeout: 5))
         goBack(app, from: "NURS 310")
 
         // Home: Study topics, empty, and the +'s New study topic.
@@ -28,7 +27,7 @@ final class TopicsUITests: XCTestCase {
         chooseFromMenu(app.buttons["home.add.topic"])
         let name = app.textFields["newTopic.name"]
         XCTAssertTrue(name.appears(timeout: 5))
-        XCTAssertTrue(app.staticTexts["A topic has folders and study pages, like a course, without a semester."].exists)
+        XCTAssertTrue(app.staticTexts["A topic has folders and pages, like a course, without a semester."].exists)
         name.typeText(topic)
         attachLooks(app, "T-2 new topic")
         tapWhenStill(app.buttons["newTopic.save"])
@@ -58,17 +57,17 @@ final class TopicsUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Unsorted"].appears(timeout: 5))
         goBack(app, from: "Unsorted")
 
-        // The +'s New study page makes Page 1 with the topic's folder and its primer link.
+        // The +'s New page makes Page 1 with the topic's folder and its primer link.
         XCTAssertTrue(app.navigationBars[topic].appears(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Study pages"].appears(timeout: 5))
-        XCTAssertTrue(app.staticTexts["No study pages yet. Tap + to make Page 1."].exists)
-        XCTAssertTrue(app.staticTexts["Folders on no study page. Open one to see its sets."].exists)
+        XCTAssertTrue(app.staticTexts["Pages"].appears(timeout: 5))
+        XCTAssertTrue(app.staticTexts["No pages yet. Tap + to make Page 1."].exists)
+        XCTAssertTrue(app.staticTexts["Folders on no page. Open one to see its sets."].exists)
         attachLooks(app, "T-4 topic, a folder")
         app.buttons["course.add"].tap()
         XCTAssertTrue(app.staticTexts["Add to \(topic)"].appears(timeout: 5))
-        XCTAssertEqual(app.buttons["course.add.page"].label, "New study page")
+        XCTAssertEqual(app.buttons["course.add.page"].label, "New page")
         chooseFromMenu(app.buttons["course.add.page"])
-        XCTAssertTrue(app.navigationBars["New study page"].appears(timeout: 5))
+        XCTAssertTrue(app.navigationBars["New page"].appears(timeout: 5))
         XCTAssertEqual(app.textFields["editPage.name"].value as? String, "Page 1")
         app.buttons["editPage.chip.free.Unsorted"].tap()
         XCTAssertEqual(app.staticTexts["editPage.line"].label, "1 folder · 3 questions")
@@ -79,23 +78,23 @@ final class TopicsUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["A link has to be a web address, such as https://example.com/primer."].appears(timeout: 5))
         link.clearText()
         link.typeText("https://notes.example.com/stage-1")
-        attachLooks(app, "T-5 new study page")
+        attachLooks(app, "T-5 new page")
         app.buttons["editPage.save"].tap()
 
-        // The study page opens with its primer above Start exam.
+        // The page opens with its primer above Start exam.
         XCTAssertTrue(app.navigationBars["Page 1"].appears(timeout: 10))
         let primer = app.buttons["page.primer"]
         XCTAssertTrue(primer.appears(timeout: 5))
         XCTAssertTrue(primer.label.contains("Open the primer"), primer.label)
         XCTAssertTrue(primer.label.contains("notes.example.com"), primer.label)
         XCTAssertTrue(app.staticTexts["Exams you finish over Page 1 show up here with their scores."].exists)
-        attachLooks(app, "T-6 study page")
+        attachLooks(app, "T-6 page")
 
         // An exam over it runs as in a course, and goes back to the topic.
         app.buttons["page.startExam"].tap()
         XCTAssertTrue(app.navigationBars["Exam"].appears(timeout: 5))
         XCTAssertTrue(app.staticTexts[topic].exists, "the topic's name alone, with no code")
-        XCTAssertTrue(app.staticTexts["Page 1"].exists, "the folders by study page")
+        XCTAssertTrue(app.staticTexts["Page 1"].exists, "the folders by page")
         reveal(app.buttons["exam.start"], in: app)
         XCTAssertEqual(app.descendants(matching: .any)["exam.summary.count"].label, "3 questions, in 4.5 minutes")
         attachLooks(app, "T-7 exam setup")
@@ -108,12 +107,12 @@ final class TopicsUITests: XCTestCase {
         let back = app.buttons["examResult.back"]
         XCTAssertEqual(back.label, "Back to topic")
         back.tap()
-        // Back to the screen the exam started from, as in a course: the study page, which now
+        // Back to the screen the exam started from, as in a course: the page, which now
         // lists the exam, then the topic, which lists the page.
         XCTAssertTrue(app.navigationBars["Page 1"].appears(timeout: 10))
         let sitting = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "page.sitting.")).firstMatch
         XCTAssertTrue(sitting.appears(timeout: 5))
-        attachLooks(app, "T-8 study page, a past exam")
+        attachLooks(app, "T-8 page, a past exam")
         goBack(app, from: "Page 1")
         XCTAssertTrue(app.navigationBars[topic].appears(timeout: 5))
         XCTAssertTrue(app.buttons["course.page.Page 1"].appears(timeout: 5))
@@ -179,17 +178,5 @@ final class TopicsUITests: XCTestCase {
         reveal(renamed, in: app)
         XCTAssertTrue(app.staticTexts["Study topics"].exists)
         attachLooks(app, "T-12 home, archived")
-    }
-}
-
-private extension XCUIElement {
-    /// Deletes what the field holds, from its end.
-    func clearText() {
-        tap()
-        let current = value as? String ?? ""
-        let placeholder = placeholderValue ?? ""
-        guard !current.isEmpty, current != placeholder else { return }
-        coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).tap()
-        typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: current.count))
     }
 }

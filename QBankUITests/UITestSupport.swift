@@ -310,4 +310,15 @@ extension XCUIElement {
     func disappears(timeout: TimeInterval) -> Bool {
         !exists || waitForNonExistence(timeout: timeout)
     }
+
+    /// Deletes what the field holds, from its end.
+    @MainActor
+    func clearText() {
+        tap()
+        let current = value as? String ?? ""
+        let placeholder = placeholderValue ?? ""
+        guard !current.isEmpty, current != placeholder else { return }
+        coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).tap()
+        typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: current.count))
+    }
 }

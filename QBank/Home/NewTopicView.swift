@@ -68,7 +68,7 @@ struct NewTopicView: View {
             if let problem = model.problem {
                 ProblemText(text: problem)
             }
-            SheetHint(text: "A topic has folders and study pages, like a course, without a semester.")
+            SheetHint(text: "A topic has folders and pages, like a course, without a semester.")
         }
         .onAppear { focused = true }
         .presentationDetents([.medium, .large])
