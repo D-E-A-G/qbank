@@ -2,10 +2,11 @@ import QBankDesign
 import QBankKit
 import SwiftUI
 
-/// A course: score line, the Exam, Review and Terms tiles, then two lists, as the iPhone Files app
-/// lists things: her pages, each with its badge, and the folders on no page. Each page and each
-/// folder opens as its own screen, sharing this screen's model. A study topic is the same screen,
-/// called by its name; `Wording.words(_:)` picks what differs.
+/// A course: Rename under the title, the score line, the Exam, Review and Terms tiles, then two
+/// lists, as the iPhone Files app lists things: her pages, each with its badge, and the folders on
+/// no page. Each page and each folder opens as its own screen, sharing this screen's model. A
+/// study topic is the same screen, called by its name; `Wording.words(_:)` picks what differs.
+/// Rename changes the name only. Holding the card on Home still renames it too.
 ///
 /// The + at the top adds into the course: a question file, questions made from her material, a
 /// folder, or an exam page.
@@ -17,6 +18,8 @@ struct CourseView: View {
     /// is down.
     @State private var sheet: CourseSheet?
     @State private var opensNext: CoursePage?
+    /// The rename sheet, from Rename under the title.
+    @State private var renamesCourse = false
     /// The folders on no exam page in her order, while she edits it.
     @State private var order: [String]?
     @State private var isSavingOrder = false
@@ -77,6 +80,13 @@ struct CourseView: View {
             case .examPage(let id): ExamPageView(app: app, model: model, id: id)
             case .folder(let id): FolderView(app: app, model: model, id: id)
             case .recentlyDeleted: RecentlyDeletedView(app: app, courseID: model.id)
+            }
+        }
+        .sheet(isPresented: $renamesCourse, onDismiss: {
+            Task { await model.load() }
+        }) {
+            if let course = model.course {
+                RenameCourseView(app: app, detail: course)
             }
         }
         .sheet(item: $sheet, onDismiss: {
@@ -154,6 +164,9 @@ struct CourseView: View {
     private var content: some View {
         if let course = model.course, let ref = model.ref, let layout = model.layout {
             VStack(alignment: .leading, spacing: QBankSpacing.space4) {
+                if model.canEdit && (course.kind == .topic || course.semester != nil) {
+                    rename
+                }
                 summary(course)
                 if model.savedAt != nil {
                     OfflineBanner.showingSaved(phoneIsOnline: app.connection.isOnline)
@@ -184,6 +197,18 @@ struct CourseView: View {
         } else {
             Loading(title: "Loading the \(Wording.words(route.kind).container)")
         }
+    }
+
+    /// Rename, under the title: a course's code and name, or a topic's name. The same sheet Home
+    /// opens from holding the card.
+    private var rename: some View {
+        Button {
+            renamesCourse = true
+        } label: {
+            Label("Rename", systemImage: "pencil")
+        }
+        .buttonStyle(.qbank(.secondary, size: .small))
+        .accessibilityIdentifier("course.rename")
     }
 
     private func summary(_ course: CourseDetail) -> some View {
