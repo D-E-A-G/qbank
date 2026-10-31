@@ -2,8 +2,9 @@ import QBankDesign
 import QBankKit
 import SwiftUI
 
-/// Rename, from holding a course or topic on Home: a course's code and name, or a topic's name.
-/// Only the name changes; its folders, sets and her answers stay with it.
+/// Rename, from holding a course or topic on Home or from Rename on its own screen: a course's
+/// code and name, or a topic's name. Only the name changes; its folders, sets and her answers
+/// stay with it.
 struct RenameCourseView: View {
     private enum Model {
         case course(CourseEditModel)
@@ -24,6 +25,38 @@ struct RenameCourseView: View {
         _model = State(initialValue: course.kind == .topic
             ? .topic(TopicEditModel(catalog: catalog, id: course.id))
             : .course(CourseEditModel(catalog: catalog, id: course.id)))
+    }
+
+    /// The same sheet, opened from the course or topic screen. The fields start from the course
+    /// on screen, and a course is saved back into the semester it is already in.
+    init(app: AppModel, detail: CourseDetail) {
+        let summary = Self.summary(detail)
+        self.init(app: app, catalog: Self.catalog(detail, summary: summary), course: summary)
+    }
+
+    /// A catalog entry for the course on screen, so the fields show its name before the real
+    /// catalog is read back on save.
+    private static func summary(_ detail: CourseDetail) -> CourseSummary {
+        CourseSummary(
+            id: detail.id, kind: detail.kind, code: detail.code, title: detail.title, sortOrder: 0,
+            archivedAt: detail.archivedAt, questionCount: detail.questionCount, weekCount: detail.weekCount,
+            folderCount: detail.folderCount, reviewCount: detail.reviewCount, answeredCount: detail.answeredCount,
+            fullyRightCount: detail.fullyRightCount, points: detail.points, maxPoints: detail.maxPoints
+        )
+    }
+
+    /// Just this course, in its semester, or this topic. Saving reloads the real catalog. A course
+    /// with no semester cannot be placed, so the fields stay empty and the screen does not offer
+    /// Rename.
+    private static func catalog(_ detail: CourseDetail, summary: CourseSummary) -> Catalog {
+        guard detail.kind != .topic, let semester = detail.semester else {
+            return Catalog(semesters: [], topics: detail.kind == .topic ? [summary] : [])
+        }
+        let placed = Semester(
+            id: semester.id, number: semester.number, name: semester.name,
+            startsOn: nil, endsOn: nil, courses: [summary]
+        )
+        return Catalog(semesters: [placed])
     }
 
     var body: some View {

@@ -3,11 +3,12 @@ import QBankKit
 import SwiftUI
 
 /// A page of a course or topic: its folders and sets, Start exam over them, its folders in her
-/// order, and the exams she took over them. Edit puts the folders in order and offers the page's
-/// name, folders and badge. The + at the top adds into the page: a question file, a new folder, or
-/// folders she has. A topic's page has its primer link when it has one. Its editor ends with
-/// Delete: the page goes to Recently deleted, and its folders stay in the course, with their sets,
-/// at the end of its Folders list.
+/// order, and the exams she took over them. Edit page, under the title, opens the page's name,
+/// folders and badge. Study material's Edit puts the folders in order and still offers that
+/// editor. The + at the top adds into the page: a question file, a new folder, or folders she has.
+/// A topic's page has its primer link when it has one. Its editor ends with Delete: the page goes
+/// to Recently deleted, and its folders stay in the course, with their sets, at the end of its
+/// Folders list.
 struct ExamPageView: View {
     let app: AppModel
     let model: CourseModel
@@ -147,6 +148,9 @@ struct ExamPageView: View {
 
     private func content(_ page: ExamPage) -> some View {
         VStack(alignment: .leading, spacing: QBankSpacing.space4) {
+            if model.canEdit {
+                editPage(page)
+            }
             Text(FolderWording.pageNote(page))
                 .qbankFont(.subheadline)
                 .foregroundStyle(.qbank(.text2))
@@ -258,6 +262,19 @@ struct ExamPageView: View {
                 }
             }
         }
+    }
+
+    /// Edit page, under the title: the page's name, badge and folders. An order she has not saved
+    /// yet is saved first, the same as Name and folders.
+    private func editPage(_ page: ExamPage) -> some View {
+        Button {
+            openEditor(page)
+        } label: {
+            Label("Edit page", systemImage: "pencil")
+        }
+        .buttonStyle(.qbank(.secondary, size: .small))
+        .disabled(isSavingOrder)
+        .accessibilityIdentifier("page.editPageDirect")
     }
 
     /// The page's editor starts from its saved folders, so an order she changed is saved first. If
