@@ -86,8 +86,13 @@ final class StrikeOutUITests: XCTestCase {
         XCTAssertTrue(app.buttons["exam.end"].appears(timeout: 10))
         expectCount(app, "1 of 4")
 
-        let option = app.buttons["practice.option.1"]
-        let strike = app.buttons["practice.strike.1"]
+        // The choice shown last, D of four, found by its letter because the choices are shuffled.
+        // Back on the question, the skipped-questions notice pushes it under the bottom bar.
+        let shownLast = app.buttons.matching(NSPredicate(format: "label == %@", "Strike out D")).firstMatch
+        XCTAssertTrue(shownLast.appears(timeout: 5))
+        let original = shownLast.identifier.replacingOccurrences(of: "practice.strike.", with: "")
+        let option = app.buttons["practice.option.\(original)"]
+        let strike = app.buttons["practice.strike.\(original)"]
         tapVisible(option, in: app)
         strike.tap()
         expectStruck(option, strike)
@@ -105,6 +110,9 @@ final class StrikeOutUITests: XCTestCase {
                 XCTAssertNotEqual(other.value as? String, "Struck out", next)
             }
         }
+        // She scrolls down to it first. A tap where it sits under the bar lands on the bar's disabled
+        // Submit and continue.
+        reveal(strike, in: app)
         expectStruck(option, strike)
         attach(app, "strike, exam, back to the skipped question")
 
