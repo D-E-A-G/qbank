@@ -171,7 +171,7 @@ private struct StruckText: View {
 }
 
 /// The control at the end of a choice that strikes it out, and restores it once struck: "Strike
-/// out B", "Restore B".
+/// out B", "Restore B". The mark is an X. A struck-through S read as an unknown mark.
 private struct StrikeButton: View {
     /// The room it takes at the row's trailing edge, inset included.
     static let reserved: CGFloat = 52
@@ -184,7 +184,7 @@ private struct StrikeButton: View {
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: isStruck ? "arrow.counterclockwise" : "strikethrough")
+            Image(systemName: isStruck ? "arrow.counterclockwise" : "xmark")
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(.qbank(isStruck ? .tint : .text3))
                 .frame(width: QBankSpacing.rowMin, height: QBankSpacing.rowMin)
@@ -205,7 +205,7 @@ private struct StrikeMenuItem: View {
         if isStruck {
             Button("Restore", systemImage: "arrow.counterclockwise", action: action)
         } else {
-            Button("Strike out", systemImage: "strikethrough", action: action)
+            Button("Strike out", systemImage: "xmark", action: action)
         }
     }
 }
