@@ -2,7 +2,7 @@ import QBankDesign
 import QBankKit
 import SwiftUI
 
-/// Rename, from holding a course or topic on Home or from Rename on its own screen: a course's
+/// Rename, from holding a course or topic on Home or from More on its screen: a course's
 /// code and name, or a topic's name. Only the name changes; its folders, sets and her answers
 /// stay with it.
 struct RenameCourseView: View {

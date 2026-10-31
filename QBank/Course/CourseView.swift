@@ -2,14 +2,14 @@ import QBankDesign
 import QBankKit
 import SwiftUI
 
-/// A course: Rename under the title, the score line, the Exam, Review and Terms tiles, then two
-/// lists, as the iPhone Files app lists things: her pages, each with its badge, and the folders on
-/// no page. Each page and each folder opens as its own screen, sharing this screen's model. A
-/// study topic is the same screen, called by its name; `Wording.words(_:)` picks what differs.
-/// Rename changes the name only. Holding the card on Home still renames it too.
+/// A course: the score line, the Exam, Review and Terms tiles, then two lists, as the iPhone
+/// Files app lists things: her pages, each with its badge, and the folders on no page. Each page
+/// and each folder opens as its own screen, sharing this screen's model. A study topic is the
+/// same screen, called by its name; `Wording.words(_:)` picks what differs. Rename, in More
+/// beside +, changes the name only. Holding the card on Home still renames it too.
 ///
 /// The + at the top adds into the course: a question file, questions made from her material, a
-/// folder, or an exam page.
+/// folder, or an exam page. More, beside it, renames the course or topic.
 struct CourseView: View {
     let app: AppModel
     let route: CourseRoute
@@ -18,7 +18,7 @@ struct CourseView: View {
     /// is down.
     @State private var sheet: CourseSheet?
     @State private var opensNext: CoursePage?
-    /// The rename sheet, from Rename under the title.
+    /// The rename sheet, from More beside +.
     @State private var renamesCourse = false
     /// The folders on no exam page in her order, while she edits it.
     @State private var order: [String]?
@@ -43,10 +43,12 @@ struct CourseView: View {
         .qbankScreenBackground()
         .navigationTitle(model.course.map(Wording.name) ?? route.name ?? "Course")
         .screenColumnTitle()
-        .plusMenu(model.isStudent && model.course != nil) {
+        .courseTopBar(showsAdd: model.isStudent && model.course != nil, showsRename: showsRename) {
             if let course = model.course {
                 addMenu(course)
             }
+        } rename: {
+            renameMenu
         }
         .refreshable { await model.load() }
         .reloadsWithConnection(app) {
@@ -160,13 +162,33 @@ struct CourseView: View {
         .accessibilityIdentifier("course.add")
     }
 
+    /// Rename is offered to the student, for a topic and for a course that is in a semester.
+    /// A read-only admin does not get More. Offline, nothing here can be renamed.
+    private var showsRename: Bool {
+        guard model.isStudent, model.canEdit, let course = model.course else { return false }
+        return course.kind == .topic || course.semester != nil
+    }
+
+    /// More, beside +: Rename opens the same sheet Home opens from holding the card. The menu
+    /// has no heading. Its button is named "More for NURS 310", or "More for" a topic's title.
+    private var renameMenu: some View {
+        let name = model.course.map(Wording.name) ?? ""
+        return Menu {
+            Button("Rename", systemImage: "pencil") {
+                renamesCourse = true
+            }
+            .accessibilityIdentifier("course.rename")
+        } label: {
+            Image(systemName: "ellipsis")
+        }
+        .accessibilityLabel("More for \(name)")
+        .accessibilityIdentifier("course.more")
+    }
+
     @ViewBuilder
     private var content: some View {
         if let course = model.course, let ref = model.ref, let layout = model.layout {
             VStack(alignment: .leading, spacing: QBankSpacing.space4) {
-                if model.canEdit && (course.kind == .topic || course.semester != nil) {
-                    rename
-                }
                 summary(course)
                 if model.savedAt != nil {
                     OfflineBanner.showingSaved(phoneIsOnline: app.connection.isOnline)
@@ -197,18 +219,6 @@ struct CourseView: View {
         } else {
             Loading(title: "Loading the \(Wording.words(route.kind).container)")
         }
-    }
-
-    /// Rename, under the title: a course's code and name, or a topic's name. The same sheet Home
-    /// opens from holding the card.
-    private var rename: some View {
-        Button {
-            renamesCourse = true
-        } label: {
-            Label("Rename", systemImage: "pencil")
-        }
-        .buttonStyle(.qbank(.secondary, size: .small))
-        .accessibilityIdentifier("course.rename")
     }
 
     private func summary(_ course: CourseDetail) -> some View {
@@ -383,6 +393,53 @@ private struct ExamCover: ViewModifier {
             break
         }
         exit = nil
+    }
+}
+
+/// More and +, at the top right, while this screen is the one on screen. A toolbar menu left on
+/// a screen with another pushed over it kept the signed-in screens from going at sign-out, so
+/// signing in again brought them back as they were. The same guard as `plusMenu`. More is the
+/// first trailing item, so it sits just left of +. On iOS 26 a fixed spacer keeps each one its
+/// own circle, the same glass as the back button, instead of one shared pill.
+private struct CourseTopBar<Add: View, Rename: View>: ViewModifier {
+    let showsAdd: Bool
+    let showsRename: Bool
+    let add: Add
+    let rename: Rename
+    @State private var isOnScreen = false
+
+    func body(content: Content) -> some View {
+        content
+            .toolbar {
+                if isOnScreen {
+                    if showsRename {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            rename
+                        }
+                    }
+                    if showsRename, showsAdd, #available(iOS 26.0, *) {
+                        ToolbarSpacer(.fixed, placement: .topBarTrailing)
+                    }
+                    if showsAdd {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            add
+                        }
+                    }
+                }
+            }
+            .onAppear { isOnScreen = true }
+            .onDisappear { isOnScreen = false }
+    }
+}
+
+private extension View {
+    func courseTopBar<Add: View, Rename: View>(
+        showsAdd: Bool,
+        showsRename: Bool,
+        @ViewBuilder add: () -> Add,
+        @ViewBuilder rename: () -> Rename
+    ) -> some View {
+        modifier(CourseTopBar(showsAdd: showsAdd, showsRename: showsRename, add: add(), rename: rename()))
     }
 }
 
