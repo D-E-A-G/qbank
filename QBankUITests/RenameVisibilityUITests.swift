@@ -1,9 +1,9 @@
 import XCTest
 
 /// Rename from the screen that is already open, against the fake student of the Debug launch seam.
-/// Edit page sits under the page title and opens the page editor in one step. Rename sits under a
-/// topic's or a course's title and opens the same sheet Home opens from holding the card. Only the
-/// name changes: folders, pages, sets and past exams stay.
+/// Edit page sits under the page title and opens the page editor in one step. Rename is in More,
+/// beside + on a topic's or a course's screen, and opens the same sheet Home opens from holding
+/// the card. Only the name changes: folders, pages, sets and past exams stay.
 final class RenameVisibilityUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
@@ -77,13 +77,18 @@ final class RenameVisibilityUITests: XCTestCase {
         tapWhenStill(app.buttons["newTopic.save"])
         XCTAssertTrue(app.navigationBars[topic].appears(timeout: 10))
 
+        let more = app.buttons["course.more"]
+        XCTAssertTrue(more.appears(timeout: 5))
+        XCTAssertEqual(more.label, "More for \(topic)")
+        XCTAssertFalse(app.buttons["Rename"].isHittable, "Rename is not a row on the screen")
+        XCTAssertTrue(app.staticTexts["This topic has no question sets yet."].exists)
+        attachLooks(app, "after topic")
+
+        more.tap()
         let rename = app.buttons["course.rename"]
         XCTAssertTrue(rename.appears(timeout: 5))
         XCTAssertEqual(rename.label, "Rename")
-        XCTAssertTrue(app.staticTexts["This topic has no question sets yet."].exists)
-        attachLooks(app, "after topic, Rename")
-
-        rename.tap()
+        chooseFromMenu(rename)
         XCTAssertTrue(app.navigationBars["Rename topic"].appears(timeout: 5))
         let name = app.textFields["renameCourse.title"]
         XCTAssertEqual(name.value as? String, topic)
@@ -110,12 +115,18 @@ final class RenameVisibilityUITests: XCTestCase {
         XCTAssertTrue(summary.appears(timeout: 5))
         waitForLabel(summary, containing: "Mental Health · 86 questions · 4 folders")
 
+        let more = app.buttons["course.more"]
+        XCTAssertTrue(more.appears(timeout: 5))
+        XCTAssertEqual(more.label, "More for NURS 310")
+        XCTAssertFalse(app.buttons["Rename"].isHittable, "Rename is not a row on the screen")
+        attachLooks(app, "after course")
+
+        more.tap()
         let rename = app.buttons["course.rename"]
         XCTAssertTrue(rename.appears(timeout: 5))
         XCTAssertEqual(rename.label, "Rename")
-        attachLooks(app, "after course, Rename")
-
-        rename.tap()
+        attachLooks(app, "after course, More")
+        chooseFromMenu(rename)
         XCTAssertTrue(app.navigationBars["Rename course"].appears(timeout: 5))
         XCTAssertEqual(app.textFields["renameCourse.code"].value as? String, "NURS 310")
         let title = app.textFields["renameCourse.title"]
