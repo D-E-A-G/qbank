@@ -36,6 +36,9 @@ final class RenameVisibilityUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Edit Exam 1"].appears(timeout: 5))
         let name = app.textFields["editPage.name"]
         XCTAssertEqual(name.value as? String, "Exam 1")
+        let caption = app.staticTexts["editPage.name.caption"]
+        XCTAssertTrue(caption.exists, "Page name stays visible while the box holds a name")
+        XCTAssertEqual(caption.label, "Page name")
         XCTAssertTrue(app.buttons["editPage.chip.free.Week 1"].exists)
         XCTAssertTrue(app.buttons["editPage.chip.free.Week 2"].exists)
         name.clearAndType("First exam")
